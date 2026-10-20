@@ -1,0 +1,6 @@
+{
+  "name": "catetin",
+  "description": "Alat transkripsi audio dan video otomatis 100% lokal di browser pengguna tanpa mengirim file ke server (Zero-Cloud Privacy).",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
