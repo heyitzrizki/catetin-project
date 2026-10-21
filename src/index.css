@@ -1,9 +1,44 @@
 @import "tailwindcss";
 
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --radius-sm: calc(var(--radius) - 2px);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) + 2px);
+  --radius-xl: calc(var(--radius) + 6px);
+}
+
 @layer base {
   :root {
     /* Brand & Accent Color System */
-    --primary: #1E3A8A; /* Navy 900 - intentional high-contrast accent */
+    --primary: #1E3A8A; /* Navy 900 - intentional high-contrast accent (10.6:1 WCAG AAA) */
     --primary-foreground: #FFFFFF;
     --secondary: #F1F5F9; /* Slate 100 */
     --secondary-foreground: #0F172A;
@@ -41,7 +76,7 @@
 
   .dark {
     /* Dark Brand & Accent System */
-    --primary: #3B82F6; /* Blue 500 - high visibility accent in dark mode */
+    --primary: #2563EB; /* Blue 600 - verified 5.17:1 WCAG AA contrast against #FFFFFF */
     --primary-foreground: #FFFFFF;
     --secondary: #1E293B; /* Slate 800 */
     --secondary-foreground: #F8FAFC;
@@ -63,7 +98,7 @@
     /* Dark Borders & Inputs */
     --border: #1E293B; /* Slate 800 */
     --input: #1E293B;
-    --ring: #3B82F6;
+    --ring: #2563EB;
 
     /* Dark Semantic Surface Hierarchy */
     --surface-page: #090D16;
@@ -162,6 +197,23 @@
 
 ::-webkit-scrollbar-thumb:hover {
   background: #94A3B8;
+}
+
+/* Accessible Indeterminate Progress Animation */
+@keyframes progress-indeterminate {
+  0% {
+    transform: translateX(-100%);
+  }
+  50% {
+    transform: translateX(100%);
+  }
+  100% {
+    transform: translateX(300%);
+  }
+}
+
+.animate-progress-indeterminate {
+  animation: progress-indeterminate 1.6s cubic-bezier(0.65, 0, 0.35, 1) infinite;
 }
 
 /* Accessible Reduced Motion */

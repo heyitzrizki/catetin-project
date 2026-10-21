@@ -93,7 +93,7 @@ Semua keputusan visual dan interaksi dalam Catetin tunduk mutlak pada aturan kea
 | `--muted-foreground` | `#94A3B8` (Slate 400) | Teks sekunder dan timecode sekunder |
 | `--border` | `#1E293B` (Slate 800) | Garis pemisah panel dalam mode gelap |
 | `--input` | `#1E293B` (Slate 800) | Garis tepi kontrol input |
-| `--primary` | `#3B82F6` (Blue 500) | Aksen utama mode gelap (visibilitas tinggi) |
+| `--primary` | `#2563EB` (Blue 600) | Aksen utama mode gelap (memenuhi 5.2:1 WCAG AA vs #FFFFFF) |
 | `--primary-foreground` | `#FFFFFF` | Teks di atas warna primary gelap |
 | `--accent` | `#1E293B` (Slate 800) | Permukaan hover elemen aktif |
 | `--accent-foreground` | `#93C5FD` (Blue 300) | Teks aksen pada status terpilih |
