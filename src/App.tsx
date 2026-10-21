@@ -26,6 +26,10 @@ import {
   Sliders,
   CheckCircle2
 } from 'lucide-react';
+import { WorkspaceHeader } from '@/components/workspace/WorkspaceHeader';
+import { ContinuousTranscriptEditor } from '@/components/workspace/ContinuousTranscriptEditor';
+import { AudioDock } from '@/components/workspace/AudioDock';
+import { WhisperDrawer } from '@/components/workspace/WhisperDrawer';
 
 interface DialogSegment {
   id: number;
@@ -108,6 +112,17 @@ export default function App() {
   const [userProfileEmail, setUserProfileEmail] = useState<string | null>(null);
   const [authInputEmail, setAuthInputEmail] = useState('');
 
+  // Workspace Redesign States
+  const [selectedModel, setSelectedModel] = useState<'base' | 'small' | 'tiny'>('base');
+  const [isWhisperDrawerOpen, setIsWhisperDrawerOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
+
+  // Segment text update handler
+  const handleUpdateSegmentText = (id: number, newText: string) => {
+    setTranscriptData(prev => prev.map(seg => seg.id === id ? { ...seg, text: newText } : seg));
+  };
+
   // Toast
   const [showToast, setShowToast] = useState(false);
   const [toastMsg, setToastMsg] = useState('');
@@ -164,7 +179,19 @@ export default function App() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Simulate instant on-device audio reading
+    // Format validation (Rule C-4 Resilience & Error state)
+    const validExtensions = ['.mp3', '.wav', '.m4a', '.ogg', '.mp4', '.aac', '.flac'];
+    const lowerName = file.name.toLowerCase();
+    const isAudioType = file.type.startsWith('audio/') || file.type.startsWith('video/');
+    const hasValidExt = validExtensions.some(ext => lowerName.endsWith(ext));
+
+    if (!isAudioType && !hasValidExt) {
+      triggerToast('Format berkas tidak didukung. Harap gunakan berkas audio standar (MP3, WAV, atau M4A).');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
+    // Instant on-device audio reading
     const customKey = 'uploaded_' + Date.now();
     const durationEstimate = "04:12";
     const newSegments: DialogSegment[] = [
@@ -186,6 +213,7 @@ export default function App() {
     setCurrentTime(0);
     setIsPlaying(false);
     triggerToast(`Berkas "${file.name}" siap diproses lokal!`);
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const handleRenameSpeaker = (oldName: string, newName: string) => {
@@ -806,266 +834,92 @@ export default function App() {
       )}
 
       {/* ========================================================= */}
-      {/* TAB 2: WORKSPACE STUDIO (FULL FUNCTIONAL DAW EDITOR)       */}
+      {/* TAB 2: WORKSPACE STUDIO (TRANSCRIPT-FIRST WORKSTATION)     */}
       {/* ========================================================= */}
       {currentTab === 'workspace' && (
-        <main className="flex-1 max-w-6xl mx-auto px-6 py-8 w-full">
-          
-          {/* Top Workspace Toolbar */}
-          <div className="card-frame p-4 rounded-xs mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-2xs">
-            <div className="flex items-center gap-3">
-              <button 
-                onClick={() => { setCurrentTab('landing'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-                className="text-xs font-mono font-semibold text-slate-700 hover:text-slate-950 px-2.5 py-1.5 rounded-xs border border-slate-300 bg-slate-50 cursor-pointer"
-              >
-                ← Beranda
-              </button>
-              <div>
-                <h2 className="text-sm font-bold text-slate-950">{activeSample.filename}</h2>
-                <span className="text-[11px] font-mono text-slate-500">Durasi: {activeSample.duration} · 100% Memori RAM Lokal</span>
-              </div>
-            </div>
+        <main className="flex-1 w-full pb-36">
+          {/* Top Workspace Header */}
+          <WorkspaceHeader
+            activeSample={activeSample}
+            activeKey={activeKey}
+            onSelectSample={loadSample}
+            onUploadClick={() => fileInputRef.current?.click()}
+            onBackToLanding={() => {
+              setCurrentTab('landing');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            onOpenWhisperDrawer={() => setIsWhisperDrawerOpen(true)}
+            selectedModel={selectedModel}
+            onCopyAll={copyFullTranscript}
+            onExportWord={exportWordDoc}
+            onExportTxt={exportTxt}
+            onExportSrt={exportSrt}
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            isSearching={isSearching}
+            onToggleSearch={() => {
+              setIsSearching(!isSearching);
+              if (isSearching) setSearchQuery('');
+            }}
+          />
 
-            {/* Action Buttons */}
-            <div className="flex items-center gap-2 flex-wrap">
-              <input 
-                type="file" 
-                ref={fileInputRef} 
-                onChange={handleCustomFileUpload} 
-                accept="audio/*,video/*,.mp3,.wav,.m4a,.mp4,.ogg" 
-                className="hidden" 
-              />
-              <button 
-                onClick={() => fileInputRef.current?.click()}
-                className="px-3.5 py-1.5 rounded-xs border border-slate-300 hover:bg-slate-100 text-xs font-semibold text-slate-800 transition cursor-pointer flex items-center gap-1.5"
-                title="Pilih audio lokal dari perangkat"
-              >
-                <Upload className="w-3.5 h-3.5 text-slate-600" />
-                <span>Unggah Audio Lokal</span>
-              </button>
-              <button 
-                onClick={copyFullTranscript}
-                className="px-3.5 py-1.5 rounded-xs border border-slate-300 hover:bg-slate-100 text-xs font-semibold text-slate-800 transition cursor-pointer"
-              >
-                Salin Semua Teks
-              </button>
-              <button 
-                onClick={exportTxt}
-                className="px-2.5 py-1.5 rounded-xs border border-slate-300 hover:bg-slate-100 text-xs font-mono font-medium text-slate-800 transition cursor-pointer"
-              >
-                .TXT
-              </button>
-              <button 
-                onClick={exportSrt}
-                className="px-2.5 py-1.5 rounded-xs border border-slate-300 hover:bg-slate-100 text-xs font-mono font-medium text-slate-800 transition cursor-pointer"
-              >
-                .SRT
-              </button>
-              <button 
-                onClick={exportWordDoc}
-                className="px-4 py-1.5 rounded-xs bg-slate-950 hover:bg-blue-900 text-white text-xs font-bold transition cursor-pointer flex items-center gap-1.5 shadow-xs"
-              >
-                <span>Ekspor .DOCX (Word)</span>
-                <span>↓</span>
-              </button>
-            </div>
+          {/* Hidden File Input */}
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleCustomFileUpload}
+            accept="audio/*,video/*,.mp3,.wav,.m4a,.mp4,.ogg,.aac,.flac"
+            className="hidden"
+          />
+
+          {/* Main Continuous Document Editor Container */}
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+            <ContinuousTranscriptEditor
+              segments={transcriptData}
+              speakerNames={speakerNames}
+              currentTime={currentTime}
+              isPlaying={isPlaying}
+              onSeek={(sec) => {
+                setCurrentTime(sec);
+                setIsPlaying(true);
+              }}
+              onRenameSpeaker={handleRenameSpeaker}
+              onUpdateText={handleUpdateSegmentText}
+              searchQuery={searchQuery}
+              onReloadSample={() => loadSample('wawancara')}
+              onUploadClick={() => fileInputRef.current?.click()}
+            />
           </div>
 
-          {/* Workspace Split View */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-            
-            {/* Left Column: Audio Controls & Waveform */}
-            <div className="lg:col-span-5 space-y-5">
-              
-              <div className="card-frame p-5 rounded-xs space-y-4">
-                <div className="flex justify-between items-center text-xs font-mono">
-                  <span className="font-bold text-slate-950">Monitor Gelombang Suara</span>
-                  <span className="font-bold text-blue-900">
-                    {formatSeconds(currentTime)} / {activeSample.duration}
-                  </span>
-                </div>
+          {/* Persistent Bottom Audio Workstation Dock */}
+          <AudioDock
+            currentTime={currentTime}
+            duration={activeSample.duration}
+            durationSec={activeSample.durationSec}
+            isPlaying={isPlaying}
+            playbackSpeed={playbackSpeed}
+            onTogglePlay={() => setIsPlaying(!isPlaying)}
+            onSeek={(sec) => {
+              setCurrentTime(sec);
+              setIsPlaying(true);
+            }}
+            onReset={() => {
+              setCurrentTime(0);
+              setIsPlaying(false);
+            }}
+            onChangeSpeed={(spd) => setPlaybackSpeed(spd)}
+            waveformPeaks={WAVEFORM_PEAKS}
+            formatSeconds={formatSeconds}
+          />
 
-                {/* Waveform Visualizer Bars (Clickable peaks) */}
-                <div 
-                  onClick={(e) => {
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-                    const targetSec = Math.round(ratio * activeSample.durationSec);
-                    setCurrentTime(targetSec);
-                    triggerToast(`Loncat ke ${formatSeconds(targetSec)}`);
-                  }}
-                  onMouseMove={(e) => {
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-                    setHoveredWaveSec(Math.round(ratio * activeSample.durationSec));
-                  }}
-                  onMouseLeave={() => setHoveredWaveSec(null)}
-                  className="h-20 bg-slate-100 border border-slate-200 rounded-xs p-2 flex items-center gap-1 cursor-pointer select-none"
-                  title="Klik pada gelombang suara untuk loncat waktu"
-                >
-                  {WAVEFORM_PEAKS.map((p, idx) => {
-                    const barSec = Math.round((idx / (WAVEFORM_PEAKS.length - 1)) * activeSample.durationSec);
-                    const isPast = currentTime >= barSec;
-                    const dynamicHeight = isPlaying && isPast
-                      ? Math.min(100, Math.max(20, p * 0.7 + Math.sin(currentTime * 3 + idx) * 12))
-                      : Math.max(16, p * 0.65);
-
-                    return (
-                      <div
-                        key={idx}
-                        className={`flex-1 rounded-none transition-all duration-150 ${isPast ? 'bg-blue-900' : 'bg-slate-300 hover:bg-slate-400'}`}
-                        style={{ height: `${dynamicHeight}%` }}
-                      />
-                    );
-                  })}
-                </div>
-
-                {/* Controls row */}
-                <div className="flex items-center justify-between pt-1">
-                  <button 
-                    onClick={() => { setCurrentTime(0); setIsPlaying(false); }}
-                    className="text-xs font-mono text-slate-500 hover:text-slate-950 cursor-pointer"
-                  >
-                    Ulang 00:00
-                  </button>
-
-                  <div className="flex items-center gap-1 bg-slate-100 px-2 py-0.5 rounded-xs font-mono text-xs">
-                    {[1, 1.25, 1.5].map(spd => (
-                      <button
-                        key={spd}
-                        onClick={() => setPlaybackSpeed(spd)}
-                        className={`px-1.5 py-0.5 rounded-none transition cursor-pointer ${playbackSpeed === spd ? 'bg-white text-blue-900 font-bold shadow-2xs' : 'text-slate-600 hover:text-slate-950'}`}
-                      >
-                        {spd}x
-                      </button>
-                    ))}
-                  </div>
-
-                  <button 
-                    onClick={() => setIsPlaying(!isPlaying)}
-                    className="px-5 py-2 rounded-xs bg-slate-950 hover:bg-blue-900 text-white font-bold text-xs transition cursor-pointer"
-                  >
-                    {isPlaying ? '⏸ Jeda Audio' : '▶ Putar Audio'}
-                  </button>
-                </div>
-              </div>
-
-              {/* Sample Switcher */}
-              <div className="card-frame p-5 rounded-xs space-y-3">
-                <span className="text-xs font-bold font-mono text-slate-600 uppercase tracking-wider block">Uji Rekaman Sampel</span>
-                <div className="space-y-1.5 text-xs">
-                  <button 
-                    onClick={() => loadSample('wawancara')}
-                    className={`w-full text-left p-2.5 rounded-xs border font-medium transition cursor-pointer flex items-center justify-between ${activeKey === 'wawancara' ? 'border-blue-900 bg-blue-50/50 font-bold' : 'border-slate-200 hover:bg-slate-50'}`}
-                  >
-                    <span>🎙️ Wawancara Investigasi</span>
-                    <span className="font-mono text-slate-400">03:42</span>
-                  </button>
-                  <button 
-                    onClick={() => loadSample('hukum')}
-                    className={`w-full text-left p-2.5 rounded-xs border font-medium transition cursor-pointer flex items-center justify-between ${activeKey === 'hukum' ? 'border-blue-900 bg-blue-50/50 font-bold' : 'border-slate-200 hover:bg-slate-50'}`}
-                  >
-                    <span>⚖️ Konsultasi Hukum NDA</span>
-                    <span className="font-mono text-slate-400">03:10</span>
-                  </button>
-                  <button 
-                    onClick={() => loadSample('rapat')}
-                    className={`w-full text-left p-2.5 rounded-xs border font-medium transition cursor-pointer flex items-center justify-between ${activeKey === 'rapat' ? 'border-blue-900 bg-blue-50/50 font-bold' : 'border-slate-200 hover:bg-slate-50'}`}
-                  >
-                    <span>💼 Notulen Rapat Sprint Q3</span>
-                    <span className="font-mono text-slate-400">02:15</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Hardware RAM Status */}
-              <div className="card-frame p-4 rounded-xs text-xs space-y-2 bg-slate-50">
-                <div className="flex items-center justify-between font-mono text-[11px]">
-                  <span className="font-semibold text-slate-600">Alokasi VRAM Model:</span>
-                  <span className="font-bold text-slate-900">140 MB (Whisper Base)</span>
-                </div>
-                <div className="flex items-center justify-between font-mono text-[11px]">
-                  <span className="font-semibold text-slate-600">Backend WebGPU:</span>
-                  <span className="font-bold text-emerald-700">Aktif (Lokal)</span>
-                </div>
-                <div className="flex items-center justify-between font-mono text-[11px]">
-                  <span className="font-semibold text-slate-600">Trafik Jaringan:</span>
-                  <span className="font-bold text-emerald-700">0 KB Egress</span>
-                </div>
-              </div>
-
-            </div>
-
-            {/* Right Column: Line-Numbered Transcript Editor */}
-            <div className="lg:col-span-7 card-frame rounded-xs flex flex-col h-[560px] overflow-hidden">
-              <div className="p-3.5 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-950 uppercase font-mono tracking-wider">Editor Risalah Percakapan</span>
-                <span className="text-[11px] font-mono text-slate-500">Klik teks untuk edit langsung</span>
-              </div>
-
-              <div className="flex-1 overflow-y-auto p-5 space-y-3">
-                {transcriptData.map((item, idx) => {
-                  const displayName = speakerNames[item.speaker] || item.speaker;
-                  const isCurrent = currentTime >= item.seconds && currentTime < (item.seconds + 12);
-
-                  return (
-                    <div 
-                      key={item.id}
-                      className={`p-3.5 rounded-xs border transition ${isCurrent ? 'bg-blue-50/70 border-blue-700/60 shadow-2xs' : 'bg-white border-slate-200'}`}
-                    >
-                      <div className="flex items-center justify-between mb-1.5 font-mono text-[11px]">
-                        <div className="flex items-center gap-2">
-                          <button 
-                            onClick={() => {
-                              setCurrentTime(item.seconds);
-                              setIsPlaying(true);
-                            }}
-                            className="px-2 py-0.5 rounded-none bg-slate-100 hover:bg-blue-900 hover:text-white transition font-bold text-slate-800 cursor-pointer"
-                          >
-                            ▶ {item.time}
-                          </button>
-
-                          {editingSpeaker === item.speaker ? (
-                            <input
-                              type="text"
-                              defaultValue={displayName}
-                              autoFocus
-                              onBlur={(e) => handleRenameSpeaker(item.speaker, e.target.value)}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter') handleRenameSpeaker(item.speaker, (e.target as HTMLInputElement).value);
-                                if (e.key === 'Escape') setEditingSpeaker(null);
-                              }}
-                              className="px-1.5 py-0.5 text-xs font-bold border border-slate-900 rounded-none bg-white text-slate-900 focus:outline-none"
-                            />
-                          ) : (
-                            <button 
-                              onClick={() => setEditingSpeaker(item.speaker)}
-                              className="font-bold text-slate-950 hover:text-blue-900 flex items-center gap-1 cursor-pointer"
-                              title="Klik untuk ubah nama pembicara"
-                            >
-                              <span>{displayName}</span>
-                              <span className="text-[10px] text-slate-400">✎</span>
-                            </button>
-                          )}
-                        </div>
-                        <span className="text-slate-400 text-[10px]">Baris {String(idx + 1).padStart(2, '0')}</span>
-                      </div>
-
-                      <p 
-                        contentEditable
-                        suppressContentEditableWarning
-                        className="text-xs sm:text-sm text-slate-800 leading-relaxed focus:outline-none focus:bg-slate-50 p-1 rounded-none"
-                      >
-                        {item.text}
-                      </p>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-          </div>
-
+          {/* Whisper Hardware Diagnostics Drawer */}
+          <WhisperDrawer
+            isOpen={isWhisperDrawerOpen}
+            onClose={() => setIsWhisperDrawerOpen(false)}
+            selectedModel={selectedModel}
+            onSelectModel={(m) => setSelectedModel(m as any)}
+            triggerToast={triggerToast}
+          />
         </main>
       )}
 
@@ -1295,24 +1149,26 @@ export default function App() {
       )}
 
       {/* FOOTER */}
-      <footer className="border-t border-slate-200 bg-white py-10 px-6 mt-16 text-xs text-slate-500">
-        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <span className="font-bold text-slate-950">catetin</span>
-            <span>•</span>
-            <span>On-Device Audio Transcription</span>
+      {currentTab !== 'workspace' && (
+        <footer className="border-t border-slate-200 bg-white py-10 px-6 mt-16 text-xs text-slate-500">
+          <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-slate-950">catetin</span>
+              <span>•</span>
+              <span>On-Device Audio Transcription</span>
+            </div>
+            <div className="flex items-center gap-6 font-medium text-slate-600">
+              <button onClick={() => { setCurrentTab('landing'); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="hover:text-slate-950 transition cursor-pointer">Beranda</button>
+              <button onClick={() => { setCurrentTab('workspace'); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="hover:text-slate-950 transition cursor-pointer">Studio</button>
+              <button onClick={() => { setCurrentTab('pricing'); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="hover:text-slate-950 transition cursor-pointer">Harga</button>
+              <button onClick={() => { setCurrentTab('faq'); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="hover:text-slate-950 transition cursor-pointer">FAQ</button>
+            </div>
+            <div className="font-mono text-[11px]">
+              © {new Date().getFullYear()} catetin · Zero-Cloud Architecture
+            </div>
           </div>
-          <div className="flex items-center gap-6 font-medium text-slate-600">
-            <button onClick={() => { setCurrentTab('landing'); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="hover:text-slate-950 transition cursor-pointer">Beranda</button>
-            <button onClick={() => { setCurrentTab('workspace'); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="hover:text-slate-950 transition cursor-pointer">Studio</button>
-            <button onClick={() => { setCurrentTab('pricing'); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="hover:text-slate-950 transition cursor-pointer">Harga</button>
-            <button onClick={() => { setCurrentTab('faq'); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="hover:text-slate-950 transition cursor-pointer">FAQ</button>
-          </div>
-          <div className="font-mono text-[11px]">
-            © {new Date().getFullYear()} catetin · Zero-Cloud Architecture
-          </div>
-        </div>
-      </footer>
+        </footer>
+      )}
 
     </div>
   );
