@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Play, Edit3, Check, X, FileText, Upload, RefreshCw } from 'lucide-react';
+import { Play, Edit3, Check, X, FileText, Upload, RefreshCw, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface DialogSegment {
@@ -19,6 +19,8 @@ interface ContinuousTranscriptEditorProps {
   onRenameSpeaker: (oldName: string, newName: string) => void;
   onUpdateText: (id: number, newText: string) => void;
   searchQuery?: string;
+  activeSpeakerFilter?: string | null;
+  viewMode?: 'naskah' | 'waktu';
   onReloadSample: () => void;
   onUploadClick: () => void;
 }
@@ -32,6 +34,8 @@ export function ContinuousTranscriptEditor({
   onRenameSpeaker,
   onUpdateText,
   searchQuery = '',
+  activeSpeakerFilter = null,
+  viewMode = 'naskah',
   onReloadSample,
   onUploadClick
 }: ContinuousTranscriptEditorProps) {
@@ -50,15 +54,16 @@ export function ContinuousTranscriptEditor({
     setEditingSpeaker(null);
   };
 
-  // Filter segments by search query if present
+  // Filter segments by search query & active speaker filter
   const queryLower = searchQuery.toLowerCase().trim();
-  const filteredSegments = queryLower
-    ? segments.filter(seg => {
-        const displayName = speakerNames[seg.speaker] || seg.speaker;
-        return seg.text.toLowerCase().includes(queryLower) ||
-               displayName.toLowerCase().includes(queryLower);
-      })
-    : segments;
+  const filteredSegments = segments.filter(seg => {
+    const displayName = speakerNames[seg.speaker] || seg.speaker;
+    const matchesSpeaker = activeSpeakerFilter ? seg.speaker === activeSpeakerFilter : true;
+    const matchesQuery = queryLower
+      ? seg.text.toLowerCase().includes(queryLower) || displayName.toLowerCase().includes(queryLower)
+      : true;
+    return matchesSpeaker && matchesQuery;
+  });
 
   // Empty State (Rule C-4, R-27)
   if (segments.length === 0) {
@@ -97,65 +102,54 @@ export function ContinuousTranscriptEditor({
     );
   }
 
+  // Speaker Color Resolver to match mockup (Speaker 1 is emerald, Speaker 2 is indigo/blue, etc.)
+  const getSpeakerStyle = (speaker: string, idx: number) => {
+    const lower = speaker.toLowerCase();
+    if (lower.includes('speaker 1') || lower.includes('pewawancara') || idx % 2 === 0) {
+      return {
+        text: 'text-emerald-700 dark:text-emerald-400',
+        activeHeader: 'text-emerald-800 dark:text-emerald-300'
+      };
+    }
+    return {
+      text: 'text-indigo-800 dark:text-indigo-300',
+      activeHeader: 'text-indigo-900 dark:text-indigo-200'
+    };
+  };
+
   return (
     <article 
-      className="w-full bg-card border border-border/70 rounded-xs shadow-2xs overflow-hidden"
+      className="flex-1 w-full bg-background min-h-[520px] flex flex-col"
       aria-label="Editor Transkrip Percakapan"
     >
-      {/* Editorial Document Header Meta */}
-      <div className="px-6 py-4 border-b border-border/70 bg-muted/20 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
-        <div className="flex items-center gap-2">
-          <span className="font-mono font-bold uppercase tracking-wider text-foreground text-[11px]">
-            Naskah Risalah Percakapan
-          </span>
-          <span className="text-muted-foreground font-mono text-[11px]">
-            ({filteredSegments.length} dari {segments.length} segmen)
-          </span>
-        </div>
-        <div className="text-[11px] font-mono text-muted-foreground">
-          Klik waktu untuk loncat audio, klik teks untuk mengedit langsung
-        </div>
-      </div>
-
-      {/* Continuous Document Flow (No Enclosing Cards) */}
-      <div className="px-6 sm:px-10 py-6 divide-y divide-border/40 space-y-2">
+      {/* Continuous Document Flow */}
+      <div className="p-6 sm:p-8 space-y-6 flex-1">
         {filteredSegments.map((item, idx) => {
           const displayName = speakerNames[item.speaker] || item.speaker;
+          const speakerStyle = getSpeakerStyle(item.speaker, idx);
           
           // Determine if this segment is actively being played
           const nextSegment = segments[idx + 1];
           const isCurrent = currentTime >= item.seconds && 
             (nextSegment ? currentTime < nextSegment.seconds : currentTime < item.seconds + 12);
 
+          // If text is not quoted, wrap in quotation marks just like the mockup
+          const displayText = item.text.startsWith('"') ? item.text : `"${item.text}"`;
+
           return (
             <section
               key={item.id}
               id={`segment-${item.id}`}
-              className={`py-4 transition-colors duration-150 ${
+              className={`transition-colors duration-150 ${
                 isCurrent 
-                  ? 'border-l-2 border-primary bg-primary/5 dark:bg-primary/10 pl-4 -ml-4 pr-3 rounded-none' 
-                  : 'pl-0 hover:bg-muted/15'
+                  ? 'bg-blue-50/50 dark:bg-blue-950/20 border-l-[3px] border-blue-600 pl-4 py-3 -ml-4 pr-3 rounded-r-xs' 
+                  : 'py-2 hover:bg-muted/15 pl-4 -ml-4 pr-3 rounded-r-xs'
               }`}
             >
               {/* Speaker & Timestamp Line */}
               <div className="flex items-center justify-between gap-4 mb-2 font-mono text-xs">
                 
-                <div className="flex items-center gap-2.5 flex-wrap">
-                  {/* Timestamp Play Jump Button */}
-                  <button
-                    onClick={() => onSeek(item.seconds)}
-                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-none font-bold text-[11px] transition cursor-pointer select-none ${
-                      isCurrent
-                        ? 'bg-primary text-primary-foreground shadow-2xs'
-                        : 'bg-muted text-muted-foreground hover:bg-primary/15 hover:text-primary'
-                    }`}
-                    title={`Loncat ke detik ${item.seconds} dan putar`}
-                    aria-label={`Loncat audio ke waktu ${item.time}`}
-                  >
-                    <Play className="w-2.5 h-2.5 fill-current" />
-                    <span>{item.time}</span>
-                  </button>
-
+                <div className="flex items-center gap-2 flex-wrap">
                   {/* Speaker Name with Inline Editing */}
                   {editingSpeaker === item.speaker ? (
                     <div className="inline-flex items-center gap-1">
@@ -190,48 +184,72 @@ export function ContinuousTranscriptEditor({
                   ) : (
                     <button
                       onClick={() => startRename(item.speaker, displayName)}
-                      className="font-bold text-foreground hover:text-primary transition flex items-center gap-1.5 cursor-pointer text-left group"
+                      className={`font-bold transition flex items-center gap-1.5 cursor-pointer text-left group ${
+                        isCurrent ? speakerStyle.activeHeader : speakerStyle.text
+                      }`}
                       title="Klik untuk mengubah nama pembicara di semua segmen"
                     >
-                      <span className="font-semibold text-xs tracking-tight text-foreground group-hover:text-primary">
+                      <span className="font-semibold text-sm tracking-tight">
                         {displayName}
                       </span>
-                      <Edit3 className="w-3 h-3 text-muted-foreground opacity-50 group-hover:opacity-100 transition" />
+                      <Edit3 className="w-3 h-3 text-muted-foreground opacity-30 group-hover:opacity-100 transition" />
                     </button>
                   )}
                 </div>
 
-                {/* Line Index */}
-                <span className="text-[10px] font-mono text-muted-foreground select-none shrink-0">
-                  Baris {String(idx + 1).padStart(2, '0')}
-                </span>
+                {/* Right: Timestamp with seek action */}
+                <button
+                  type="button"
+                  onClick={() => onSeek(item.seconds)}
+                  className={`font-mono text-xs transition cursor-pointer select-none px-1.5 py-0.5 rounded-xs flex items-center gap-1 ${
+                    isCurrent
+                      ? 'text-primary font-bold bg-primary/10'
+                      : 'text-muted-foreground hover:text-primary hover:bg-muted'
+                  }`}
+                  title={`Loncat ke waktu ${item.time}`}
+                  aria-label={`Loncat audio ke ${item.time}`}
+                >
+                  <Play className={`w-2.5 h-2.5 ${isCurrent ? 'fill-current' : 'opacity-60'}`} />
+                  <span>{item.time}</span>
+                </button>
 
               </div>
 
-              {/* Editable Dialogue Text (Document Measure) */}
+              {/* Dialogue Text (Document Measure) */}
               <div className="text-sm text-foreground/90 leading-relaxed font-sans focus-within:ring-1 focus-within:ring-primary/40 rounded-none p-1 -m-1">
                 <p
                   contentEditable
                   suppressContentEditableWarning
-                  onBlur={(e) => onUpdateText(item.id, e.currentTarget.textContent || '')}
-                  className="focus:outline-none min-h-[1.5em]"
+                  onBlur={(e) => {
+                    const cleaned = (e.currentTarget.textContent || '').replace(/^"|"$/g, '');
+                    onUpdateText(item.id, cleaned);
+                  }}
+                  className="focus:outline-none min-h-[1.5em] text-slate-800 dark:text-slate-200"
                   tabIndex={0}
                   role="textbox"
                   aria-multiline="true"
-                  aria-label={`Teks perkataan ${displayName}`}
+                  aria-label={`Teks percakapan ${displayName}`}
                 >
-                  {item.text}
+                  {displayText}
                 </p>
               </div>
+
+              {/* Optional Segmen Waktu Info Badge */}
+              {viewMode === 'waktu' && (
+                <div className="mt-2 pt-2 border-t border-border/40 flex items-center justify-between text-[10px] font-mono text-muted-foreground">
+                  <span>Segmen #{String(item.id).padStart(2, '0')}</span>
+                  <span>Mulai: {item.time} ({item.seconds} detik)</span>
+                </div>
+              )}
 
             </section>
           );
         })}
 
         {/* Empty filter message */}
-        {filteredSegments.length === 0 && queryLower && (
+        {filteredSegments.length === 0 && (
           <div className="py-12 text-center text-xs text-muted-foreground font-mono">
-            Tidak ada segmen transkrip yang cocok dengan kata kunci &quot;{searchQuery}&quot;.
+            Tidak ada segmen transkrip yang cocok dengan kriteria filter saat ini.
           </div>
         )}
 

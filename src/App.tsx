@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { WorkspaceHeader } from '@/components/workspace/WorkspaceHeader';
 import { ContinuousTranscriptEditor } from '@/components/workspace/ContinuousTranscriptEditor';
+import { ContextualUtilityPanel } from '@/components/workspace/ContextualUtilityPanel';
 import { AudioDock } from '@/components/workspace/AudioDock';
 import { WhisperDrawer } from '@/components/workspace/WhisperDrawer';
 
@@ -117,6 +118,8 @@ export default function App() {
   const [isWhisperDrawerOpen, setIsWhisperDrawerOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
+  const [workspaceViewMode, setWorkspaceViewMode] = useState<'naskah' | 'waktu'>('naskah');
+  const [activeSpeakerFilter, setActiveSpeakerFilter] = useState<string | null>(null);
 
   // Segment text update handler
   const handleUpdateSegmentText = (id: number, newText: string) => {
@@ -837,61 +840,92 @@ export default function App() {
       {/* TAB 2: WORKSPACE STUDIO (TRANSCRIPT-FIRST WORKSTATION)     */}
       {/* ========================================================= */}
       {currentTab === 'workspace' && (
-        <main className="flex-1 w-full pb-36">
-          {/* Top Workspace Header */}
-          <WorkspaceHeader
-            activeSample={activeSample}
-            activeKey={activeKey}
-            onSelectSample={loadSample}
-            onUploadClick={() => fileInputRef.current?.click()}
-            onBackToLanding={() => {
-              setCurrentTab('landing');
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-            }}
-            onOpenWhisperDrawer={() => setIsWhisperDrawerOpen(true)}
-            selectedModel={selectedModel}
-            onCopyAll={copyFullTranscript}
-            onExportWord={exportWordDoc}
-            onExportTxt={exportTxt}
-            onExportSrt={exportSrt}
-            searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
-            isSearching={isSearching}
-            onToggleSearch={() => {
-              setIsSearching(!isSearching);
-              if (isSearching) setSearchQuery('');
-            }}
-          />
-
-          {/* Hidden File Input */}
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleCustomFileUpload}
-            accept="audio/*,video/*,.mp3,.wav,.m4a,.mp4,.ogg,.aac,.flac"
-            className="hidden"
-          />
-
-          {/* Main Continuous Document Editor Container */}
-          <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
-            <ContinuousTranscriptEditor
-              segments={transcriptData}
-              speakerNames={speakerNames}
-              currentTime={currentTime}
-              isPlaying={isPlaying}
-              onSeek={(sec) => {
-                setCurrentTime(sec);
-                setIsPlaying(true);
-              }}
-              onRenameSpeaker={handleRenameSpeaker}
-              onUpdateText={handleUpdateSegmentText}
-              searchQuery={searchQuery}
-              onReloadSample={() => loadSample('wawancara')}
+        <main className="flex-1 w-full pb-32 pt-4 px-2 sm:px-6">
+          {/* Workstation Application Shell Frame matching Mockup */}
+          <div className="max-w-7xl mx-auto bg-card border border-border/80 rounded-sm shadow-sm overflow-hidden flex flex-col">
+            
+            {/* Window Chrome Header Bar with orange/green dots & LOCAL RAM BUFFER */}
+            <WorkspaceHeader
+              activeSample={activeSample}
+              activeKey={activeKey}
+              onSelectSample={loadSample}
               onUploadClick={() => fileInputRef.current?.click()}
+              onBackToLanding={() => {
+                setCurrentTab('landing');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              onOpenWhisperDrawer={() => setIsWhisperDrawerOpen(true)}
+              selectedModel={selectedModel}
+              onCopyAll={copyFullTranscript}
+              onExportWord={exportWordDoc}
+              onExportTxt={exportTxt}
+              onExportSrt={exportSrt}
+              searchQuery={searchQuery}
+              onSearchChange={setSearchQuery}
+              isSearching={isSearching}
+              onToggleSearch={() => {
+                setIsSearching(!isSearching);
+                if (isSearching) setSearchQuery('');
+              }}
             />
+
+            {/* Hidden File Input */}
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleCustomFileUpload}
+              accept="audio/*,video/*,.mp3,.wav,.m4a,.mp4,.ogg,.aac,.flac"
+              className="hidden"
+            />
+
+            {/* Workstation 2-Column Core: Dominant Editor on Left, Contextual Panel on Right */}
+            <div className="flex flex-col lg:flex-row flex-1 divide-y lg:divide-y-0 lg:divide-x divide-border/80 min-h-[580px]">
+              
+              {/* Dominant Transcript Editing Pane */}
+              <div className="flex-1 min-w-0 bg-background overflow-y-auto">
+                <ContinuousTranscriptEditor
+                  segments={transcriptData}
+                  speakerNames={speakerNames}
+                  currentTime={currentTime}
+                  isPlaying={isPlaying}
+                  onSeek={(sec) => {
+                    setCurrentTime(sec);
+                    setIsPlaying(true);
+                  }}
+                  onRenameSpeaker={handleRenameSpeaker}
+                  onUpdateText={handleUpdateSegmentText}
+                  searchQuery={searchQuery}
+                  activeSpeakerFilter={activeSpeakerFilter}
+                  viewMode={workspaceViewMode}
+                  onReloadSample={() => loadSample('wawancara')}
+                  onUploadClick={() => fileInputRef.current?.click()}
+                />
+              </div>
+
+              {/* Narrow Contextual Utility Panel on the Right */}
+              <ContextualUtilityPanel
+                viewMode={workspaceViewMode}
+                onChangeViewMode={setWorkspaceViewMode}
+                selectedModel={selectedModel}
+                onOpenWhisperDrawer={() => setIsWhisperDrawerOpen(true)}
+                segments={transcriptData}
+                speakerNames={speakerNames}
+                activeSpeakerFilter={activeSpeakerFilter}
+                onSelectSpeakerFilter={setActiveSpeakerFilter}
+                onExportWord={exportWordDoc}
+                onExportSrt={exportSrt}
+                onExportTxt={exportTxt}
+                onCopyAll={copyFullTranscript}
+                currentTime={currentTime}
+                duration={activeSample.duration}
+                formatSeconds={formatSeconds}
+              />
+
+            </div>
+
           </div>
 
-          {/* Persistent Bottom Audio Workstation Dock */}
+          {/* Persistent Bottom Audio Workstation Transport Dock */}
           <AudioDock
             currentTime={currentTime}
             duration={activeSample.duration}

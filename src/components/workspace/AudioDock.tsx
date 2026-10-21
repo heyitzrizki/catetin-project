@@ -12,7 +12,7 @@ interface AudioDockProps {
   onSeek: (seconds: number) => void;
   onReset: () => void;
   onChangeSpeed: (speed: number) => void;
-  waveformPeaks: number[];
+  waveformPeaks?: number[];
   formatSeconds: (sec: number) => string;
 }
 
@@ -26,154 +26,137 @@ export function AudioDock({
   onSeek,
   onReset,
   onChangeSpeed,
-  waveformPeaks,
+  waveformPeaks = [],
   formatSeconds
 }: AudioDockProps) {
   const [hoveredSec, setHoveredSec] = useState<number | null>(null);
 
-  const handleWaveformClick = (e: React.MouseEvent<HTMLDivElement>) => {
+  const handleTimelineClick = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
     const targetSec = Math.round(ratio * durationSec);
     onSeek(targetSec);
   };
 
-  const handleWaveformMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+  const handleTimelineMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
     setHoveredSec(Math.round(ratio * durationSec));
   };
 
   const speeds = [1, 1.25, 1.5];
+  const progressRatio = durationSec > 0 ? Math.min(100, Math.max(0, (currentTime / durationSec) * 100)) : 0;
 
   return (
     <footer 
-      className="fixed bottom-0 left-0 right-0 z-40 bg-card/95 backdrop-blur-md border-t border-border shadow-xl select-none"
+      className="fixed bottom-0 left-0 right-0 z-40 bg-card/95 backdrop-blur-md border-t border-border shadow-lg select-none"
       role="region"
       aria-label="Pusat Kontrol Pemutar Audio"
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3">
-        <div className="flex flex-col md:flex-row md:items-center gap-3 md:gap-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-2.5">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
           
-          {/* Main Play & Replay Controls */}
-          <div className="flex items-center justify-between md:justify-start gap-3 shrink-0">
-            {/* Play/Pause Button (min 44px touch target) */}
-            <Button
-              variant="default"
+          {/* Left: Square Play/Pause + Time Readout */}
+          <div className="flex items-center gap-3 shrink-0">
+            {/* Solid Dark Square Button (min 44px hit-box) */}
+            <button
+              type="button"
               onClick={onTogglePlay}
-              className="h-11 min-w-[120px] rounded-xs font-bold text-xs bg-primary text-primary-foreground hover:bg-primary/90 shadow-xs cursor-pointer flex items-center justify-center gap-2"
+              className="w-11 h-11 sm:w-10 sm:h-10 bg-slate-950 dark:bg-primary text-white dark:text-primary-foreground hover:bg-slate-800 dark:hover:bg-primary/90 rounded-xs flex items-center justify-center cursor-pointer shadow-xs transition-colors focus:outline-none focus:ring-2 focus:ring-primary"
               aria-label={isPlaying ? 'Jeda audio' : 'Putar audio'}
             >
               {isPlaying ? (
-                <>
-                  <Pause className="w-4 h-4 fill-current" />
-                  <span>Jeda Audio</span>
-                </>
+                <Pause className="w-4 h-4 fill-current" />
               ) : (
-                <>
-                  <Play className="w-4 h-4 fill-current" />
-                  <span>Putar Audio</span>
-                </>
+                <Play className="w-4 h-4 fill-current ml-0.5" />
               )}
-            </Button>
+            </button>
 
-            {/* Reset to 00:00 Button */}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onReset}
-              className="h-11 px-3 rounded-xs text-xs font-mono text-muted-foreground hover:text-foreground border-border"
-              title="Kembalikan pemutaran ke awal (00:00)"
-              aria-label="Ulang dari awal"
-            >
-              <RotateCcw className="w-3.5 h-3.5 mr-1" />
-              <span className="hidden sm:inline">Ulang 00:00</span>
-              <span className="sm:hidden">00:00</span>
-            </Button>
-
-            {/* Mobile Time readout */}
-            <div className="md:hidden font-mono text-xs font-bold text-primary">
-              {formatSeconds(currentTime)} / {duration}
+            {/* Time Readout: 00:15 / 03:42 */}
+            <div className="font-mono text-xs font-semibold text-foreground shrink-0 min-w-[90px]">
+              <span>{formatSeconds(currentTime)}</span>
+              <span className="text-muted-foreground mx-1">/</span>
+              <span className="text-muted-foreground">{duration}</span>
             </div>
           </div>
 
-          {/* Center: Waveform Scrubber & Desktop Time Readout */}
-          <div className="flex-1 flex flex-col justify-center space-y-1 min-w-0">
-            <div className="flex items-center justify-between text-[11px] font-mono">
-              <span className="text-muted-foreground">
-                Garis Waktu Gelombang Suara (Klik untuk loncat)
-              </span>
-              <div className="hidden md:flex items-center gap-2 font-bold">
-                {hoveredSec !== null && (
-                  <span className="text-muted-foreground font-normal">
-                    Loncat ke: {formatSeconds(hoveredSec)}
-                  </span>
-                )}
-                <span className="text-primary font-mono">
-                  {formatSeconds(currentTime)} / {duration}
-                </span>
-              </div>
-            </div>
-
-            {/* Interactive Waveform Bar */}
+          {/* Center: Linear Scrubber Timeline */}
+          <div className="flex-1 flex flex-col justify-center py-1">
             <div
-              onClick={handleWaveformClick}
-              onMouseMove={handleWaveformMouseMove}
+              className="relative w-full h-4 flex items-center cursor-pointer group"
+              onClick={handleTimelineClick}
+              onMouseMove={handleTimelineMouseMove}
               onMouseLeave={() => setHoveredSec(null)}
-              className="h-8 bg-muted/40 hover:bg-muted/70 border border-border/80 rounded-xs px-2 flex items-center gap-1 cursor-pointer transition-colors"
-              title="Klik pada visualisator untuk memajukan atau memundurkan audio"
               role="slider"
-              aria-label="Penggeser posisi waktu audio"
+              aria-label="Garis penelusuran waktu rekaman"
               aria-valuemin={0}
               aria-valuemax={durationSec}
               aria-valuenow={currentTime}
             >
-              {waveformPeaks.map((p, idx) => {
-                const barSec = Math.round((idx / (waveformPeaks.length - 1)) * durationSec);
-                const isPast = currentTime >= barSec;
-                const dynamicHeight = isPlaying && isPast
-                  ? Math.min(100, Math.max(25, p * 0.7 + Math.sin(currentTime * 3 + idx) * 12))
-                  : Math.max(20, p * 0.65);
+              {/* Background Track */}
+              <div className="w-full h-1.5 bg-slate-200 dark:bg-muted rounded-full overflow-hidden">
+                {/* Active Played Track */}
+                <div 
+                  className="h-full bg-blue-600 transition-[width] duration-75"
+                  style={{ width: `${progressRatio}%` }}
+                />
+              </div>
 
-                return (
-                  <div
-                    key={idx}
-                    className={`flex-1 rounded-none transition-all duration-100 ${
-                      isPast 
-                        ? 'bg-primary dark:bg-primary' 
-                        : 'bg-muted-foreground/30 hover:bg-muted-foreground/50'
-                    }`}
-                    style={{ height: `${dynamicHeight}%` }}
-                  />
-                );
-              })}
+              {/* Scrubber Thumb */}
+              <div 
+                className="absolute w-3 h-3 bg-blue-600 border border-white dark:border-slate-900 rounded-full shadow-xs -ml-1.5 transition-[left] duration-75 group-hover:scale-125"
+                style={{ left: `${progressRatio}%` }}
+              />
+
+              {/* Hover Tooltip */}
+              {hoveredSec !== null && (
+                <div 
+                  className="absolute bottom-5 -translate-x-1/2 px-1.5 py-0.5 bg-popover text-popover-foreground border border-border rounded-xs text-[10px] font-mono shadow-xs pointer-events-none"
+                  style={{ left: `${(hoveredSec / durationSec) * 100}%` }}
+                >
+                  {formatSeconds(hoveredSec)}
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Right: Playback Speed Switcher */}
-          <div className="flex items-center justify-between md:justify-end gap-2 shrink-0 pt-1 md:pt-0">
-            <span className="text-[11px] font-mono text-muted-foreground md:hidden">
-              Kecepatan:
-            </span>
-            <div 
-              className="inline-flex items-center bg-muted/60 border border-border/80 rounded-xs p-0.5 font-mono text-xs"
-              role="group"
-              aria-label="Pilihan kecepatan pemutaran"
+          {/* Right: Reset, Speed Controls, Inference Tag */}
+          <div className="flex items-center justify-between sm:justify-end gap-2.5 shrink-0">
+            {/* Reset to 00:00 */}
+            <button
+              type="button"
+              onClick={onReset}
+              className="h-9 px-2.5 rounded-xs text-xs font-mono text-muted-foreground hover:text-foreground border border-border/60 hover:bg-muted transition cursor-pointer flex items-center gap-1"
+              title="Kembalikan ke 00:00"
+              aria-label="Kembalikan pemutaran ke awal"
             >
+              <RotateCcw className="w-3 h-3" />
+              <span>00:00</span>
+            </button>
+
+            {/* Playback Speeds */}
+            <div className="flex items-center border border-border/60 rounded-xs overflow-hidden bg-background">
               {speeds.map(spd => (
                 <button
                   key={spd}
+                  type="button"
                   onClick={() => onChangeSpeed(spd)}
-                  className={`px-2 py-1 rounded-none text-xs transition cursor-pointer select-none ${
+                  className={`px-2 py-1 text-xs font-mono transition cursor-pointer ${
                     playbackSpeed === spd
-                      ? 'bg-card text-primary font-bold shadow-2xs border border-border/40'
-                      : 'text-muted-foreground hover:text-foreground'
+                      ? 'bg-primary text-primary-foreground font-bold'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted'
                   }`}
-                  aria-pressed={playbackSpeed === spd}
+                  aria-label={`Kecepatan ${spd}x`}
                 >
                   {spd}x
                 </button>
               ))}
+            </div>
+
+            {/* Micro Inference Tag */}
+            <div className="hidden lg:flex items-center gap-1 text-[11px] font-mono text-emerald-700 dark:text-emerald-400 font-semibold pl-2 border-l border-border/60">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+              <span>100% On-Device</span>
             </div>
           </div>
 
