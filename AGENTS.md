@@ -1,0 +1,71 @@
+# Repository Guidelines & Anti-Slop Engineering Rules
+> Source: miqdadbadjuber/anti-slop
+> Tujuan: Menjamin UI & UX dirancang dengan standar keahlian perancang manusia profesional (crafted by a designer) dan bebas dari klise template AI generik (anti-AI slop).
+
+---
+
+## 1. The Craftsmanship Standard (Standar Keahlian)
+
+- **C-1 Intentionality (Niat & Alasan Jelas):** Setiap keputusan visual dan copy teks memiliki alasan yang bisa diartikulasikan. Jika satu-satunya alasan adalah "karena default template AI", keputusan tersebut wajib diubah.
+- **C-2 Functional Completeness (Fungsionalitas Lengkap):** Setiap elemen interaktif (tombol, tab, modal, dropdown) WAJIB berfungsi nyata atau dihapus sama sekali. DILARANG membuat tombol dummy yang tidak melakukan apa-apa.
+- **C-3 Content-Driven Composition (Tata Letak Berbasis Konten):** Setiap bagian layout ada karena kebutuhan konten produk, bukan sekadar mengisi template standar AI.
+- **C-4 Resilience (Ketahanan UI):** Tampilan harus siap di setiap kondisi: keadaan kosong (empty state), memuat (loading state), gagal (error state), dan responsif sempurna di perangkat mobile/tablet/desktop.
+- **C-5 Evidence Over Claims (Fakta Nyata):** Dilarang mencantumkan statistik, testimoni, atau klaim palsu. Lebih baik sederhana daripada menipu pengguna.
+
+---
+
+## 2. Hard Gate Rules (Mutlak & Tanpa Pengecualian)
+
+- **R-02 Copywriting:** DILARANG menggunakan karakter em dash (`—`) dalam teks UI/antarmuka yang ditulis AI. Gunakan koma (`,`), titik (`.`), titik dua (`:`), atau tanda kurung `()`. Teks harus terasa alami, percaya diri, dan manusiawi.
+- **R-03 Mobile Responsiveness:** Layout mobile wajib nyaman digunakan. Tidak ada teks terpotong, kartu off-screen, atau horizontal overflow. Target sentuh tombol minimal 44px.
+- **R-17 Data & Numbers:** DILARANG menampilkan angka atau statistik fiktif ("10k+ users", "99.9% uptime" tanpa sumber nyata).
+- **R-18 Testimonials:** DILARANG membuat testimoni fiktif dengan avatar AI acak. Gunakan bukti nyata atau hilangkan seksi testimoni jika belum ada data riil.
+- **R-23 Visual Assets:** Jangan membuat logo atau foto orang dengan asumsi seolah-olah itu versi final. Gunakan teks wordmark bersih atau placeholder yang jujur.
+- **R-24 Navigation:** DILARANG menaruh tautan navbar yang mengarah ke halaman/seksi yang tidak ada (*ghost links*). Seluruh item navigasi harus memiliki tujuan nyata.
+- **R-25 Color Contrast:** Wajib memenuhi standar WCAG AA (kontras minimal 4.5:1 untuk teks normal dan 3:1 untuk teks besar). Dilarang teks abu-abu muda di atas latar abu-abu atau teks putih di atas gradien terang.
+- **R-26 Interactive Elements:** Setiap tombol dan link harus memiliki aksi nyata (navigasi, buka modal, salin teks, unduh berkas, ganti tab, atau submit formulir).
+- **R-27 UI States:** Setiap komponen yang menampilkan data harus memiliki 3 status: *Empty state*, *Loading state*, dan *Error state*.
+- **R-28 FAQ:** DILARANG menggunakan pertanyaan FAQ template generik. Setiap pertanyaan wajib menjawab kekhawatiran spesifik pengguna produk tersebut.
+- **R-32 Keyboard Accessibility:** Seluruh tombol dan kontrol dapat diakses dengan keyboard (`Tab`, `Enter`, `Space`, `Escape` untuk menutup modal), dengan indikator fokus yang jelas.
+- **R-33 No Script Patching:** Bangun fitur langsung di dalam kode sumber (React/CSS/TSX), bukan melalui script pengganti teks eksternal.
+- **R-34 Theme Functionality:** Jika menyediakan mode gelap/terang, kedua mode wajib berfungsi penuh dengan kontras yang terverifikasi.
+- **R-35 Verification Before Delivery:** Wajib menguji dan memverifikasi setiap tombol dan interaksi sebelum menyelesaikan tugas.
+- **R-36 No Fabricated Claims:** Dilarang mengarang sertifikasi keamanan (misal "SOC 2" atau "ISO 27001") jika tidak ada bukti nyata.
+- **R-37 Design Direction Required:** Tentukan karakter, palet warna, tipografi, dan suasana desain secara sadar sebelum menyusun UI.
+- **R-38 Real Content or Honest Placeholder:** Konten wajib berasal dari informasi nyata atau placeholder yang jujur (misal label "Segera hadir" atau `[DATA RIIL]`).
+
+---
+
+## 3. Purpose-Gate Rules (Teknik Boleh Digunakan, Wajib Ada Tujuan Jelas)
+
+- **R-01 Color & Gradients:** Hindari gradien generik ungu-biru atau neon tanpa tujuan hierarki. Gradien hanya digunakan jika menjadi identitas brand atau pembeda hierarki visual.
+- **R-04 Icons:** Ikon harus relevan dengan konten yang diwakilinya, bukan sekadar ornamen hiasan klise (seperti bintang/sparkle/magic di sembarang tempat).
+- **R-06 Typography:** Tipografi harus meningkatkan keterbacaan dan mencerminkan karakter produk, bukan sekadar menggunakan font default AI tanpa pertimbangan.
+- **R-07 Background:** Pola latar belakang (grid/dot/tekstur) hanya digunakan secara halus untuk mendukung identitas visual produk, bukan ornamen yang mengganggu keterbacaan.
+- **R-08 Button Arrows:** Tidak semua tombol membutuhkan tanda panah (`→` / `↗`). Gunakan hanya jika menandakan navigasi keluar atau perpindahan alur.
+- **R-09 Badges:** Gunakan badge hanya jika ada status fungsi nyata (misal: "Aktif", "Pro", "Offline"), bukan sekadar pemanis kapsul.
+- **R-10 Glassmorphism:** Efek kaca/blur hanya sebagai aksen pada maksimal 1-2 elemen (misal: navbar sticky), jangan diterapkan ke seluruh kartu sekaligus.
+- **R-12 & R-13 Shadow & Glow:** Bayangan dan pendaran cahaya (*glow*) digunakan selektif untuk menandai elevasi atau fokus utama, bukan membuat semua elemen melayang.
+- **R-14 Feature Cards:** Hindari kartu fitur seragam yang monoton (*copy-paste cards*). Buat variasi visual yang mencerminkan hierarki kepentingan konten.
+- **R-19 Animations:** Animasi wajib memiliki tujuan UX (mengarahkan perhatian pengguna, transisi halus, umpan balik interaksi), bukan sekadar efek berlebihan.
+
+---
+
+## 4. Quality Locks & Anti-Slop Patterns (Pola yang Harus Dihindari)
+
+- **R-05 Layout:** Hindari template tata letak monoton khas AI (Hero + 3 kartu + 3 kolom harga + footer 4 kolom template). Bangun struktur berbasis alur narasi produk.
+- **R-11 Border Radius:** Gunakan radius sudut yang konsisten. Jangan membuat semua elemen menjadi bentuk pil (*pill overload*).
+- **R-15 CTAs:** Gunakan teks ajakan aksi yang spesifik dengan konteks ("Buka Studio Transkrip", "Pilih Berkas Audio") alih-alih kata generik seperti "Get Started" atau "Explore".
+- **R-16 Anti-Buzzwords:** Hindari kata-kata bualan AI generik seperti: *"AI-Powered"*, *"Revolutionary"*, *"Seamless"*, *"Cutting-Edge"*, *"Next Generation"*. Jelaskan manfaat nyata dan cara kerjanya secara konkret.
+- **R-29 Color Palette:** Batasi palet warna aktif: 2-3 warna inti + 1 warna aksen terarah.
+- **R-30 Original Identity:** Jangan meniru mentah-mentah tampilan produk populer (Linear/Vercel/Stripe) tanpa identitas unik sendiri.
+- **R-31 One-Line Reason:** Setiap keputusan desain utama (warna, layout, tipografi) harus memiliki alasan 1 baris yang jelas.
+
+---
+
+## 5. Liveliness Toolkit (3 Dials Pengatur Karakter UI)
+
+Setiap halaman mengatur 3 tingkat dial secara konsisten:
+1. **ENERGY (1 = Tenang, 2 = Seimbang, 3 = Berani):** Seberapa vokal dan tegas kepribadian visual produk.
+2. **RHYTHM (1 = Seragam, 2 = Teratur dengan variasi, 3 = Asimetris dinamis):** Seberapa bervariasi susunan antar bagian seksi.
+3. **MOTION (1 = Mikro-hover saja, 2 = Transisi & reveal halus, 3 = Koreografi sinematik):** Intensitas pergerakan antarmuka.
