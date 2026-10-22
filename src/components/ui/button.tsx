@@ -24,10 +24,10 @@ const buttonVariants = cva(
           "bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 active:scale-[0.99]",
       },
       size: {
-        default: "h-9 px-4 py-2",
-        sm: "h-8 rounded-md px-3 text-xs",
-        lg: "h-10 rounded-md px-6 text-base",
-        icon: "h-9 w-9",
+        default: "min-h-11 px-4 py-2.5",
+        sm: "min-h-11 rounded-md px-3 text-sm",
+        lg: "min-h-12 rounded-md px-6 py-3 text-sm",
+        icon: "h-11 w-11",
       },
     },
     defaultVariants: {
