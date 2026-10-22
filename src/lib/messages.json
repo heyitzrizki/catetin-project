@@ -1,0 +1,922 @@
+{
+  "Dengarkan rekamannya.": {
+    "id": "Dengarkan rekamannya.",
+    "en": "Listen to your recording."
+  },
+  "Rapikan naskahnya.": {
+    "id": "Rapikan naskahnya.",
+    "en": "Refine your transcript."
+  },
+  "Coba contoh": {
+    "id": "Coba contoh",
+    "en": "Try a sample"
+  },
+  "Buka rekaman": {
+    "id": "Buka rekaman",
+    "en": "Open recording"
+  },
+  "Buka Studio": {
+    "id": "Buka Studio",
+    "en": "Open Studio"
+  },
+  "Coba Studio": {
+    "id": "Coba Studio",
+    "en": "Try the Studio"
+  },
+  "Coba di Studio": {
+    "id": "Coba di Studio",
+    "en": "Try it in Studio"
+  },
+  "Coba contoh di Studio": {
+    "id": "Coba contoh di Studio",
+    "en": "Try a sample in Studio"
+  },
+  "Buka contoh di Studio": {
+    "id": "Buka contoh di Studio",
+    "en": "Open sample in Studio"
+  },
+  "Buka contoh naskah di Studio Catetin": {
+    "id": "Buka contoh naskah di Studio Catetin",
+    "en": "Open a sample transcript in Catetin Studio"
+  },
+  "Mockup ilustratif Catetin di laptop, menampilkan contoh naskah percakapan": {
+    "id": "Ilustrasi Catetin di laptop dengan contoh transkrip percakapan",
+    "en": "Illustration of Catetin on a laptop with a sample transcript"
+  },
+  "Pratinjau ilustratif editor Catetin. Coba fitur yang tersedia di Studio.": {
+    "id": "Ilustrasi editor Catetin. Buka Studio untuk mencoba fitur yang tersedia.",
+    "en": "Illustration of the Catetin editor. Open Studio to try its available features."
+  },
+  "Rekaman tetap dibuka lokal. Demo editor, transkripsi otomatis belum tersedia.": {
+    "id": "Berkas rekaman dibuka di perangkat Anda. Transkripsi otomatis belum tersedia.",
+    "en": "Recordings are opened on your device. Automatic transcription is not yet available."
+  },
+  "Apakah Catetin sudah bisa mentranskrip otomatis?": {
+    "id": "Apakah transkripsi otomatis sudah tersedia?",
+    "en": "Is automatic transcription available?"
+  },
+  "Belum. Saat ini Catetin adalah demo editor. Kamu bisa menyunting contoh naskah atau membuka rekaman sendiri untuk ditulis manual. Transkripsi otomatis lokal masih dikembangkan.": {
+    "id": "Belum. Saat ini Anda dapat menyunting contoh naskah atau membuka rekaman sendiri untuk ditranskrip secara manual. Transkripsi otomatis di perangkat masih dikembangkan.",
+    "en": "Not yet. You can edit a sample transcript or open your own recording and transcribe it manually. On-device automatic transcription is still in development."
+  },
+  "Apakah rekaman saya dikirim ke server?": {
+    "id": "Apakah rekaman saya diunggah ke server?",
+    "en": "Are my recordings uploaded to a server?"
+  },
+  "Aplikasi membuka berkas pilihanmu melalui pemutar lokal di browser, tanpa mengunggah audio tersebut. Membuka situs dan memuat font tetap memerlukan koneksi internet. Ini belum berarti seluruh aplikasi dapat digunakan offline.": {
+    "id": "Berkas diputar langsung di browser tanpa diunggah oleh aplikasi. Koneksi internet masih diperlukan untuk membuka situs dan memuat font. Aplikasi belum mendukung penggunaan sepenuhnya offline.",
+    "en": "Files play directly in your browser without being uploaded by the app. An internet connection is still needed to load the website and fonts. Full offline use is not yet supported."
+  },
+  "Apakah naskah saya akan tersimpan?": {
+    "id": "Apakah naskah tersimpan secara otomatis?",
+    "en": "Are my transcripts saved automatically?"
+  },
+  "Naskah dan perubahan nama pembicara disimpan dalam memori selama tab terbuka. Belum ada penyimpanan permanen atau sinkronisasi akun. Ekspor hasil sebelum memuat ulang atau menutup tab.": {
+    "id": "Naskah dan nama pembicara hanya tersimpan sementara selama tab terbuka. Belum ada penyimpanan permanen atau sinkronisasi akun. Ekspor naskah sebelum memuat ulang halaman atau menutup tab.",
+    "en": "Transcripts and speaker names are kept temporarily while the tab is open. Persistent storage and account sync are not available. Export your transcript before reloading the page or closing the tab."
+  },
+  "Format apa yang bisa saya ekspor?": {
+    "id": "Format ekspor apa saja yang tersedia?",
+    "en": "Which export formats are available?"
+  },
+  "Teks polos (.txt), subtitle bertimestamp (.srt), dan dokumen kompatibel Word (.doc). Format .doc ini bukan berkas .docx.": {
+    "id": "Anda dapat mengekspor teks (.txt), subtitle dengan penanda waktu (.srt), dan dokumen yang dapat dibuka di Word (.doc). Ekspor Word menggunakan format HTML yang kompatibel, bukan .docx.",
+    "en": "Export plain text (.txt), timed subtitles (.srt), or a Word-compatible document (.doc). The Word export uses compatible HTML, not the .docx format."
+  },
+  "Apa yang terjadi saat saya membuka rekaman sendiri?": {
+    "id": "Bagaimana cara menggunakan rekaman sendiri?",
+    "en": "How do I work with my own recording?"
+  },
+  "Audio atau video dibuka di pemutar, dengan naskah kosong. Tambahkan segmen, tulis percakapan, dan atur posisi waktunya secara manual. Dukungan format mengikuti kemampuan browser.": {
+    "id": "Rekaman akan dibuka di pemutar dengan naskah kosong. Tambahkan segmen dan tulis percakapan secara manual. Penanda waktu mengikuti posisi pemutar saat segmen ditambahkan. Dukungan format bergantung pada browser Anda.",
+    "en": "Your recording opens in the player with an empty transcript. Add segments and transcribe the conversation manually. New segments use the current playback position as their timestamp. Supported formats depend on your browser."
+  },
+  "Dengarkan rekaman": {
+    "id": "Dengarkan rekaman",
+    "en": "Listen to the recording"
+  },
+  "Buka audio milikmu, cari posisi percakapan, dan sesuaikan kecepatan pemutaran. Berkas tetap dibuka lokal di browser.": {
+    "id": "Buka rekaman, pilih bagian yang ingin didengarkan, dan atur kecepatan pemutaran. Berkas dibuka langsung di browser Anda.",
+    "en": "Open a recording, find the passage you need, and adjust playback speed. Files open directly in your browser."
+  },
+  "01 / DENGARKAN": {
+    "id": "01 / DENGARKAN",
+    "en": "01 / LISTEN"
+  },
+  "Tetap dengar konteksnya.": {
+    "id": "Dengarkan dengan lebih teliti.",
+    "en": "Listen at your own pace."
+  },
+  "Sunting naskah": {
+    "id": "Sunting naskah",
+    "en": "Edit the transcript"
+  },
+  "Tulis atau rapikan kalimat langsung di editor. Ganti nama pembicara dan gunakan pencarian untuk menemukan kata dalam naskah.": {
+    "id": "Tulis dan perbaiki kalimat langsung di editor. Sesuaikan nama pembicara dan cari kata tertentu dalam naskah.",
+    "en": "Write and revise directly in the editor. Update speaker names and search for specific words in the transcript."
+  },
+  "02 / SUNTING": {
+    "id": "02 / SUNTING",
+    "en": "02 / EDIT"
+  },
+  "Beri setiap suara tempatnya.": {
+    "id": "Rapikan setiap bagian percakapan.",
+    "en": "Refine every part of the conversation."
+  },
+  "Ekspor hasilnya": {
+    "id": "Ekspor naskah",
+    "en": "Export the transcript"
+  },
+  "Salin seluruh naskah, atau unduh sebagai TXT, SRT, dan dokumen kompatibel Word. Kamu yang menentukan kapan hasilnya dibagikan.": {
+    "id": "Salin naskah atau unduh sebagai TXT, SRT, dan dokumen yang dapat dibuka di Word. Bagikan hasilnya sesuai kebutuhan Anda.",
+    "en": "Copy your transcript or download it as TXT, SRT, or a Word-compatible document. Share the result when you are ready."
+  },
+  "03 / EKSPOR": {
+    "id": "03 / EKSPOR",
+    "en": "03 / EXPORT"
+  },
+  "Siap untuk pekerjaan berikutnya.": {
+    "id": "Simpan dalam format yang Anda butuhkan.",
+    "en": "Export in the format you need."
+  },
+  "Rekaman pilihanmu": {
+    "id": "Rekaman Anda",
+    "en": "Your recording"
+  },
+  "Dibuka dari perangkat": {
+    "id": "Dibuka dari perangkat Anda",
+    "en": "Opened from your device"
+  },
+  "Dengar ulang, dengan kecepatanmu.": {
+    "id": "Atur kecepatan untuk mendengarkan lebih teliti.",
+    "en": "Adjust playback speed to review each passage."
+  },
+  "Sunting langsung di naskah.": {
+    "id": "Sunting teks langsung di editor.",
+    "en": "Edit text directly in the editor."
+  },
+  "Naskah siap dibawa.": {
+    "id": "Naskah siap diekspor.",
+    "en": "Ready to export."
+  },
+  "Pilih format saat mengekspor di Studio.": {
+    "id": "Pilih format ekspor di Studio.",
+    "en": "Choose an export format in Studio."
+  },
+  "DARI REKAMAN KE NASKAH": {
+    "id": "DARI REKAMAN KE NASKAH",
+    "en": "FROM RECORDING TO TRANSCRIPT"
+  },
+  "LOKAL, DENGAN BATAS YANG JELAS": {
+    "id": "PENGELOLAAN BERKAS LOKAL",
+    "en": "LOCAL FILE HANDLING"
+  },
+  "Rekamanmu tetap": {
+    "id": "Rekaman tetap",
+    "en": "Your recordings stay"
+  },
+  " di perangkatmu.": {
+    "id": " di perangkat Anda.",
+    "en": " on your device."
+  },
+  "di perangkatmu.": {
+    "id": "di perangkat Anda.",
+    "en": "on your device."
+  },
+  "Kepercayaan dimulai dari tahu ke mana berkasmu pergi.": {
+    "id": "Ketahui bagaimana rekaman dan naskah Anda dikelola.",
+    "en": "Understand how your recordings and transcripts are handled."
+  },
+  "Ini cara editor Catetin bekerja saat ini.": {
+    "id": "Berikut cara kerja Catetin saat ini.",
+    "en": "Here is how Catetin works today."
+  },
+  "Ilustrasi konseptual audio dan naskah di dalam perangkat": {
+    "id": "Ilustrasi audio dan naskah yang dikelola di perangkat",
+    "en": "Illustration of audio and transcripts handled on a device"
+  },
+  "Ilustrasi pemrosesan berkas lokal.": {
+    "id": "Ilustrasi pengelolaan berkas lokal.",
+    "en": "Illustration of local file handling."
+  },
+  "Audio tanpa upload": {
+    "id": "Audio tanpa unggah",
+    "en": "No audio uploads"
+  },
+  "Berkas pilihanmu dibuka melalui pemutar lokal. Aplikasi tidak mengunggah audio itu ke server.": {
+    "id": "Rekaman diputar langsung di browser. Aplikasi tidak mengunggah berkas audio Anda ke server.",
+    "en": "Recordings play directly in your browser. The app does not upload your audio files to a server."
+  },
+  "Kamu memilih yang dibagikan": {
+    "id": "Anda menentukan yang dibagikan",
+    "en": "You choose what to share"
+  },
+  "Sunting dan ekspor naskah sesuai kebutuhan. Editor tidak memiliki fitur berbagi atau sinkronisasi cloud.": {
+    "id": "Ekspor naskah saat diperlukan. Editor saat ini tidak menyediakan berbagi langsung atau sinkronisasi cloud.",
+    "en": "Export your transcript when needed. The editor currently has no direct sharing or cloud sync features."
+  },
+  "Penyimpanan dijelaskan terbuka": {
+    "id": "Penyimpanan sementara",
+    "en": "Temporary storage"
+  },
+  "Draft belum disimpan permanen. Perubahan hilang setelah reload atau tab ditutup, jadi simpan lewat ekspor.": {
+    "id": "Draf hanya tersimpan selama tab terbuka. Ekspor naskah sebelum memuat ulang halaman atau menutup tab.",
+    "en": "Drafts are kept only while the tab is open. Export your transcript before reloading the page or closing the tab."
+  },
+  "Lokal untuk berkas audio, bukan janji offline penuh. Situs dan font masih dimuat lewat jaringan. Transkripsi otomatis belum tersedia.": {
+    "id": "Berkas audio dibuka secara lokal. Situs dan font masih memerlukan koneksi internet. Transkripsi otomatis belum tersedia.",
+    "en": "Audio files open locally. The website and fonts still require an internet connection. Automatic transcription is not yet available."
+  },
+  "PENDEKATAN BERBEDA": {
+    "id": "LOKAL DAN CLOUD",
+    "en": "LOCAL AND CLOUD"
+  },
+  "Pilih tempat rekamanmu": {
+    "id": "Pahami cara rekaman Anda",
+    "en": "Understand how your recordings"
+  },
+  " diproses.": {
+    "id": " diproses.",
+    "en": " are processed."
+  },
+  "diproses.": {
+    "id": "diproses.",
+    "en": "are processed."
+  },
+  "Editor lokal dan layanan cloud punya kelebihan dan batas masing-masing. Pilih yang sesuai dengan cara kerjamu.": {
+    "id": "Bandingkan cara kerja editor lokal dan layanan transkripsi cloud untuk memilih pendekatan yang sesuai dengan kebutuhan Anda.",
+    "en": "Compare local editing with cloud transcription to find the approach that fits your needs."
+  },
+  "Perbandingan pendekatan, bukan peringkat merek tertentu.": {
+    "id": "Perbandingan umum pendekatan lokal dan cloud.",
+    "en": "A general comparison of local and cloud approaches."
+  },
+  "DI PERANGKATMU": {
+    "id": "DI PERANGKAT ANDA",
+    "en": "ON YOUR DEVICE"
+  },
+  "Editor lokal saat ini": {
+    "id": "Editor lokal saat ini",
+    "en": "Current local editor"
+  },
+  "DI INFRASTRUKTUR PENYEDIA": {
+    "id": "DI SERVER PENYEDIA",
+    "en": "ON THE PROVIDER'S SERVERS"
+  },
+  "Layanan cloud": {
+    "id": "Layanan cloud",
+    "en": "Cloud services"
+  },
+  "Berbeda menurut penyedia": {
+    "id": "Bergantung pada penyedia",
+    "en": "Varies by provider"
+  },
+  "Berkas audio": {
+    "id": "Berkas audio",
+    "en": "Audio files"
+  },
+  "Dibuka di browser perangkatmu": {
+    "id": "Dibuka di browser Anda",
+    "en": "Opened in your browser"
+  },
+  "Dikirim ke server untuk diproses": {
+    "id": "Dikirim ke server untuk diproses",
+    "en": "Sent to a server for processing"
+  },
+  "Transkripsi otomatis": {
+    "id": "Transkripsi otomatis",
+    "en": "Automatic transcription"
+  },
+  "Belum tersedia. Tulis dan sunting manual.": {
+    "id": "Belum tersedia. Transkripsi dilakukan secara manual.",
+    "en": "Not yet available. Transcribe manually."
+  },
+  "Umumnya menjadi fitur utama": {
+    "id": "Umumnya tersedia sebagai fitur utama",
+    "en": "Usually a core feature"
+  },
+  "Penyimpanan naskah": {
+    "id": "Penyimpanan naskah",
+    "en": "Transcript storage"
+  },
+  "Dalam memori tab. Ekspor sebelum keluar.": {
+    "id": "Sementara selama tab terbuka. Ekspor sebelum keluar.",
+    "en": "Temporary, while the tab is open. Export before leaving."
+  },
+  "Mengikuti kebijakan dan pengaturan penyedia": {
+    "id": "Mengikuti kebijakan dan pengaturan penyedia",
+    "en": "Subject to the provider's policies and settings"
+  },
+  "Berbagi & kolaborasi": {
+    "id": "Berbagi dan kolaborasi",
+    "en": "Sharing and collaboration"
+  },
+  "Bagikan sendiri berkas hasil ekspor": {
+    "id": "Bagikan berkas hasil ekspor secara mandiri",
+    "en": "Share exported files yourself"
+  },
+  "Sebagian layanan mendukung kolaborasi akun": {
+    "id": "Sebagian layanan menyediakan kolaborasi melalui akun",
+    "en": "Some services offer account-based collaboration"
+  },
+  "Kebutuhan perangkat": {
+    "id": "Pemrosesan",
+    "en": "Processing"
+  },
+  "Pemutar dan editor memakai perangkatmu": {
+    "id": "Pemutaran dan penyuntingan di perangkat Anda",
+    "en": "Playback and editing run on your device"
+  },
+  "Transkripsi diproses di server": {
+    "id": "Transkripsi diproses di server penyedia",
+    "en": "Transcription runs on the provider's servers"
+  },
+  "Koneksi internet": {
+    "id": "Koneksi internet",
+    "en": "Internet connection"
+  },
+  "Untuk memuat situs dan font": {
+    "id": "Diperlukan untuk memuat situs dan font",
+    "en": "Needed to load the website and fonts"
+  },
+  "Untuk mengirim audio dan mengakses layanan": {
+    "id": "Diperlukan untuk mengirim audio dan mengakses layanan",
+    "en": "Needed to upload audio and access the service"
+  },
+  "Gambaran umum arsitektur. Fitur, retensi data, dan kebijakan privasi layanan cloud perlu diperiksa pada penyedia pilihanmu.": {
+    "id": "Fitur, masa penyimpanan data, dan kebijakan privasi berbeda pada setiap layanan cloud. Periksa ketentuan penyedia sebelum menggunakannya.",
+    "en": "Features, data retention, and privacy policies vary between cloud services. Review your provider's terms before using a service."
+  },
+  "COBA DENGAN CONTOH": {
+    "id": "CONTOH PENGGUNAAN",
+    "en": "SAMPLE TRANSCRIPTS"
+  },
+  "Satu Studio.": {
+    "id": "Satu editor.",
+    "en": "One editor."
+  },
+  "Beragam percakapan.": {
+    "id": "Berbagai jenis percakapan.",
+    "en": "Different conversations."
+  },
+  "Jenis contoh": {
+    "id": "Jenis contoh naskah",
+    "en": "Sample transcript category"
+  },
+  "Contoh": {
+    "id": "Contoh",
+    "en": "Sample"
+  },
+  "PERTANYAAN UMUM": {
+    "id": "PERTANYAAN UMUM",
+    "en": "FREQUENTLY ASKED QUESTIONS"
+  },
+  "Sebelum mulai.": {
+    "id": "Sebelum menggunakan Catetin.",
+    "en": "Before you begin."
+  },
+  "Yang sudah bisa dicoba, dan yang masih kami kerjakan.": {
+    "id": "Informasi tentang fitur, berkas, dan penyimpanan naskah.",
+    "en": "What to know about features, files, and transcript storage."
+  },
+  "MULAI DARI CONTOH": {
+    "id": "COBA EDITOR CATETIN",
+    "en": "TRY THE CATETIN EDITOR"
+  },
+  "Setiap percakapan": {
+    "id": "Dengarkan, sunting,",
+    "en": "Listen, edit,"
+  },
+  "layak dicatat.": {
+    "id": "lalu simpan naskah Anda.",
+    "en": "and export your transcript."
+  },
+  "Kenali editornya, lalu buka rekamanmu sendiri.": {
+    "id": "Coba contoh naskah sebelum membuka rekaman Anda sendiri.",
+    "en": "Try a sample transcript before opening your own recording."
+  },
+  "Ilustrasi audio, lembar transkrip, dan dokumen ekspor": {
+    "id": "Ilustrasi rekaman audio, transkrip, dan hasil ekspor",
+    "en": "Illustration of audio, a transcript, and exported documents"
+  },
+  "Langsung ke konten": {
+    "id": "Langsung ke konten",
+    "en": "Skip to content"
+  },
+  "Catetin, beranda": {
+    "id": "Catetin, beranda",
+    "en": "Catetin home"
+  },
+  "Navigasi utama": {
+    "id": "Navigasi utama",
+    "en": "Main navigation"
+  },
+  "Cara kerja": {
+    "id": "Cara kerja",
+    "en": "How it works"
+  },
+  "Privasi": {
+    "id": "Privasi",
+    "en": "Privacy"
+  },
+  "Tentang": {
+    "id": "Tentang",
+    "en": "About"
+  },
+  "Studio transkrip": {
+    "id": "Studio transkrip",
+    "en": "Transcript Studio"
+  },
+  "Beranda": {
+    "id": "Beranda",
+    "en": "Home"
+  },
+  "Rekaman dalam sesi": {
+    "id": "Rekaman dalam sesi ini",
+    "en": "Recordings in this session"
+  },
+  "STUDIO CATETIN": {
+    "id": "STUDIO CATETIN",
+    "en": "CATETIN STUDIO"
+  },
+  "Ruang rekamanmu.": {
+    "id": "Rekaman dan naskah",
+    "en": "Recordings and transcripts"
+  },
+  "NASKAH DALAM SESI": {
+    "id": "NASKAH DALAM SESI INI",
+    "en": "TRANSCRIPTS IN THIS SESSION"
+  },
+  "Rekaman lokal": {
+    "id": "Rekaman lokal",
+    "en": "Local recording"
+  },
+  "Contoh naskah": {
+    "id": "Contoh naskah",
+    "en": "Sample transcript"
+  },
+  "Audio dibuka lokal.": {
+    "id": "Audio dibuka di perangkat Anda.",
+    "en": "Audio opens on your device."
+  },
+  "Ekspor naskah sebelum menutup tab.": {
+    "id": "Ekspor naskah sebelum menutup tab.",
+    "en": "Export your transcript before closing the tab."
+  },
+  "Ruang untuk setiap cerita": {
+    "id": "EDITOR TRANSKRIP",
+    "en": "TRANSCRIPT EDITOR"
+  },
+  "Naskah manual": {
+    "id": "Transkripsi manual",
+    "en": "Manual transcription"
+  },
+  "Demo editor": {
+    "id": "Demo editor",
+    "en": "Editor demo"
+  },
+  " Anda tetap dapat menulis naskah secara manual.": {
+    "id": " Anda tetap dapat menulis naskah secara manual.",
+    "en": " You can still transcribe manually."
+  },
+  "Pilih berkas lain": {
+    "id": "Pilih berkas lain",
+    "en": "Choose another file"
+  },
+  "Alat naskah": {
+    "id": "Alat penyuntingan",
+    "en": "Editing tools"
+  },
+  "Rekaman dibuka di peramban Anda. Tulis naskah secara manual sambil mendengarkan.": {
+    "id": "Rekaman dibuka di browser Anda. Dengarkan audio dan tulis naskah secara manual.",
+    "en": "The recording opens in your browser. Listen and transcribe manually."
+  },
+  "Naskah contoh ditulis untuk demo. Pemutar hanya menyimulasikan waktu, tanpa suara.": {
+    "id": "Naskah contoh berbahasa Indonesia disediakan untuk demo. Pemutar menyimulasikan waktu tanpa suara.",
+    "en": "Sample transcripts are in Indonesian. The player simulates playback timing without audio."
+  },
+  "Ruang untuk setiap cerita.": {
+    "id": "Editor transkrip untuk rekaman Anda.",
+    "en": "A transcript editor for your recordings."
+  },
+  "Navigasi footer": {
+    "id": "Navigasi footer",
+    "en": "Footer navigation"
+  },
+  "Pertanyaan": {
+    "id": "Pertanyaan umum",
+    "en": "FAQ"
+  },
+  "Harga & lisensi": {
+    "id": "Harga dan lisensi",
+    "en": "Pricing and licensing"
+  },
+  "Buka rekaman Anda": {
+    "id": "Buka rekaman Anda",
+    "en": "Open your recording"
+  },
+  "Dengarkan audio sambil menulis dan merapikan naskah.": {
+    "id": "Putar rekaman sambil menulis dan menyunting naskah.",
+    "en": "Play a recording while writing and editing its transcript."
+  },
+  "Transkripsi otomatis belum tersedia. Rekaman akan dibuka dengan naskah kosong untuk disunting manual.": {
+    "id": "Transkripsi otomatis belum tersedia. Rekaman akan dibuka dengan naskah kosong untuk ditulis secara manual.",
+    "en": "Automatic transcription is not yet available. The recording will open with an empty transcript for manual entry."
+  },
+  "Pilih berkas audio atau video": {
+    "id": "Pilih berkas audio atau video",
+    "en": "Choose an audio or video file"
+  },
+  "MP3, WAV, M4A, MP4, dan format audio lainnya": {
+    "id": "MP3, WAV, M4A, MP4, dan format audio lainnya",
+    "en": "MP3, WAV, M4A, MP4, and other audio formats"
+  },
+  "Pilih berkas rekaman": {
+    "id": "Pilih berkas rekaman",
+    "en": "Choose a recording file"
+  },
+  "Aplikasi tidak mengunggah berkas ini ke server. Ekspor naskah sebelum menutup tab.": {
+    "id": "Berkas ini tidak diunggah oleh aplikasi. Ekspor naskah sebelum menutup tab.",
+    "en": "The app does not upload this file. Export your transcript before closing the tab."
+  },
+  "Atur tampilan, pilih pembicara, dan ekspor naskah.": {
+    "id": "Atur tampilan, filter pembicara, dan ekspor naskah.",
+    "en": "Adjust the view, filter by speaker, and export your transcript."
+  },
+  "Setiap cerita layak dicatat.": {
+    "id": "Tentang Catetin",
+    "en": "About Catetin"
+  },
+  "Pertanyaan tentang Catetin": {
+    "id": "Pertanyaan tentang Catetin",
+    "en": "Questions about Catetin"
+  },
+  "Catetin adalah ruang kerja untuk membaca, menyunting, dan menyiapkan naskah percakapan.": {
+    "id": "Catetin membantu Anda mendengarkan rekaman, menyunting transkrip, dan mengekspor naskah.",
+    "en": "Catetin helps you review recordings, edit transcripts, and export your work."
+  },
+  "Demo editor ini dapat dicoba tanpa akun atau pembayaran.": {
+    "id": "Demo editor dapat digunakan tanpa akun atau pembayaran.",
+    "en": "The editor demo is available without an account or payment."
+  },
+  "Yang perlu diketahui sebelum mulai.": {
+    "id": "Informasi sebelum menggunakan Catetin.",
+    "en": "What to know before using Catetin."
+  },
+  "Kami ingin membuat proses dari rekaman menuju naskah terasa lebih tenang. Mulai dari membaca percakapan, mengenali pembicara, hingga merapikan kalimat.": {
+    "id": "Catetin menyediakan pemutar audio dan editor naskah dalam satu tempat untuk membantu proses transkripsi manual.",
+    "en": "Catetin combines an audio player and transcript editor to support manual transcription."
+  },
+  "Saat ini Anda bisa mencoba editor dengan contoh naskah, membuka audio sendiri untuk dicatat manual, dan mengekspor hasilnya. Transkripsi otomatis masih dikembangkan.": {
+    "id": "Anda dapat menyunting contoh naskah, membuka rekaman sendiri, dan mengekspor hasilnya. Transkripsi otomatis masih dikembangkan.",
+    "en": "You can edit sample transcripts, open your own recordings, and export your work. Automatic transcription is still in development."
+  },
+  "Paket berbayar dan pembelian lisensi belum tersedia. Fitur yang masih dikembangkan tidak dikenakan biaya dalam demo ini.": {
+    "id": "Belum ada paket berbayar atau pembelian lisensi. Fitur demo yang tersedia dapat digunakan tanpa biaya.",
+    "en": "Paid plans and license purchases are not available. The current demo features are free to use."
+  },
+  "Tutup pemberitahuan": {
+    "id": "Tutup pemberitahuan",
+    "en": "Dismiss notification"
+  },
+  "Rekaman tidak dapat diputar. Coba berkas MP3 atau WAV lain.": {
+    "id": "Rekaman tidak dapat diputar. Coba berkas MP3 atau WAV lain.",
+    "en": "This recording could not be played. Try another MP3 or WAV file."
+  },
+  "Naskah sudah mencapai akhir rekaman. Sunting segmen yang ada.": {
+    "id": "Tidak dapat menambah segmen setelah akhir rekaman. Sunting segmen yang sudah ada.",
+    "en": "A segment cannot be added beyond the end of the recording. Edit an existing segment instead."
+  },
+  "Naskah berhasil disalin.": {
+    "id": "Naskah berhasil disalin.",
+    "en": "Transcript copied."
+  },
+  "Peramban tidak mengizinkan akses clipboard. Gunakan Ekspor teks polos untuk menyimpan naskah.": {
+    "id": "Browser tidak mengizinkan penyalinan. Gunakan ekspor TXT untuk menyimpan naskah.",
+    "en": "Your browser blocked clipboard access. Export a TXT file to save the transcript."
+  },
+  "Format belum didukung. Pilih audio atau video MP3, WAV, M4A, MP4, OGG, AAC, FLAC, atau WebM.": {
+    "id": "Format tidak didukung. Pilih MP3, WAV, M4A, MP4, OGG, AAC, FLAC, atau WebM.",
+    "en": "Unsupported format. Choose an MP3, WAV, M4A, MP4, OGG, AAC, FLAC, or WebM file."
+  },
+  "Berkas ini kosong. Pilih rekaman lain.": {
+    "id": "Berkas ini kosong. Pilih rekaman lain.",
+    "en": "This file is empty. Choose another recording."
+  },
+  "Nama pembicara diperbarui di seluruh naskah.": {
+    "id": "Nama pembicara diperbarui di seluruh naskah.",
+    "en": "Speaker name updated throughout the transcript."
+  },
+  "Format rekaman ini tidak dapat dibaca oleh peramban.": {
+    "id": "Browser tidak dapat memutar format rekaman ini.",
+    "en": "Your browser cannot play this recording format."
+  },
+  "Tampilan naskah": {
+    "id": "Tampilan naskah",
+    "en": "Transcript view"
+  },
+  "Naskah": {
+    "id": "Naskah",
+    "en": "Transcript"
+  },
+  "Waktu": {
+    "id": "Penanda waktu",
+    "en": "Timestamps"
+  },
+  "Pembicara": {
+    "id": "Pembicara",
+    "en": "Speaker"
+  },
+  "Semua pembicara": {
+    "id": "Semua pembicara",
+    "en": "All speakers"
+  },
+  "Bawa naskah Anda": {
+    "id": "Ekspor naskah",
+    "en": "Export transcript"
+  },
+  "Teks polos": {
+    "id": "Teks (.txt)",
+    "en": "Plain text"
+  },
+  "Dokumen Word": {
+    "id": "Dokumen Word",
+    "en": "Word document"
+  },
+  "Subtitle": {
+    "id": "Subtitle",
+    "en": "Subtitles"
+  },
+  "Salin naskah": {
+    "id": "Salin naskah",
+    "en": "Copy transcript"
+  },
+  "Dalam pengembangan": {
+    "id": "Dalam pengembangan",
+    "en": "In development"
+  },
+  "Model & perangkat": {
+    "id": "Model dan perangkat",
+    "en": "Model and device"
+  },
+  "Perubahan tersimpan selama tab terbuka. Ekspor naskah sebelum memuat ulang.": {
+    "id": "Perubahan hanya tersimpan selama tab terbuka. Ekspor sebelum memuat ulang halaman.",
+    "en": "Changes last only while the tab is open. Export before reloading."
+  },
+  "Memeriksa dukungan peramban…": {
+    "id": "Memeriksa dukungan browser…",
+    "en": "Checking browser support…"
+  },
+  "Adapter WebGPU tersedia di peramban ini.": {
+    "id": "Adapter WebGPU tersedia di browser ini.",
+    "en": "A WebGPU adapter is available in this browser."
+  },
+  "Adapter WebGPU tidak tersedia.": {
+    "id": "Adapter WebGPU tidak tersedia.",
+    "en": "No WebGPU adapter is available."
+  },
+  "Peramban tidak mengizinkan akses adapter WebGPU.": {
+    "id": "Browser tidak mengizinkan akses ke adapter WebGPU.",
+    "en": "Your browser blocked access to the WebGPU adapter."
+  },
+  "Pratinjau pengaturan untuk transkripsi yang sedang dikembangkan.": {
+    "id": "Pratinjau pengaturan transkripsi. Pengaturan ini belum menjalankan model.",
+    "en": "Preview of transcription settings. These settings do not run a model yet."
+  },
+  "Pilihan ini belum menjalankan atau mengunduh model. Anda tetap bisa menyunting naskah dan memutar rekaman sendiri.": {
+    "id": "Pilihan model belum memulai pengunduhan atau transkripsi. Anda tetap dapat menyunting naskah dan memutar rekaman.",
+    "en": "Selecting a model does not start a download or transcription. You can still edit transcripts and play recordings."
+  },
+  "Preferensi model": {
+    "id": "Preferensi model",
+    "en": "Model preference"
+  },
+  "Model ringan": {
+    "id": "Model ringan",
+    "en": "Lightweight model"
+  },
+  "Pilihan awal": {
+    "id": "Pilihan awal",
+    "en": "Default option"
+  },
+  "Model lebih besar": {
+    "id": "Model berukuran lebih besar",
+    "en": "Larger model"
+  },
+  "Dukungan perangkat": {
+    "id": "Dukungan perangkat",
+    "en": "Device support"
+  },
+  "Ketersediaan adapter belum membuktikan model transkripsi dapat dijalankan.": {
+    "id": "Dukungan WebGPU tidak menjamin model transkripsi dapat dijalankan di perangkat ini.",
+    "en": "WebGPU support does not guarantee that a transcription model will run on this device."
+  },
+  "Ekspor": {
+    "id": "Ekspor",
+    "en": "Export"
+  },
+  "Tutup": {
+    "id": "Tutup",
+    "en": "Close"
+  },
+  "Rekaman Anda": {
+    "id": "Rekaman Anda",
+    "en": "Your recording"
+  },
+  "Contoh transkrip": {
+    "id": "Contoh transkrip",
+    "en": "Sample transcript"
+  },
+  "Pilih audio": {
+    "id": "Buka rekaman",
+    "en": "Open recording"
+  },
+  "Ganti naskah": {
+    "id": "Pilih naskah",
+    "en": "Select transcript"
+  },
+  "Naskah dalam sesi ini": {
+    "id": "Naskah dalam sesi ini",
+    "en": "Transcripts in this session"
+  },
+  "Cari dalam naskah": {
+    "id": "Cari dalam naskah",
+    "en": "Search transcript"
+  },
+  "Cari dalam naskah…": {
+    "id": "Cari dalam naskah…",
+    "en": "Search transcript…"
+  },
+  "Editor transkrip": {
+    "id": "Editor transkrip",
+    "en": "Transcript editor"
+  },
+  "Klik teks untuk menyunting": {
+    "id": "Klik teks untuk menyunting",
+    "en": "Click text to edit"
+  },
+  "Mulai dari kalimat pertama.": {
+    "id": "Mulai menulis transkrip.",
+    "en": "Start your transcript."
+  },
+  "Dengarkan rekaman Anda, lalu tambahkan bagian percakapan. Transkripsi otomatis belum tersedia.": {
+    "id": "Putar rekaman, lalu tambahkan segmen untuk menulis percakapan secara manual. Transkripsi otomatis belum tersedia.",
+    "en": "Play your recording, then add a segment to transcribe it manually. Automatic transcription is not yet available."
+  },
+  "Tambah segmen": {
+    "id": "Tambah segmen",
+    "en": "Add segment"
+  },
+  "Nama pembicara": {
+    "id": "Nama pembicara",
+    "en": "Speaker name"
+  },
+  "Simpan nama": {
+    "id": "Simpan nama",
+    "en": "Save name"
+  },
+  "Batal ubah nama": {
+    "id": "Batalkan perubahan nama",
+    "en": "Cancel rename"
+  },
+  "Waktu ": {
+    "id": "Waktu ",
+    "en": "Time "
+  },
+  "Tidak ada bagian yang cocok.": {
+    "id": "Tidak ada hasil yang sesuai.",
+    "en": "No matching results."
+  },
+  "Coba kata lain atau tampilkan kembali semua pembicara.": {
+    "id": "Gunakan kata kunci lain atau hapus filter pembicara.",
+    "en": "Try another search term or clear the speaker filter."
+  },
+  "Hapus filter": {
+    "id": "Hapus filter",
+    "en": "Clear filters"
+  },
+  "Tambah segmen pada waktu ini": {
+    "id": "Tambah segmen pada posisi ini",
+    "en": "Add segment at this position"
+  },
+  "Akhir catatan": {
+    "id": "Akhir naskah",
+    "en": "End of transcript"
+  },
+  "Satu cerita dimulai di sini": {
+    "id": "Naskah belum berisi teks",
+    "en": "No transcript text yet"
+  },
+  "Tulis isi percakapan di sini…": {
+    "id": "Tulis percakapan di sini…",
+    "en": "Type the conversation here…"
+  },
+  "Simulasi waktu contoh": {
+    "id": "Simulasi pemutaran contoh",
+    "en": "Sample playback simulation"
+  },
+  "Pemutar rekaman": {
+    "id": "Pemutar rekaman",
+    "en": "Recording player"
+  },
+  "Jeda": {
+    "id": "Jeda",
+    "en": "Pause"
+  },
+  "Jalankan simulasi waktu": {
+    "id": "Jalankan simulasi pemutaran",
+    "en": "Start playback simulation"
+  },
+  "Putar rekaman": {
+    "id": "Putar rekaman",
+    "en": "Play recording"
+  },
+  "Posisi waktu rekaman": {
+    "id": "Posisi pemutaran",
+    "en": "Playback position"
+  },
+  "Kembali ke awal": {
+    "id": "Kembali ke awal",
+    "en": "Return to start"
+  },
+  "Kecepatan pemutaran": {
+    "id": "Kecepatan pemutaran",
+    "en": "Playback speed"
+  },
+  "Membuka audio…": {
+    "id": "Membuka rekaman…",
+    "en": "Opening recording…"
+  },
+  "Simulasi, tanpa audio": {
+    "id": "Simulasi tanpa suara",
+    "en": "Simulation without audio"
+  },
+  "Wawancara komunitas": {
+    "id": "Wawancara komunitas",
+    "en": "Community interview"
+  },
+  "Rapat redaksi": {
+    "id": "Rapat redaksi",
+    "en": "Editorial meeting"
+  },
+  "Catatan kelas": {
+    "id": "Catatan kelas",
+    "en": "Class notes"
+  },
+  "Wawancara": {
+    "id": "Wawancara",
+    "en": "Interview"
+  },
+  "Rapat": {
+    "id": "Rapat",
+    "en": "Meeting"
+  },
+  "Belajar": {
+    "id": "Belajar",
+    "en": "Learning"
+  },
+  "Sample language note": {
+    "id": "Contoh naskah tersedia dalam bahasa Indonesia.",
+    "en": "Sample transcripts are in Indonesian."
+  },
+  "Language": {
+    "id": "Bahasa",
+    "en": "Language"
+  },
+  "Choose language": {
+    "id": "Pilih bahasa",
+    "en": "Choose language"
+  },
+  "Text for speaker": {
+    "id": "Teks percakapan {name}",
+    "en": "Transcript text for {name}"
+  },
+  "Rename speaker": {
+    "id": "Ubah nama pembicara {name}",
+    "en": "Rename speaker {name}"
+  },
+  "Segment number": {
+    "id": "Segmen {number}",
+    "en": "Segment {number}"
+  },
+  "Go to timestamp": {
+    "id": "Ke waktu {time}",
+    "en": "Go to {time}"
+  },
+  "Starts at": {
+    "id": "Mulai pada {time}",
+    "en": "Starts at {time}"
+  },
+  "Export ready": {
+    "id": "Naskah .{format} siap diunduh.",
+    "en": "Your .{format} transcript is ready to download."
+  },
+  "Replace file": {
+    "id": "Klik untuk mengganti",
+    "en": "Click to replace"
+  },
+  "Page title": {
+    "id": "Catetin · Editor transkrip untuk rekaman Anda",
+    "en": "Catetin · Edit transcripts on your device"
+  }
+}

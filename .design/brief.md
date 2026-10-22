@@ -14,3 +14,11 @@ Approved for implementation in chat after the visual mock could not be displayed
 - Protect user work within the session when switching examples; warn before leaving edited drafts. No claim of account sync or persistent storage.
 
 This selected direction supersedes the earlier hardware-showcase and 72px hero implementation. DESIGN.md remains the historical baseline. The audit that informed it is /workspace/catetin-audit/AUDIT.md.
+
+## 22 October 2026: approved Scribe-informed product-led revision
+
+Supersedes the asymmetric landing composition above. User approved a generated visual: centered editorial serif headline, large realistic product preview, navy workflow section, warm ivory surfaces. Privacy and local-file handling are primary content. Studio uses a session library sidebar, document-first center and contextual tools, adapting the practical audio-workspace pattern without claiming a faithful ElevenLabs clone.
+
+Implemented workflow selector, sample selection, local-file entry from landing, local-data diagrams, qualified architecture comparison, expanded FAQ and responsive Studio library. Existing transcription/editing logic preserved. All illustration is repo-native HTML/CSS and Lucide, not generated bitmap UI; no external graphic assets required. New DM Serif Display font is loaded through the existing Google Fonts mechanism. Local audio handling does not imply offline availability. No automatic transcription or persistent storage added.
+
+Verification: TypeScript and production build passed. Chrome headless exercised workflow choices, sample selection/opening, privacy FAQ, upload dialog, Studio recording selection, search and mobile tools dialog. No uncaught JavaScript errors. No page-level horizontal overflow at 1440, 834, 390, 320 CSS pixels for landing or Studio. Desktop and 390px screenshots saved in .design and visually inspected. Comparison table intentionally scrolls locally on narrow viewports. Existing Vite __dirname configuration warning remains. No deployment, commit or push performed.

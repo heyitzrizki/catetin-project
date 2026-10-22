@@ -29,3 +29,21 @@ Screenshots, browser runners and machine-readable results are outside the checko
 ## Limits
 
 No automatic transcription, model execution, account authentication, payments or persistent storage were added. Samples simulate the time position without playing sound; this is labeled. Local files play real audio if the browser supports their codec. Drafts live in memory for the current tab; users should export before reload/close. A beforeunload warning protects edited text/speaker drafts. Word export is compatible HTML .doc, not native OOXML .docx. The result was tested in Chromium, not physical iOS/Android devices or other browser engines. Keyboard checks are not a screen-reader certification. The 720px reflow check is not a test of a physical browser zoom setting. No deployment or environment publication was performed.
+
+## 22 October 2026: approved Scribe-informed product-led revision
+
+Supersedes the asymmetric landing composition above. User approved a generated visual: centered editorial serif headline, large realistic product preview, navy workflow section, warm ivory surfaces. Privacy and local-file handling are primary content. Studio uses a session library sidebar, document-first center and contextual tools, adapting the practical audio-workspace pattern without claiming a faithful ElevenLabs clone.
+
+Implemented workflow selector, sample selection, local-file entry from landing, local-data diagrams, qualified architecture comparison, expanded FAQ and responsive Studio library. Existing transcription/editing logic preserved. All illustration is repo-native HTML/CSS and Lucide, not generated bitmap UI; no external graphic assets required. New DM Serif Display font is loaded through the existing Google Fonts mechanism. Local audio handling does not imply offline availability. No automatic transcription or persistent storage added.
+
+Verification: TypeScript and production build passed. Chrome headless exercised workflow choices, sample selection/opening, privacy FAQ, upload dialog, Studio recording selection, search and mobile tools dialog. No uncaught JavaScript errors. No page-level horizontal overflow at 1440, 834, 390, 320 CSS pixels for landing or Studio. Desktop and 390px screenshots saved in .design and visually inspected. Comparison table intentionally scrolls locally on narrow viewports. Existing Vite __dirname configuration warning remains. No deployment, commit or push performed.
+## Illustration and motion refinement
+
+Added two original generated semi-3D illustrations in public/illustrations (WebP, approximately 73 KB combined), integrated into privacy and closing sections. Asset purpose documented in public/illustrations/README.md. Matte navy/ivory/powder-blue art direction. Added restrained hover elevation, illustrated-object tilt, preview depth, stage/sample transitions, and headline entrance with LazyMotion. Reduced motion disables effects. Reused existing Motion dependency; no package or lockfile changes.
+
+Verified TypeScript, production build and diff whitespace checks. Browser checks repeated at 320/390/834/1440px with no document overflow or runtime errors. Both images loaded successfully. Reduced-motion browser emulation reports transition 0s and animation none. Privacy and closing screenshots inspected. Studio's existing working controls remain unchanged. No commit or push.
+## Notebook hero and coded 2.5D comparison
+
+Implemented approved notebook direction as real HTML/CSS: device bezel, camera, keyboard, deck and screen containing semantic headline, active buttons and transcript preview. Replaced each privacy diagram with its original generated WebP illustration. Replaced flat comparison with a two-column semantic HTML table of six aligned comparison rows, layered panel borders, bevels, base shadows and code-native laptop/cloud scenes. No raster images are used within the comparison table. Mobile keeps both approaches side by side; no page-level overflow at 320/390/834/1440px.
+
+Verified TypeScript, production build, diff check, existing browser interaction checks, all three image loads and six comparison rows. Zero browser runtime errors. Updated screenshots in .design. For component screenshots, sticky site navigation is hidden only in the QA browser to avoid capture overlap; production navigation remains unchanged. No commit, push or deployment.
