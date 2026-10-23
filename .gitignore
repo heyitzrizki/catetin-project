@@ -1,4 +1,7 @@
 node_modules/
+.design/audit-*/chrome-*/
+.design/audit-*/refine-*/
+.design/audit-*/final-*/
 build/
 dist/
 coverage/

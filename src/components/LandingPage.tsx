@@ -5,6 +5,8 @@ import { ArrowRight, FileAudio, FileText, Headphones, Download, Play, PencilLine
 import { Button } from '@/components/ui/button';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { recordings } from '@/lib/transcript';
+import { ComparisonSection } from '@/components/landing/ComparisonSection';
+import { ClosingCTA } from '@/components/landing/ClosingCTA';
 
 interface LandingPageProps { onOpenStudio: (sampleId?: string) => void; onOpenRecording: () => void; }
 export const questions = [
@@ -38,19 +40,10 @@ export function LandingPage({onOpenStudio,onOpenRecording}:LandingPageProps) {
    <article><span className="lp-trust-index">02</span><h3>{t("Kamu memilih yang dibagikan")}</h3><p>{t("Sunting dan ekspor naskah sesuai kebutuhan. Editor tidak memiliki fitur berbagi atau sinkronisasi cloud.")}</p></article>
    <article><span className="lp-trust-index">03</span><h3>{t("Draf tersimpan di perangkat")}</h3><p>{t("Rekaman dan naskah disimpan di penyimpanan browser, tanpa akun atau sinkronisasi cloud.")}</p></article>
   </div><p className="lp-trust-note">{t("Aplikasi dan font dapat digunakan kembali dari cache. Unduhan awal aplikasi dan model Whisper tetap memerlukan koneksi internet.")}</p></div></section>
-    <section className="lp-compare comparison-section page-container" aria-labelledby="compare-title"><div className="lp-section-head"><div><p className="eyebrow">{t("PENDEKATAN BERBEDA")}</p><h2 id="compare-title">{t("Pilih tempat rekamanmu")}<br/>{t("diproses.")}</h2></div><p>{t("Editor lokal dan layanan cloud punya kelebihan dan batas masing-masing. Pilih yang sesuai dengan cara kerjamu.")}</p></div>
-   <div className="comparison-surface"><table className="comparison-panels"><caption>{t("Perbandingan pendekatan, bukan peringkat merek tertentu.")}</caption><thead><tr><th scope="col"><span className="comparison-kicker">{t("DI PERANGKATMU")}</span><h3>Catetin</h3><p>{t("Editor lokal saat ini")}</p><div className="comparison-scene comparison-image local-scene" aria-hidden="true"><img src="/illustrations/architecture-local.svg" alt="" width="600" height="320" loading="lazy" decoding="async"/></div></th><th scope="col"><span className="comparison-kicker">{t("DI INFRASTRUKTUR PENYEDIA")}</span><h3>{t("Layanan cloud")}</h3><p>{t("Berbeda menurut penyedia")}</p><div className="comparison-scene comparison-image cloud-scene" aria-hidden="true"><img src="/illustrations/architecture-cloud.svg" alt="" width="600" height="320" loading="lazy" decoding="async"/></div></th></tr></thead><tbody>{[
- [t("Berkas audio"),t("Dibuka di browser perangkatmu"),t("Dikirim ke server untuk diproses")],
- [t("Transkripsi otomatis"),t("Whisper berjalan langsung di perangkat"),t("Umumnya diproses di server penyedia")],
- [t("Penyimpanan naskah"),t("Disimpan di penyimpanan browser perangkatmu"),t("Mengikuti kebijakan dan pengaturan penyedia")],
- [t("Berbagi & kolaborasi"),t("Bagikan sendiri berkas hasil ekspor"),t("Sebagian layanan mendukung kolaborasi akun")],
- [t("Kebutuhan perangkat"),t("Pemutar, editor, dan model memakai perangkatmu"),t("Transkripsi diproses di server")],
- [t("Koneksi internet"),t("Diperlukan untuk unduhan awal aplikasi dan model"),t("Diperlukan untuk mengirim audio dan mengakses layanan")],
- ].map(([label,local,cloud])=><tr key={t(label)}><td><div className="comparison-fact"><span>{t(label)}</span><p>{t(local)}</p></div></td><td><div className="comparison-fact"><span>{t(label)}</span><p>{t(cloud)}</p></div></td></tr>)}</tbody></table></div><p className="lp-fine">{t("Gambaran umum arsitektur. Fitur, retensi data, dan kebijakan privasi layanan cloud perlu diperiksa pada penyedia pilihanmu.")}</p>
-  </section>
+  <ComparisonSection />
 
 <section className="lp-examples page-container" id="contoh"><div className="lp-section-head"><div><p className="eyebrow">{t("COBA DENGAN CONTOH")}</p><h2>{t("Satu Studio.")}<br/>{t("Beragam percakapan.")}</h2></div><div className="example-choices" role="group" aria-label={t("Jenis contoh")}>{recordings.map(r=><button key={r.id} aria-pressed={sample===r.id} onClick={()=>setSample(r.id)}>{t(r.category)}</button>)}</div></div><p className="sample-language-note">{t("Sample language note")}</p><m.div key={sample} {...entrance} className="lp-example-paper" aria-live="polite"><header><span className="sample-label">{t("Contoh")}</span><h3>{t(example.title)}</h3><Button variant="outline" onClick={()=>onOpenStudio(sample)}>{t("Buka contoh di Studio")}</Button></header>{example.segments.slice(0,3).map(s=><div lang="id" className="lp-example-line" key={s.id}><time>{s.time}</time><b>{s.speaker}</b><p>{s.text}</p></div>)}</m.div></section>
   <section className="faq-section page-container" id="pertanyaan"><div className="section-heading"><p className="eyebrow">{t("PERTANYAAN UMUM")}</p><h2>{t("Sebelum mulai.")}</h2><p>{t("Yang sudah bisa dicoba, dan yang masih kami kerjakan.")}</p></div><Accordion type="single" collapsible className="faq-list">{questions.map(([q,a],i)=><AccordionItem key={t(q)} value={`q-${i}`}><AccordionTrigger>{t(q)}</AccordionTrigger><AccordionContent>{t(a)}</AccordionContent></AccordionItem>)}</Accordion></section>
-  <section className="lp-closing page-container"><div><p className="eyebrow">{t("MULAI DARI CONTOH")}</p><h2>{t("Setiap percakapan")}<br/>{t("layak dicatat.")}</h2><p>{t("Kenali editornya, lalu buka rekamanmu sendiri.")}</p><Button size="lg" onClick={()=>onOpenStudio(sample)}>{t("Coba contoh di Studio")}</Button></div></section>
+  <ClosingCTA recording={example} onOpenStudio={onOpenStudio} />
  </main></LazyMotion>;
 }

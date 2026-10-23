@@ -48,5 +48,7 @@
   "Audio tidak dapat disiapkan untuk transkripsi.": { "id": "Audio tidak dapat disiapkan untuk transkripsi.", "en": "The audio could not be prepared for transcription." },
   "Draf lokal tidak dapat dipulihkan.": { "id": "Draf lokal tidak dapat dipulihkan.", "en": "Local drafts could not be restored." },
   "Draf lokal tidak dapat disimpan. Periksa ruang penyimpanan browser.": { "id": "Draf lokal tidak dapat disimpan. Periksa ruang penyimpanan browser.", "en": "Local drafts could not be saved. Check your browser storage space." },
-  "Perubahan disimpan otomatis di browser pada perangkat ini.": { "id": "Perubahan disimpan otomatis di browser pada perangkat ini.", "en": "Changes are saved automatically in this browser." }
+  "Perubahan disimpan otomatis di browser pada perangkat ini.": { "id": "Perubahan disimpan otomatis di browser pada perangkat ini.", "en": "Changes are saved automatically in this browser." },
+  "Kriteria": { "id": "Kriteria", "en": "Criteria" },
+  "Pratinjau editor Catetin": { "id": "Pratinjau editor Catetin", "en": "Catetin editor preview" }
 }
