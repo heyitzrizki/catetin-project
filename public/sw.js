@@ -1,11 +1,45 @@
-const CACHE = 'catetin-app-v1';
-const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest', '/icon.svg'];
-self.addEventListener('install', event => event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(APP_SHELL)).then(() => self.skipWaiting())));
-self.addEventListener('activate', event => event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(key => key !== CACHE).map(key => caches.delete(key)))).then(() => self.clients.claim())));
+import { APP_CACHE, cacheKeyForRequest, classifyRequest, extractBuildAssets, obsoleteAppCaches, prepareCacheWrite } from './sw-policy.js';
+
+const APP_SHELL = ['/manifest.webmanifest', '/icon.svg'];
+
+self.addEventListener('install', event => {
+  event.waitUntil(caches.open(APP_CACHE).then(async cache => {
+    const response = await fetch('/index.html', { cache: 'no-store' });
+    if (!response.ok) throw new Error(`App shell request failed: ${response.status}`);
+    const html = await response.clone().text();
+    await cache.put('/index.html', response);
+    await cache.addAll([...APP_SHELL, ...extractBuildAssets(html, location.origin)]);
+  }));
+});
+
+self.addEventListener('activate', event => {
+  event.waitUntil(caches.keys()
+    .then(keys => Promise.all(obsoleteAppCaches(keys).map(key => caches.delete(key))))
+    .then(() => self.clients.claim()));
+});
+
+self.addEventListener('message', event => {
+  if (event.data?.type === 'CATETIN_ACTIVATE_UPDATE') self.skipWaiting();
+});
+
 self.addEventListener('fetch', event => {
-  if (event.request.method !== 'GET' || new URL(event.request.url).origin !== location.origin) return;
-  event.respondWith(caches.match(event.request).then(cached => cached || fetch(event.request).then(response => {
-    if (response.ok) caches.open(CACHE).then(cache => cache.put(event.request, response.clone()));
-    return response;
-  }).catch(() => event.request.mode === 'navigate' ? caches.match('/index.html') : undefined)));
+  if (event.request.method !== 'GET') return;
+  const strategy = classifyRequest(event.request.url, event.request.mode, location.origin);
+  if (strategy === 'bypass') return;
+  if (strategy === 'cache-first') {
+    const cacheKey = cacheKeyForRequest(event.request.url, location.origin);
+    event.respondWith(caches.match(cacheKey).then(cached => cached ?? fetch(event.request).then(async response => {
+      const prepared = prepareCacheWrite(response);
+      if (prepared) await caches.open(APP_CACHE).then(cache => cache.put(cacheKey, prepared.cacheCopy)).catch(() => undefined);
+      return response;
+    })));
+    return;
+  }
+  if (event.request.mode === 'navigate') {
+    event.respondWith(fetch(event.request).then(async response => {
+      const prepared = prepareCacheWrite(response);
+      if (prepared) await caches.open(APP_CACHE).then(cache => cache.put('/index.html', prepared.cacheCopy)).catch(() => undefined);
+      return response;
+    }).catch(() => caches.match('/index.html')));
+  }
 });
