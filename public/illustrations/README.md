@@ -1,8 +1,10 @@
 # Catetin illustrations
 
-Original generated editorial illustrations, created for Catetin on 22 October 2026. Optimized WebP assets used by LandingPage.tsx.
+Landing-page visual assets for Catetin.
 
-- audio-to-notes.webp: conceptual audio editing and document export; not an automatic-transcription claim.
-- local-workspace.webp: conceptual local file handling; not a certification or encryption claim.
+- notebook-hero.png and notebook-hero-en.png: illustrative product mockups for the Indonesian and English hero.
+- trust-shield.svg: a minimal local-boundary symbol; not a certification or encryption claim.
+- architecture-local.svg: simplified current Catetin file path.
+- architecture-cloud.svg: neutral simplified cloud-service file path.
 
-Palette: navy, ivory, powder blue, muted teal. Matte paper/clay materials and soft lighting.
+The three SVG diagrams use flat, restrained line work. Product copy and comparison facts remain semantic HTML.

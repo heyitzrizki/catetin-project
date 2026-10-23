@@ -1,15 +1,17 @@
 import { useEffect, useSyncExternalStore } from 'react';
 import messages from './messages.json';
+import extraMessages from './messages-extra.json';
 export type Language = 'id' | 'en';
 const storageKey = 'catetin-language';
 let language: Language = 'id';
 try { if (localStorage.getItem(storageKey) === 'en') language = 'en'; } catch { /* Storage can be unavailable. */ }
 const listeners = new Set<() => void>();
 const aliases = new Map<string, string>();
-for (const [key, value] of Object.entries(messages)) { aliases.set(key, key); aliases.set(value.id, key); aliases.set(value.en, key); }
+const catalog = { ...messages, ...extraMessages };
+for (const [key, value] of Object.entries(catalog)) { aliases.set(key, key); aliases.set(value.id, key); aliases.set(value.en, key); }
 export function t(key: string, values?: Record<string, string | number>): string {
- const canonical = Object.prototype.hasOwnProperty.call(messages, key) ? key : aliases.get(key) ?? key;
- const entry = (messages as Record<string, {id: string; en: string}>)[canonical];
+ const canonical = Object.prototype.hasOwnProperty.call(catalog, key) ? key : aliases.get(key) ?? key;
+ const entry = (catalog as Record<string, {id: string; en: string}>)[canonical];
  const text = entry?.[language] ?? key;
  return text.replace(/\{(\w+)\}/g, (match, name) => values?.[name] == null ? match : String(values[name]));
 }
