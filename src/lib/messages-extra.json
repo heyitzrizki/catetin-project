@@ -105,5 +105,8 @@
   "Kemajuan pemuatan model": { "id": "Kemajuan pemuatan model", "en": "Model loading progress" },
   "Kemajuan persiapan audio": { "id": "Kemajuan persiapan audio", "en": "Audio preparation progress" },
   "Kemajuan transkripsi bagian {current} dari {total}": { "id": "Kemajuan transkripsi bagian {current} dari {total}", "en": "Transcription progress part {current} of {total}" },
-  "Kemajuan penyusunan hasil": { "id": "Kemajuan penyusunan hasil", "en": "Result assembly progress" }
+  "Kemajuan penyusunan hasil": { "id": "Kemajuan penyusunan hasil", "en": "Result assembly progress" },
+  "Timpa naskah yang ada?": { "id": "Timpa naskah yang ada?", "en": "Overwrite existing transcript?" },
+  "Rekaman ini sudah memiliki isi atau suntingan naskah. Menjalankan transkripsi baru akan menggantikan naskah saat ini.": { "id": "Rekaman ini sudah memiliki isi atau suntingan naskah. Menjalankan transkripsi baru akan menggantikan naskah saat ini.", "en": "This recording already has transcript content or edits. Running a new transcription will replace the current transcript." },
+  "Timpa dan transkripsikan": { "id": "Timpa dan transkripsikan", "en": "Overwrite and transcribe" }
 }

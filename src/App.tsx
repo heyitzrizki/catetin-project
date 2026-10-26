@@ -40,6 +40,7 @@ export default function App() {
   const [uploadError, setUploadError] = useState('');
   const [toolsOpen, setToolsOpen] = useState(false);
   const [modelOpen, setModelOpen] = useState(false);
+  const [overwriteConfirm, setOverwriteConfirm] = useState<{ resume: boolean } | null>(null);
   const [transcription, setTranscription] = useState<TranscriptionUiSnapshot>(createIdleSnapshot);
   const [resumableChunks, setResumableChunks] = useState(0);
   const [workspaceReady, setWorkspaceReady] = useState(false);
@@ -266,10 +267,11 @@ export default function App() {
     jobControllerRef.current?.cancelActiveJob();
   };
 
-  const runActiveTranscription = async (resume = true) => {
+  const executeActiveTranscription = async (resume = true) => {
     const audioFile = audioFiles.current[activeId];
     const running = ['validating', 'preparing-model', 'preparing-audio', 'transcribing', 'assembling-result'].includes(transcription.status);
     if (!audioFile || running) return;
+    setOverwriteConfirm(null);
     if (!resume) {
       await jobControllerRef.current?.discardCheckpoint({
         file: audioFile as Blob & { name?: string; type?: string },
@@ -284,6 +286,20 @@ export default function App() {
       knownDurationSeconds: active.durationSec > 0 ? active.durationSec : undefined,
       resume,
     });
+  };
+
+  const runActiveTranscription = async (resume = true) => {
+    const audioFile = audioFiles.current[activeId];
+    const running = ['validating', 'preparing-model', 'preparing-audio', 'transcribing', 'assembling-result'].includes(transcription.status);
+    if (!audioFile || running) return;
+    const hasExistingOrEditedTranscript = segments.length > 0
+      || (drafts[activeId]?.length ?? 0) > 0
+      || Object.keys(speakerNames).length > 0;
+    if (hasExistingOrEditedTranscript) {
+      setOverwriteConfirm({ resume });
+      return;
+    }
+    await executeActiveTranscription(resume);
   };
 
   const discardActiveCheckpoint = async () => {
@@ -367,6 +383,19 @@ export default function App() {
       onDiscardCheckpoint={() => { void discardActiveCheckpoint(); }}
       onCancel={cancelTranscription}
     />
+
+    <Dialog open={overwriteConfirm !== null} onOpenChange={open => { if (!open) setOverwriteConfirm(null); }}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{t("Timpa naskah yang ada?")}</DialogTitle>
+          <DialogDescription>{t("Rekaman ini sudah memiliki isi atau suntingan naskah. Menjalankan transkripsi baru akan menggantikan naskah saat ini.")}</DialogDescription>
+        </DialogHeader>
+        <div className="transcription-actions flex-wrap gap-2">
+          <Button variant="outline" onClick={() => setOverwriteConfirm(null)}>{t("Batalkan")}</Button>
+          <Button onClick={() => { if (overwriteConfirm) void executeActiveTranscription(overwriteConfirm.resume); }}>{t("Timpa dan transkripsikan")}</Button>
+        </div>
+      </DialogContent>
+    </Dialog>
 
     <Dialog open={infoPage !== null} onOpenChange={open => { if (!open) setInfoPage(null); }}><DialogContent><DialogHeader><DialogTitle>{infoPage === 'about' ? t("Setiap cerita layak dicatat.") : infoPage === 'pricing' ? t("Harga & lisensi") : t("Pertanyaan tentang Catetin")}</DialogTitle><DialogDescription>{infoPage === 'about' ? t("Catetin adalah ruang kerja untuk mentranskripsikan, menyunting, dan menyiapkan naskah percakapan.") : infoPage === 'pricing' ? t("Editor ini dapat dicoba tanpa akun atau pembayaran.") : t("Yang perlu diketahui sebelum mulai.")}</DialogDescription></DialogHeader>{infoPage === 'about' ? <div className="about-copy"><p>{t("Catetin membantu mengubah rekaman menjadi naskah tanpa mengirim audio ke layanan transkripsi. Whisper berjalan langsung di perangkat Anda.")}</p><p>{t("Draf disimpan di browser dan dapat diekspor sebagai TXT, SRT, atau dokumen kompatibel Word.")}</p><Button onClick={() => { setInfoPage(null); openStudio(); }}>{t("Coba Studio")} <ArrowRight aria-hidden="true" /></Button></div> : infoPage === 'pricing' ? <div className="about-copy"><p>{t("Paket berbayar dan pembelian lisensi belum tersedia. Editor saat ini dapat digunakan tanpa biaya.")}</p><Button onClick={() => { setInfoPage(null); openStudio(); }}>{t("Buka Studio")} <ArrowRight aria-hidden="true" /></Button></div> : <Accordion type="single" collapsible>{questions.map(([question, answer], index) => <AccordionItem key={t(question)} value={String(index)}><AccordionTrigger>{t(question)}</AccordionTrigger><AccordionContent>{t(answer)}</AccordionContent></AccordionItem>)}</Accordion>}</DialogContent></Dialog>
 
