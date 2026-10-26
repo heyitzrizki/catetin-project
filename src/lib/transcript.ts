@@ -13,6 +13,11 @@ export interface Recording {
   filename: string;
   durationSec: number;
   segments: DialogSegment[];
+  projectId?: string;
+  folderId?: string | null;
+  tags?: string[];
+  createdAt?: number;
+  updatedAt?: number;
 }
 
 // Written examples, not transcripts or testimonials from real people.

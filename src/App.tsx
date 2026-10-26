@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
 import { downloadTranscript, formatSeconds, recordings, transcriptText, type DialogSegment, type Recording } from '@/lib/transcript';
-import { loadWorkspace, saveWorkspace } from '@/lib/draft-store';
+import { loadWorkspace, saveWorkspace } from '@/features/workspace/workspace-store';
 import { decodeAudio } from '@/lib/transcription';
 import { inspectAudioFile } from '@/features/transcription/audio-preparation';
 import { TranscriptionJobController, createIdleSnapshot, type TranscriptionUiSnapshot } from '@/features/transcription/job-controller';
