@@ -79,6 +79,17 @@ export async function findResumableCheckpoint(
     && equalRecord(item.compatibility, compatibility)) ?? null;
 }
 
+export async function findMatchingCheckpoints(
+  inputFingerprint: string,
+  language: TranscriptionLanguage,
+  compatibility: JobCompatibility,
+): Promise<TranscriptionCheckpoint[]> {
+  const checkpoints = await withStore<TranscriptionCheckpoint[]>('readonly', store => store.getAll());
+  return checkpoints.filter(item => item.inputFingerprint === inputFingerprint
+    && item.settings.language === language
+    && equalRecord(item.compatibility, compatibility));
+}
+
 export async function setCheckpointRetention(id: string, retentionMode: TranscriptionCheckpoint['retentionMode']) {
   const checkpoint = await withStore<TranscriptionCheckpoint | undefined>('readonly', store => store.get(id));
   if (!checkpoint) return false;

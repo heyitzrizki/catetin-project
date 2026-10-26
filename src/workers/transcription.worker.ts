@@ -21,6 +21,9 @@ function classifyError(error: unknown, stage: 'model' | 'transcribe', backend: '
   const raw = (error instanceof Error ? error.message : String(error)).toLowerCase();
   if (/out of memory|memory|allocation|oom|arraybuffer/.test(raw)) return 'resource-exhausted';
   if (stage === 'model') return backend === 'webgpu' ? 'backend-failed' : 'model-load-failed';
+  if (backend === 'webgpu' && /webgpu|gpu|device|adapter|shader|wgsl|pipeline|buffer|queue|compute|commandencoder|mapasync|dxgi|vulkan|metal|d3d/i.test(raw)) {
+    return 'backend-failed';
+  }
   return 'transcription-failed';
 }
 

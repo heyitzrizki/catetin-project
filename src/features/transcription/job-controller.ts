@@ -16,7 +16,13 @@ import {
   type CapabilityPolicy,
   type DeviceSignals,
 } from './capability-policy';
-import { deleteCheckpoint, saveCheckpoint } from './checkpoint-store';
+import {
+  deleteCheckpoint,
+  findMatchingCheckpoints,
+  findResumableCheckpoint,
+  saveCheckpoint,
+  type TranscriptionCheckpoint,
+} from './checkpoint-store';
 import { mergeChunkResults, toDialogSegments, type TranscriptChunkResult } from './chunk-merger';
 import { acceptsJobEvent, initialJobState, reduceJobState } from './job-state';
 import type {
@@ -53,9 +59,11 @@ export type TranscriptionErrorReason =
 export interface TranscriptionUiSnapshot {
   status: TranscriptionUiStatus;
   jobState: TranscriptionJobState | null;
+  recordingId?: string | null;
   progress: number | null;
   currentChunk: number | null;
   totalChunks: number | null;
+  resumedFromChunks?: number;
   errorReason: TranscriptionErrorReason | null;
   messageKey: string;
   messageParams?: Record<string, string | number>;
@@ -76,7 +84,7 @@ export interface ControllerDependencies {
   getDeviceSignals?: () => DeviceSignals;
   getGpu?: () => { requestAdapter: () => Promise<unknown> } | undefined;
   onStatusChange: (snapshot: TranscriptionUiSnapshot) => void;
-  onComplete: (segments: DialogSegment[], meta: { jobId: string; backend: TranscriptionBackend; durationSec: number }) => void;
+  onComplete: (segments: DialogSegment[], meta: { jobId: string; recordingId?: string; backend: TranscriptionBackend; durationSec: number }) => void;
 }
 
 const DEFAULT_COMPATIBILITY: JobCompatibility = {
@@ -112,9 +120,11 @@ export function createIdleSnapshot(): TranscriptionUiSnapshot {
   return {
     status: 'idle',
     jobState: null,
+    recordingId: null,
     progress: null,
     currentChunk: null,
     totalChunks: null,
+    resumedFromChunks: 0,
     errorReason: null,
     messageKey: '',
     nextActionKey: null,
@@ -147,7 +157,10 @@ function sliceWholePcmChunk(samples: Float32Array, win: ReturnType<typeof buildC
 
 export class TranscriptionJobController {
   private deps: ControllerDependencies;
+  private activeRunToken = 0;
   private activeJobId: string | null = null;
+  private activeRecordingId: string | undefined = undefined;
+  private lastCheckpointId: string | null = null;
   private currentState: TranscriptionJobState | null = null;
   private worker: WorkerLike | null = null;
   private createdAt = 0;
@@ -161,8 +174,18 @@ export class TranscriptionJobController {
     return this.activeJobId;
   }
 
+  getActiveRecordingId(): string | undefined {
+    return this.activeRecordingId;
+  }
+
   getJobState(): TranscriptionJobState | null {
     return this.currentState;
+  }
+
+  private isLatestRun(runToken: number, jobId?: string): boolean {
+    if (this.activeRunToken !== runToken) return false;
+    if (jobId !== undefined && this.activeJobId !== jobId) return false;
+    return true;
   }
 
   private terminateWorker() {
@@ -189,9 +212,11 @@ export class TranscriptionJobController {
     status: TranscriptionUiStatus,
     messageKey: string,
     options: {
+      recordingId?: string | null;
       progress?: number | null;
       currentChunk?: number | null;
       totalChunks?: number | null;
+      resumedFromChunks?: number;
       errorReason?: TranscriptionErrorReason | null;
       messageParams?: Record<string, string | number>;
       nextActionKey?: string | null;
@@ -200,9 +225,11 @@ export class TranscriptionJobController {
     this.deps.onStatusChange({
       status,
       jobState: this.currentState,
+      recordingId: options.recordingId !== undefined ? options.recordingId : (this.activeRecordingId ?? null),
       progress: options.progress ?? null,
       currentChunk: options.currentChunk ?? null,
       totalChunks: options.totalChunks ?? null,
+      resumedFromChunks: options.resumedFromChunks ?? 0,
       errorReason: options.errorReason ?? null,
       messageKey,
       messageParams: options.messageParams,
@@ -215,6 +242,7 @@ export class TranscriptionJobController {
     const state = this.currentState;
     if (!jobId || !state) return;
 
+    this.activeRunToken += 1;
     this.activeJobId = null;
     setTranscriptionJobActive(false);
 
@@ -239,7 +267,9 @@ export class TranscriptionJobController {
   }
 
   dispose() {
+    this.activeRunToken += 1;
     this.activeJobId = null;
+    this.activeRecordingId = undefined;
     setTranscriptionJobActive(false);
     this.terminateWorker();
   }
@@ -250,26 +280,146 @@ export class TranscriptionJobController {
     return { policy: createCapabilityPolicy({ device, webGpu }), deviceClass: device.class, webGpuAvailable: webGpu.available };
   }
 
+  async findCompatibleCheckpoint(params: {
+    file: Blob & { name?: string; type?: string };
+    language: TranscriptionLanguage;
+    preferredBackend?: TranscriptionBackend;
+    fingerprint?: string;
+  }): Promise<TranscriptionCheckpoint | null> {
+    const fingerprint = params.fingerprint ?? await computeInputFingerprint(params.file);
+    let backend = params.preferredBackend;
+    if (!backend) {
+      const { policy } = await this.inspectCapabilities();
+      backend = policy.preferredBackend;
+    }
+    const matches = await findMatchingCheckpoints(fingerprint, params.language, DEFAULT_COMPATIBILITY);
+    const primaryMatches = matches
+      .filter(item => item.settings.model === 'tiny' && item.settings.backend === backend)
+      .sort((a, b) => b.updatedAt - a.updatedAt);
+    const primary = primaryMatches[0] ?? null;
+
+    if (backend === 'webgpu') {
+      const wasmMatches = matches
+        .filter(item => item.settings.model === 'tiny' && item.settings.backend === 'wasm')
+        .sort((a, b) => b.updatedAt - a.updatedAt);
+      const wasmCheckpoint = wasmMatches[0] ?? null;
+      if (wasmCheckpoint && (!primary || wasmCheckpoint.updatedAt >= primary.updatedAt)) {
+        return wasmCheckpoint;
+      }
+    }
+    return primary;
+  }
+
+  async discardCheckpoint(params?: {
+    checkpointId?: string;
+    file?: Blob & { name?: string; type?: string };
+    language?: TranscriptionLanguage;
+  }): Promise<boolean> {
+    const hasCheckpointId = Boolean(params?.checkpointId);
+    const hasFileTarget = !hasCheckpointId && Boolean(params?.file && params?.language);
+    const hasExplicitTarget = hasCheckpointId || hasFileTarget;
+    const idsToDelete = new Set<string>();
+
+    if (hasCheckpointId && params?.checkpointId) {
+      idsToDelete.add(params.checkpointId);
+    } else if (hasFileTarget && params?.file && params?.language) {
+      const fingerprint = await computeInputFingerprint(params.file);
+      const matches = await findMatchingCheckpoints(fingerprint, params.language, DEFAULT_COMPATIBILITY);
+      for (const match of matches) {
+        if (match.settings.model === 'tiny') {
+          idsToDelete.add(match.id);
+        }
+      }
+    } else if (!hasExplicitTarget && this.lastCheckpointId) {
+      idsToDelete.add(this.lastCheckpointId);
+    }
+
+    if (idsToDelete.size === 0) return false;
+
+    if (this.activeJobId && (!hasExplicitTarget || idsToDelete.has(this.activeJobId))) {
+      this.cancelActiveJob();
+    }
+
+    await Promise.all([...idsToDelete].map(id => deleteCheckpoint(id)));
+
+    const clearedActiveOrLast = !hasExplicitTarget
+      || (this.lastCheckpointId !== null && idsToDelete.has(this.lastCheckpointId))
+      || (this.currentState !== null && idsToDelete.has(this.currentState.jobId));
+
+    if (this.lastCheckpointId && idsToDelete.has(this.lastCheckpointId)) {
+      this.lastCheckpointId = null;
+    }
+    if (clearedActiveOrLast) {
+      this.currentState = null;
+      this.deps.onStatusChange(createIdleSnapshot());
+    }
+    return true;
+  }
+
   async runJob(params: {
     file: Blob & { name?: string; type?: string };
     language: TranscriptionLanguage;
+    recordingId?: string;
     knownDurationSeconds?: number;
+    resume?: boolean;
   }): Promise<void> {
+    this.activeRunToken += 1;
+    const runToken = this.activeRunToken;
+    const provisionalJobId = `job-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    const boundRecordingId = params.recordingId;
+
     this.terminateWorker();
-    const jobId = `job-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-    this.activeJobId = jobId;
-    this.createdAt = Date.now();
+    this.activeJobId = provisionalJobId;
+    this.activeRecordingId = boundRecordingId;
     setTranscriptionJobActive(true);
 
+    const shouldResume = params.resume !== false;
     const { policy } = await this.inspectCapabilities();
-    if (this.activeJobId !== jobId) return;
+    if (!this.isLatestRun(runToken, provisionalJobId)) return;
 
-    this.currentState = initialJobState(jobId, {
-      model: 'tiny',
-      language: params.language,
-      backend: policy.preferredBackend,
+    const fingerprint = await computeInputFingerprint(params.file);
+    if (!this.isLatestRun(runToken, provisionalJobId)) return;
+
+    let existingCheckpoint: TranscriptionCheckpoint | null = null;
+    if (shouldResume && policy.allowedModels.includes('tiny')) {
+      existingCheckpoint = await this.findCompatibleCheckpoint({
+        file: params.file,
+        language: params.language,
+        preferredBackend: policy.preferredBackend,
+        fingerprint,
+      });
+      if (!this.isLatestRun(runToken, provisionalJobId)) return;
+    }
+
+    const jobId = existingCheckpoint?.id ?? provisionalJobId;
+    this.activeJobId = jobId;
+    this.activeRecordingId = boundRecordingId;
+    this.lastCheckpointId = existingCheckpoint ? existingCheckpoint.id : null;
+    this.createdAt = existingCheckpoint?.createdAt ?? Date.now();
+
+    const initialBackend: TranscriptionBackend = existingCheckpoint
+      ? existingCheckpoint.settings.backend
+      : policy.preferredBackend;
+    const initialFallbackCount = existingCheckpoint && existingCheckpoint.backendHistory.includes('webgpu') && existingCheckpoint.settings.backend === 'wasm'
+      ? 1
+      : 0;
+
+    this.currentState = {
+      ...initialJobState(jobId, {
+        model: 'tiny',
+        language: params.language,
+        backend: initialBackend,
+      }),
+      fallbackCount: initialFallbackCount,
+    };
+
+    const resumedChunks: TranscriptChunkResult[] = existingCheckpoint ? [...existingCheckpoint.chunks] : [];
+    const completedIndices = new Set<number>(resumedChunks.map(c => c.sourceIndex));
+
+    this.emitStatus('validating', 'Memvalidasi berkas audio dan kemampuan perangkat…', {
+      recordingId: boundRecordingId,
+      resumedFromChunks: resumedChunks.length,
     });
-    this.emitStatus('validating', 'Memvalidasi berkas audio dan kemampuan perangkat…');
 
     if (!policy.allowedModels.includes('tiny')) {
       this.failJob(jobId, 'unsupported', 'unsupported-device-policy', 'Perangkat ini belum memenuhi syarat kebijakan kemampuan untuk menjalankan transkripsi lokal.', undefined, 'Gunakan Chrome desktop untuk menjalankan transkripsi lokal.');
@@ -280,7 +430,7 @@ export class TranscriptionJobController {
       knownDurationSeconds: params.knownDurationSeconds,
       probeDuration: this.deps.probeDuration,
     });
-    if (this.activeJobId !== jobId) return;
+    if (!this.isLatestRun(runToken, jobId)) return;
 
     if (!inspection.valid || !inspection.route) {
       if (inspection.errorCode === 'exceeds-safe-limit') {
@@ -301,37 +451,44 @@ export class TranscriptionJobController {
       return;
     }
 
-    const fingerprint = await computeInputFingerprint(params.file);
-    if (this.activeJobId !== jobId || !this.advanceState(jobId, 'preparing-model')) return;
-    this.emitStatus(mapJobPhaseToUiStatus(this.currentState.phase), 'Menyiapkan model transkripsi di perangkat…');
+    if (!this.isLatestRun(runToken, jobId) || !this.advanceState(jobId, 'preparing-model')) return;
+    this.emitStatus(mapJobPhaseToUiStatus(this.currentState.phase), 'Menyiapkan model transkripsi di perangkat…', {
+      recordingId: boundRecordingId,
+      resumedFromChunks: resumedChunks.length,
+    });
 
     const worker = this.deps.createWorker
       ? this.deps.createWorker()
       : new Worker(new URL('../../workers/transcription.worker.ts', import.meta.url), { type: 'module' });
     this.worker = worker;
 
-    const completedChunks: TranscriptChunkResult[] = [];
+    const completedChunks: TranscriptChunkResult[] = [...resumedChunks];
 
     try {
       await this.initializeWorkerModel(jobId, worker);
-      if (this.activeJobId !== jobId || !this.advanceState(jobId, 'preparing-audio')) return;
-      this.emitStatus(mapJobPhaseToUiStatus(this.currentState.phase), 'Menyiapkan audio secara lokal…');
+      if (!this.isLatestRun(runToken, jobId) || !this.advanceState(jobId, 'preparing-audio')) return;
+      this.emitStatus(mapJobPhaseToUiStatus(this.currentState.phase), 'Menyiapkan audio secara lokal…', {
+        recordingId: boundRecordingId,
+        resumedFromChunks: resumedChunks.length,
+      });
 
       let totalDurationSec = inspection.durationSeconds ?? 0;
 
       if (inspection.route === 'pcm-wav-slice' && inspection.wavHeader) {
         totalDurationSec = inspection.wavHeader.durationSeconds;
         for await (const chunk of generateWavSliceChunks(params.file, inspection.wavHeader)) {
-          if (this.activeJobId !== jobId) return;
-          const chunkResult = await this.transcribeChunk(jobId, worker, chunk);
-          if (!chunkResult || this.activeJobId !== jobId) return;
+          if (!this.isLatestRun(runToken, jobId)) return;
+          if (completedIndices.has(chunk.sourceIndex)) continue;
+          const chunkResult = await this.transcribeChunk(jobId, worker, chunk, fingerprint, completedChunks, resumedChunks.length, runToken);
+          if (!chunkResult || !this.isLatestRun(runToken, jobId)) return;
           completedChunks.push(chunkResult);
+          completedIndices.add(chunk.sourceIndex);
           await this.persistCheckpoint(jobId, fingerprint, completedChunks, 'resumable');
         }
       } else {
         if (!this.deps.decodeWholeFile) throw new Error('decode-unavailable');
         let fullPcm: Float32Array | null = await this.deps.decodeWholeFile(params.file);
-        if (this.activeJobId !== jobId) { fullPcm = null; return; }
+        if (!this.isLatestRun(runToken, jobId)) { fullPcm = null; return; }
         totalDurationSec = fullPcm.length / TARGET_SAMPLE_RATE;
 
         if (totalDurationSec > inspection.maxAllowedDurationSeconds) {
@@ -348,28 +505,37 @@ export class TranscriptionJobController {
         }];
 
         for (let i = 0; i < effectiveWindows.length; i += 1) {
-          if (this.activeJobId !== jobId || !fullPcm) return;
-          const chunk = sliceWholePcmChunk(fullPcm, effectiveWindows[i]);
+          if (!this.isLatestRun(runToken, jobId) || !fullPcm) return;
+          const win = effectiveWindows[i];
+          if (completedIndices.has(win.sourceIndex)) {
+            if (i === effectiveWindows.length - 1) fullPcm = null;
+            continue;
+          }
+          const chunk = sliceWholePcmChunk(fullPcm, win);
           if (i === effectiveWindows.length - 1) fullPcm = null; // Release whole PCM as soon as last slice is taken
-          const chunkResult = await this.transcribeChunk(jobId, worker, chunk);
-          if (!chunkResult || this.activeJobId !== jobId) { fullPcm = null; return; }
+          const chunkResult = await this.transcribeChunk(jobId, worker, chunk, fingerprint, completedChunks, resumedChunks.length, runToken);
+          if (!chunkResult || !this.isLatestRun(runToken, jobId)) { fullPcm = null; return; }
           completedChunks.push(chunkResult);
+          completedIndices.add(chunk.sourceIndex);
           await this.persistCheckpoint(jobId, fingerprint, completedChunks, 'resumable');
         }
       }
 
-      if (this.activeJobId !== jobId || !this.currentState) return;
+      if (!this.isLatestRun(runToken, jobId) || !this.currentState) return;
       if (this.currentState.phase === 'preparing-audio' && !this.advanceState(jobId, 'transcribing')) return;
       if (!this.advanceState(jobId, 'merging')) return;
 
       this.emitStatus(mapJobPhaseToUiStatus(this.currentState.phase), 'Menyusun hasil transkripsi bertimestamp…', {
-        progress: 100, currentChunk: completedChunks.length, totalChunks: completedChunks.length,
+        progress: 100,
+        currentChunk: completedChunks.length,
+        totalChunks: completedChunks.length,
+        resumedFromChunks: resumedChunks.length,
       });
 
       const dialogSegments = toDialogSegments(mergeChunkResults(completedChunks));
 
       if (!this.advanceState(jobId, 'checkpointing')) return;
-      try { await deleteCheckpoint(jobId); } catch { /* ignore */ }
+      try { await deleteCheckpoint(jobId); this.lastCheckpointId = null; } catch { /* ignore */ }
       if (!this.advanceState(jobId, 'complete')) return;
 
       const finalState = this.currentState;
@@ -377,15 +543,24 @@ export class TranscriptionJobController {
       setTranscriptionJobActive(false);
       this.terminateWorker();
 
-      this.deps.onComplete(dialogSegments, { jobId, backend: finalState.backend, durationSec: totalDurationSec });
+      this.deps.onComplete(dialogSegments, {
+        jobId,
+        recordingId: boundRecordingId,
+        backend: finalState.backend,
+        durationSec: totalDurationSec,
+      });
       this.emitStatus('completed', 'Transkripsi selesai dan siap disunting.', {
-        progress: 100, currentChunk: completedChunks.length, totalChunks: completedChunks.length,
+        recordingId: boundRecordingId,
+        progress: 100,
+        currentChunk: completedChunks.length,
+        totalChunks: completedChunks.length,
+        resumedFromChunks: resumedChunks.length,
       });
     } catch (error) {
-      if (this.activeJobId !== jobId) return;
-      const raw = error instanceof Error ? error.message : String(error);
-      if (raw === 'handled-job-error') return;
+      if (!this.isLatestRun(runToken)) return;
       if (completedChunks.length > 0) await this.persistCheckpoint(jobId, fingerprint, completedChunks, 'error');
+      const raw = error instanceof Error ? error.message : String(error);
+      if (raw === 'handled-job-error' || !this.isLatestRun(runToken, jobId)) return;
       const isMemory = /out of memory|memory|allocation|oom/i.test(raw);
       this.failJob(
         jobId,
@@ -453,24 +628,43 @@ export class TranscriptionJobController {
     }
   }
 
-  private async transcribeChunk(jobId: string, worker: WorkerLike, chunk: PreparedAudioChunk): Promise<TranscriptChunkResult | null> {
+  private async transcribeChunk(
+    jobId: string,
+    worker: WorkerLike,
+    chunk: PreparedAudioChunk,
+    fingerprint: string,
+    completedChunks: TranscriptChunkResult[],
+    resumedFromChunks = 0,
+    runToken?: number,
+  ): Promise<TranscriptChunkResult | null> {
     if (!this.currentState || this.activeJobId !== jobId) return null;
+    if (runToken !== undefined && !this.isLatestRun(runToken, jobId)) return null;
     if (this.currentState.phase !== 'transcribing' && !this.advanceState(jobId, 'transcribing')) return null;
 
     const progress = chunk.totalChunks > 0 ? Math.round((chunk.sourceIndex / chunk.totalChunks) * 100) : null;
     this.emitStatus(
       mapJobPhaseToUiStatus(this.currentState.phase),
       chunk.totalChunks > 1 ? 'Mentranskripsikan bagian {current} dari {total} di perangkat…' : 'Mentranskripsikan rekaman di perangkat…',
-      { progress, currentChunk: chunk.sourceIndex + 1, totalChunks: chunk.totalChunks, messageParams: { current: chunk.sourceIndex + 1, total: chunk.totalChunks } },
+      {
+        progress,
+        currentChunk: chunk.sourceIndex + 1,
+        totalChunks: chunk.totalChunks,
+        resumedFromChunks,
+        messageParams: { current: chunk.sourceIndex + 1, total: chunk.totalChunks },
+      },
     );
 
-    try {
-      return await new Promise<TranscriptChunkResult>((resolve, reject) => {
+    const canFallback = this.currentState.backend === 'webgpu' && this.currentState.fallbackCount === 0;
+    const retrySamples = canFallback ? chunk.samples.slice() : null;
+
+    const attemptChunk = (audioSamples: Float32Array, backend: TranscriptionBackend): Promise<TranscriptChunkResult> =>
+      new Promise<TranscriptChunkResult>((resolve, reject) => {
         const onCancel = () => reject({ type: 'worker-error', jobId, category: 'cancelled' });
         this.cancelCallbacks.add(onCancel);
         worker.onmessage = (event: MessageEvent<WorkerResponse>) => {
           const msg = event.data;
           if (!msg || !acceptsJobEvent(jobId, msg.jobId) || this.activeJobId !== jobId) return;
+          if (runToken !== undefined && !this.isLatestRun(runToken, jobId)) return;
           if (msg.type === 'chunk-complete' && msg.chunkId === chunk.chunkId) {
             this.cancelCallbacks.delete(onCancel);
             resolve({
@@ -505,14 +699,67 @@ export class TranscriptionJobController {
             overlapStart: chunk.overlapStart,
             overlapEnd: chunk.overlapEnd,
             language: this.currentState!.language,
-            backend: this.currentState!.backend,
-            audio: chunk.samples,
+            backend,
+            audio: audioSamples,
           },
-          [chunk.samples.buffer],
+          [audioSamples.buffer],
         );
       });
+
+    try {
+      return await attemptChunk(chunk.samples, this.currentState.backend);
     } catch (err: any) {
       if (this.activeJobId !== jobId || !this.currentState) return null;
+      if (runToken !== undefined && !this.isLatestRun(runToken, jobId)) return null;
+      if (
+        this.currentState.backend === 'webgpu'
+        && this.currentState.fallbackCount === 0
+        && retrySamples
+        && err?.category === 'backend-failed'
+      ) {
+        const fallbackReduced = reduceJobState(this.currentState, {
+          type: 'fallback',
+          jobId,
+          from: 'webgpu',
+          to: 'wasm',
+          attempt: 1,
+        });
+        if (fallbackReduced.ok) {
+          this.currentState = fallbackReduced.state;
+          await this.persistCheckpoint(jobId, fingerprint, completedChunks, 'resumable');
+          if (runToken !== undefined && !this.isLatestRun(runToken, jobId)) return null;
+          this.emitStatus(
+            mapJobPhaseToUiStatus(this.currentState.phase),
+            'WebGPU tidak dapat memuat model. Beralih ke WebAssembly…',
+            {
+              progress,
+              currentChunk: chunk.sourceIndex + 1,
+              totalChunks: chunk.totalChunks,
+              resumedFromChunks,
+            },
+          );
+          try {
+            await this.initializeWorkerModel(jobId, worker);
+            if (this.activeJobId !== jobId || !this.currentState) return null;
+            if (runToken !== undefined && !this.isLatestRun(runToken, jobId)) return null;
+            if (!this.advanceState(jobId, 'transcribing')) return null;
+            return await attemptChunk(retrySamples, 'wasm');
+          } catch (wasmErr: any) {
+            await this.persistCheckpoint(jobId, fingerprint, completedChunks, 'error');
+            if (wasmErr instanceof Error && wasmErr.message === 'handled-job-error') {
+              throw wasmErr;
+            }
+            err = wasmErr;
+          }
+        }
+      }
+      if (runToken !== undefined && !this.isLatestRun(runToken, jobId)) return null;
+      if (err?.category === 'cancelled') {
+        this.cancelActiveJob();
+        throw new Error('handled-job-error');
+      }
+      await this.persistCheckpoint(jobId, fingerprint, completedChunks, 'error');
+      if (runToken !== undefined && !this.isLatestRun(runToken, jobId)) return null;
       const isResource = err?.category === 'resource-exhausted';
       this.failJob(
         jobId,
@@ -541,6 +788,7 @@ export class TranscriptionJobController {
         updatedAt: Date.now(),
         retentionMode: 'timed',
       });
+      this.lastCheckpointId = jobId;
     } catch { /* best-effort checkpoint */ }
   }
 
