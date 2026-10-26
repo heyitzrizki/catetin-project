@@ -20,8 +20,22 @@ export function ComparisonSection() {
         <caption>{t('Perbandingan pendekatan, bukan peringkat merek tertentu.')}</caption>
         <thead><tr>
           <th scope="col" className="comparison-criterion">{t('Kriteria')}</th>
-          <th scope="col" className="comparison-local"><span>{t('DI PERANGKATMU')}</span><strong>Catetin</strong><small>{t('Editor lokal saat ini')}</small></th>
-          <th scope="col" className="comparison-cloud"><span>{t('DI INFRASTRUKTUR PENYEDIA')}</span><strong>{t('Layanan cloud')}</strong><small>{t('Berbeda menurut penyedia')}</small></th>
+          <th scope="col" className="comparison-local">
+            <span>{t('DI PERANGKATMU')}</span>
+            <strong>Catetin</strong>
+            <small>{t('Editor lokal saat ini')}</small>
+            <figure className="comparison-scene comparison-image" aria-hidden="true">
+              <img src="/illustrations/comparison-local.jpg" alt="" width="960" height="540" loading="lazy" decoding="async"/>
+            </figure>
+          </th>
+          <th scope="col" className="comparison-cloud">
+            <span>{t('DI INFRASTRUKTUR PENYEDIA')}</span>
+            <strong>{t('Layanan cloud')}</strong>
+            <small>{t('Berbeda menurut penyedia')}</small>
+            <figure className="comparison-scene comparison-image" aria-hidden="true">
+              <img src="/illustrations/comparison-cloud.jpg" alt="" width="960" height="540" loading="lazy" decoding="async"/>
+            </figure>
+          </th>
         </tr></thead>
         <tbody>{rows.map(([label, local, cloud]) => <tr key={label}>
           <th scope="row" className="comparison-criterion">{t(label)}</th>

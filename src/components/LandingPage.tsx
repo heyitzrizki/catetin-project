@@ -1,7 +1,7 @@
 import { t, useLanguage } from '@/lib/i18n';
 import { useState } from 'react';
 import { LazyMotion, domAnimation, m, useReducedMotion } from 'motion/react';
-import { ArrowRight, FileAudio, FileText, Headphones, Download, Play, PencilLine, ChevronRight } from 'lucide-react';
+import { ArrowRight, Headphones, Download, PencilLine, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { recordings } from '@/lib/transcript';
@@ -17,11 +17,10 @@ export const questions = [
  ['Apa yang terjadi saat saya membuka rekaman sendiri?', 'Rekaman dibuka di pemutar lokal. Kamu dapat menjalankan transkripsi Whisper dari menu Model & perangkat, atau menulis naskah secara manual.'],
 ];
 const stages = [
- {title:'Dengarkan rekaman',body:'Buka audio milikmu, cari posisi percakapan, dan sesuaikan kecepatan pemutaran. Berkas tetap dibuka lokal di browser.',label:'01 / DENGARKAN',headline:'Tetap dengar konteksnya.'},
- {title:'Sunting naskah',body:'Tulis atau rapikan kalimat langsung di editor. Ganti nama pembicara dan gunakan pencarian untuk menemukan kata dalam naskah.',label:'02 / SUNTING',headline:'Beri setiap suara tempatnya.'},
- {title:'Ekspor hasilnya',body:'Salin seluruh naskah, atau unduh sebagai TXT, SRT, dan dokumen kompatibel Word. Kamu yang menentukan kapan hasilnya dibagikan.',label:'03 / EKSPOR',headline:'Siap untuk pekerjaan berikutnya.'},
+ {title:'Dengarkan rekaman',body:'Buka audio milikmu, cari posisi percakapan, dan sesuaikan kecepatan pemutaran. Berkas tetap dibuka lokal di browser.',label:'01 / DENGARKAN',headline:'Tetap dengar konteksnya.',image:'/illustrations/workflow-stage-1.jpg',caption:'Dengar ulang, dengan kecepatanmu.'},
+ {title:'Sunting naskah',body:'Tulis atau rapikan kalimat langsung di editor. Ganti nama pembicara dan gunakan pencarian untuk menemukan kata dalam naskah.',label:'02 / SUNTING',headline:'Beri setiap suara tempatnya.',image:'/illustrations/workflow-stage-2.jpg',caption:'Sunting langsung di naskah.'},
+ {title:'Ekspor hasilnya',body:'Salin seluruh naskah, atau unduh sebagai TXT, SRT, dan dokumen kompatibel Word. Kamu yang menentukan kapan hasilnya dibagikan.',label:'03 / EKSPOR',headline:'Siap untuk pekerjaan berikutnya.',image:'/illustrations/workflow-stage-3.jpg',caption:'Pilih format saat mengekspor di Studio.'},
 ];
-function Waveform() { return <div className="lp-wave" aria-hidden="true">{Array.from({length:70},(_,i)=><i key={i} style={{height:`${8+((i*17+i*i*3)%29)}px`}} />)}</div>; }
 export function LandingPage({onOpenStudio,onOpenRecording}:LandingPageProps) {
  useLanguage();
  const reduceMotion=useReducedMotion();
@@ -46,8 +45,20 @@ export function LandingPage({onOpenStudio,onOpenRecording}:LandingPageProps) {
    </div>
   </section>
   <section className="lp-workflow" id="cara-kerja"><div className="page-container lp-split">
-   <m.div key={stage} {...entrance} className="lp-stage-visual" aria-live="polite"><span className="lp-ui-heading">{t(stages[stage].label)}</span>{stage===0?<><div className="lp-file-art"><FileAudio size={30}/><div><b>{t("Rekaman pilihanmu")}</b><p>{t("Dibuka dari perangkat")}</p></div></div><Waveform/><div className="lp-art-caption"><Headphones size={18}/>{t("Dengar ulang, dengan kecepatanmu.")}</div></>:stage===1?<><div lang="id" className="lp-art-time">00:24 <b>Raka</b></div><p lang="id" className="lp-art-quote">Mulainya sederhana. Kami bertemu tiap Sabtu, <mark>berbagi cerita</mark>, lalu menyusun kegiatan bersama.</p><div className="lp-art-caption"><PencilLine size={18}/>{t("Sunting langsung di naskah.")}</div></>:<><h3>{t("Naskah siap dibawa.")}</h3><div className="lp-export-art">{['.txt','.srt','.doc'].map(f=><span key={f}><FileText size={24}/>{f}</span>)}</div><div className="lp-art-caption"><Download size={18}/>{t("Pilih format saat mengekspor di Studio.")}</div></>}</m.div>
-   <div className="lp-stage-copy"><p className="eyebrow">{t("DARI REKAMAN KE NASKAH")}</p><h2>{t(stages[stage].headline)}</h2><div className="lp-stage-list">{stages.map((s,i)=><div key={t(s.title)}><button aria-expanded={stage===i} aria-controls={`stage-${i}`} onClick={()=>setStage(i)}><span>0{i+1}</span>{t(s.title)}<ChevronRight size={17}/></button><p id={`stage-${i}`} hidden={stage!==i}>{t(s.body)}</p></div>)}</div><button className="lp-light-link" onClick={()=>onOpenStudio()}>{t("Coba di Studio")} <ArrowRight size={16}/></button></div>
+   <m.div key={stage} {...entrance} className="lp-stage-visual" aria-live="polite">
+    <div className="lp-stage-chrome">
+     <span className="lp-ui-heading">{t(stages[stage].label)}</span>
+     <span className="lp-stage-pill" aria-hidden="true">0{stage+1} / 03</span>
+    </div>
+    <figure className="lp-stage-artwork">
+     <img src={stages[stage].image} alt={t(stages[stage].title)} width="1200" height="800" loading="lazy" decoding="async"/>
+    </figure>
+    <div className="lp-art-caption">
+     {stage===0?<Headphones size={17}/>:stage===1?<PencilLine size={17}/>:<Download size={17}/>}
+     <span>{t(stages[stage].caption)}</span>
+    </div>
+   </m.div>
+   <div className="lp-stage-copy"><p className="eyebrow">{t("DARI REKAMAN KE NASKAH")}</p><h2>{t(stages[stage].headline)}</h2><div className="lp-stage-list">{stages.map((s,i)=><div key={t(s.title)} className={stage===i?"is-open":""}><button aria-expanded={stage===i} aria-controls={`stage-${i}`} onClick={()=>setStage(i)}><span>0{i+1}</span>{t(s.title)}<ChevronRight size={17}/></button><p id={`stage-${i}`} hidden={stage!==i}>{t(s.body)}</p></div>)}</div><button className="lp-light-link" onClick={()=>onOpenStudio()}>{t("Coba di Studio")} <ArrowRight size={16}/></button></div>
   </div></section>
   <section className="lp-trust" id="privasi"><div className="page-container"><div className="lp-trust-heading"><div><p className="eyebrow">{t("LOKAL, DENGAN BATAS YANG JELAS")}</p><h2>{t("Rekamanmu tetap")}<br/>{t("di perangkatmu.")}</h2><p className="lp-section-intro">{t("Kepercayaan dimulai dari tahu ke mana berkasmu pergi.")}<br/>{t("Ini cara editor Catetin bekerja saat ini.")}</p></div><figure className="lp-privacy-illustration" aria-hidden="true"><img src="/illustrations/trust-shield.svg" alt="" width="720" height="520" loading="lazy" decoding="async"/></figure></div><div className="lp-trust-grid">
    <article><span className="lp-trust-index">01</span><h3>{t("Audio tanpa upload")}</h3><p>{t("Berkas pilihanmu dibuka melalui pemutar lokal. Aplikasi tidak mengunggah audio itu ke server.")}</p></article>
