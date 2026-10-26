@@ -23,14 +23,28 @@ const stages = [
 ];
 function Waveform() { return <div className="lp-wave" aria-hidden="true">{Array.from({length:70},(_,i)=><i key={i} style={{height:`${8+((i*17+i*i*3)%29)}px`}} />)}</div>; }
 export function LandingPage({onOpenStudio,onOpenRecording}:LandingPageProps) {
- const language=useLanguage();
+ useLanguage();
  const reduceMotion=useReducedMotion();
  const entrance={initial:{opacity:reduceMotion?1:0,y:reduceMotion?0:14},animate:{opacity:1,y:0},transition:{duration:reduceMotion?0:0.4}};
  const [stage,setStage]=useState(0);
  const [sample,setSample]=useState(recordings[0].id);
  const example=recordings.find(r=>r.id===sample)!;
  return <LazyMotion features={domAnimation}><main id="main-content" className="lp" tabIndex={-1}>
-  <section className="lp-hero raster-notebook-hero page-container" aria-labelledby="hero-title"><h1 id="hero-title" className="raster-hero-heading">{t("Dengarkan rekamannya.")}<br/>{t("Rapikan naskahnya.")}</h1><figure className="hero-notebook-image"><button type="button" onClick={()=>onOpenStudio(recordings[0].id)} aria-label={t("Buka contoh naskah di Studio Catetin")}><img src={language === "en" ? "/illustrations/notebook-hero-en.png" : "/illustrations/notebook-hero.png"} alt={t("Mockup ilustratif Catetin di laptop, menampilkan contoh naskah percakapan")} width="1536" height="1024" fetchPriority="high" decoding="async"/></button><figcaption>{t("Pratinjau ilustratif editor Catetin. Coba fitur yang tersedia di Studio.")}</figcaption></figure><div className="lp-actions"><Button size="lg" onClick={()=>onOpenStudio(recordings[0].id)}>{t("Coba contoh")}</Button><Button size="lg" variant="outline" onClick={onOpenRecording}>{t("Buka rekaman")}</Button></div><p className="lp-fine">{t("Audio tetap di perangkatmu. Transkripsi Whisper berjalan langsung di browser.")}</p></section>
+  <section className="lp-hero lp-hero-fullbleed" aria-labelledby="hero-title">
+   <div className="lp-hero-inner">
+    <div className="lp-hero-copy">
+     <h1 id="hero-title">{t("Dengarkan rekamannya.")}<br/>{t("Rapikan naskahnya.")}</h1>
+     <p className="lp-fine">{t("Audio tetap di perangkatmu. Transkripsi Whisper berjalan langsung di browser.")}</p>
+     <div className="lp-actions"><Button size="lg" onClick={()=>onOpenStudio(recordings[0].id)}>{t("Coba contoh")}</Button><Button size="lg" variant="outline" onClick={onOpenRecording}>{t("Buka rekaman")}</Button></div>
+    </div>
+    <figure className="hero-notebook-image">
+     <button type="button" onClick={()=>onOpenStudio(recordings[0].id)} aria-label={t("Buka contoh naskah di Studio Catetin")}>
+      <img src="/illustrations/hero-centered-niche-transparent.png" alt={t("Mockup ilustratif Catetin di laptop, menampilkan contoh naskah percakapan")} width="1812" height="868" fetchPriority="high" decoding="async"/>
+     </button>
+     <figcaption className="sr-only">{t("Pratinjau ilustratif editor Catetin. Coba fitur yang tersedia di Studio.")}</figcaption>
+    </figure>
+   </div>
+  </section>
   <section className="lp-workflow" id="cara-kerja"><div className="page-container lp-split">
    <m.div key={stage} {...entrance} className="lp-stage-visual" aria-live="polite"><span className="lp-ui-heading">{t(stages[stage].label)}</span>{stage===0?<><div className="lp-file-art"><FileAudio size={30}/><div><b>{t("Rekaman pilihanmu")}</b><p>{t("Dibuka dari perangkat")}</p></div></div><Waveform/><div className="lp-art-caption"><Headphones size={18}/>{t("Dengar ulang, dengan kecepatanmu.")}</div></>:stage===1?<><div lang="id" className="lp-art-time">00:24 <b>Raka</b></div><p lang="id" className="lp-art-quote">Mulainya sederhana. Kami bertemu tiap Sabtu, <mark>berbagi cerita</mark>, lalu menyusun kegiatan bersama.</p><div className="lp-art-caption"><PencilLine size={18}/>{t("Sunting langsung di naskah.")}</div></>:<><h3>{t("Naskah siap dibawa.")}</h3><div className="lp-export-art">{['.txt','.srt','.doc'].map(f=><span key={f}><FileText size={24}/>{f}</span>)}</div><div className="lp-art-caption"><Download size={18}/>{t("Pilih format saat mengekspor di Studio.")}</div></>}</m.div>
    <div className="lp-stage-copy"><p className="eyebrow">{t("DARI REKAMAN KE NASKAH")}</p><h2>{t(stages[stage].headline)}</h2><div className="lp-stage-list">{stages.map((s,i)=><div key={t(s.title)}><button aria-expanded={stage===i} aria-controls={`stage-${i}`} onClick={()=>setStage(i)}><span>0{i+1}</span>{t(s.title)}<ChevronRight size={17}/></button><p id={`stage-${i}`} hidden={stage!==i}>{t(s.body)}</p></div>)}</div><button className="lp-light-link" onClick={()=>onOpenStudio()}>{t("Coba di Studio")} <ArrowRight size={16}/></button></div>
