@@ -12,12 +12,12 @@ const rows = [
 export function ComparisonSection() {
   return <section className="lp-compare comparison-section page-container" aria-labelledby="compare-title">
     <div className="lp-section-head">
-      <div><p className="eyebrow">{t('PENDEKATAN BERBEDA')}</p><h2 id="compare-title">{t('Pilih tempat rekamanmu')}<br/>{t('diproses.')}</h2></div>
-      <p>{t('Editor lokal dan layanan cloud punya kelebihan dan batas masing-masing. Pilih yang sesuai dengan cara kerjamu.')}</p>
+      <div><p className="eyebrow">{t('LOKAL ATAU CLOUD')}</p><h2 id="compare-title">{t('Pilih tempat rekamanmu')}<br/>{t('diproses.')}</h2></div>
+      <p>{t('Lihat perbedaan cara Catetin dan layanan cloud memproses rekamanmu.')}</p>
     </div>
     <div className="comparison-surface">
       <table className="comparison-matrix">
-        <caption>{t('Perbandingan pendekatan, bukan peringkat merek tertentu.')}</caption>
+        <caption>{t('Gambaran umum pemrosesan lokal dan cloud.')}</caption>
         <thead><tr>
           <th scope="col" className="comparison-criterion">{t('Kriteria')}</th>
           <th scope="col" className="comparison-local">
@@ -29,9 +29,9 @@ export function ComparisonSection() {
             </figure>
           </th>
           <th scope="col" className="comparison-cloud">
-            <span>{t('DI INFRASTRUKTUR PENYEDIA')}</span>
+            <span>{t('DI SERVER PENYEDIA')}</span>
             <strong>{t('Layanan cloud')}</strong>
-            <small>{t('Berbeda menurut penyedia')}</small>
+            <small>{t('Tergantung penyedia')}</small>
             <figure className="comparison-scene comparison-image" aria-hidden="true">
               <img src="/illustrations/comparison-cloud.jpg" alt="" width="960" height="540" loading="lazy" decoding="async"/>
             </figure>
@@ -44,6 +44,6 @@ export function ComparisonSection() {
         </tr>)}</tbody>
       </table>
     </div>
-    <p className="lp-fine">{t('Gambaran umum arsitektur. Fitur, retensi data, dan kebijakan privasi layanan cloud perlu diperiksa pada penyedia pilihanmu.')}</p>
+    <p className="lp-fine">{t('Fitur dan kebijakan setiap layanan cloud dapat berbeda. Periksa ketentuan penyedia sebelum menggunakannya.')}</p>
   </section>;
 }
