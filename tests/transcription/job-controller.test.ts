@@ -263,6 +263,42 @@ test('falls back from webgpu to wasm once during model initialization', async ()
   assert.equal(controller.getJobState()?.backend, 'wasm');
   assert.equal(controller.getJobState()?.fallbackCount, 1);
   assert.equal(completedSegments[0]?.text, 'Berhasil lewat fallback WASM.');
+
+  // Verify model init does NOT fall back to WASM for resource-exhausted or cancelled
+  for (const nonRecoverableInitCategory of ['resource-exhausted', 'cancelled'] as const) {
+    const initBackends: string[] = [];
+    const initSnapshots: TranscriptionUiSnapshot[] = [];
+    const noInitFallbackController = new TranscriptionJobController({
+      getDeviceSignals: () => ({ userAgent: 'Chrome/156.0 Windows NT 10.0', platform: 'Win32', maxTouchPoints: 0, mobile: false }),
+      getGpu: () => ({ requestAdapter: async () => ({}) }),
+      createWorker: () => new MockWorker((req, worker) => {
+        queueMicrotask(() => {
+          if (req.type === 'init-model') {
+            initBackends.push(req.backend);
+            worker.emit({
+              type: 'worker-error',
+              jobId: req.jobId,
+              category: nonRecoverableInitCategory,
+              message: `Init failed with ${nonRecoverableInitCategory}`,
+            });
+          }
+        });
+      }),
+      onStatusChange: snap => initSnapshots.push(snap),
+      onComplete: () => {},
+    });
+
+    await noInitFallbackController.runJob({ file: createWavFile(15, 'no-init-fallback.wav'), language: 'id', resume: false });
+    assert.deepEqual(initBackends, ['webgpu'], `Should not retry init on wasm for ${nonRecoverableInitCategory}`);
+    assert.equal(noInitFallbackController.getJobState()?.backend, 'webgpu');
+    assert.equal(noInitFallbackController.getJobState()?.fallbackCount, 0);
+    if (nonRecoverableInitCategory === 'cancelled') {
+      assert.equal(initSnapshots.at(-1)?.status, 'cancelled');
+    } else {
+      assert.equal(initSnapshots.at(-1)?.status, 'failed');
+      assert.equal(initSnapshots.at(-1)?.errorReason, 'resource-exhausted');
+    }
+  }
 });
 
 test('resumes from a compatible checkpoint without reprocessing already completed chunks', async () => {

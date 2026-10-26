@@ -577,7 +577,7 @@ export class TranscriptionJobController {
     if (!this.currentState) return;
     const attempt = (backend: TranscriptionBackend): Promise<void> =>
       new Promise((resolve, reject) => {
-        const onCancel = () => resolve();
+        const onCancel = () => reject({ type: 'worker-error', jobId, category: 'cancelled' });
         this.cancelCallbacks.add(onCancel);
         worker.onmessage = (event: MessageEvent<WorkerResponse>) => {
           const msg = event.data;
@@ -605,8 +605,25 @@ export class TranscriptionJobController {
       await attempt(this.currentState.backend);
     } catch (err: any) {
       if (this.activeJobId !== jobId || !this.currentState) return;
-      if (this.currentState.backend === 'webgpu' && this.currentState.fallbackCount === 0) {
-        this.currentState = { ...this.currentState, backend: 'wasm', fallbackCount: 1 };
+      if (err?.category === 'cancelled') {
+        this.cancelActiveJob();
+        throw new Error('handled-job-error');
+      }
+      if (
+        this.currentState.backend === 'webgpu'
+        && this.currentState.fallbackCount === 0
+        && err?.category === 'backend-failed'
+      ) {
+        const fallbackReduced = reduceJobState(this.currentState, {
+          type: 'fallback',
+          jobId,
+          from: 'webgpu',
+          to: 'wasm',
+          attempt: 1,
+        });
+        this.currentState = fallbackReduced.ok
+          ? fallbackReduced.state
+          : { ...this.currentState, backend: 'wasm', fallbackCount: 1 };
         this.emitStatus('preparing-model', 'WebGPU tidak dapat memuat model. Beralih ke WebAssembly…');
         try {
           await attempt('wasm');
@@ -614,6 +631,11 @@ export class TranscriptionJobController {
         } catch (wasmErr: any) {
           err = wasmErr;
         }
+      }
+      if (this.activeJobId !== jobId || !this.currentState) return;
+      if (err?.category === 'cancelled') {
+        this.cancelActiveJob();
+        throw new Error('handled-job-error');
       }
       const isResource = err?.category === 'resource-exhausted';
       this.failJob(

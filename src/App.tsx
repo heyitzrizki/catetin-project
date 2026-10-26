@@ -41,6 +41,7 @@ export default function App() {
   const [toolsOpen, setToolsOpen] = useState(false);
   const [modelOpen, setModelOpen] = useState(false);
   const [transcription, setTranscription] = useState<TranscriptionUiSnapshot>(createIdleSnapshot);
+  const [resumableChunks, setResumableChunks] = useState(0);
   const [workspaceReady, setWorkspaceReady] = useState(false);
   const [infoPage, setInfoPage] = useState<InfoPage>(null);
   const [toast, setToast] = useState('');
@@ -134,15 +135,35 @@ export default function App() {
       decodeWholeFile: decodeAudio,
       onStatusChange: setTranscription,
       onComplete: (nextSegments, meta) => {
-        const targetId = activeIdRef.current;
+        const targetId = meta.recordingId ?? activeIdRef.current;
         setDrafts(previous => ({ ...previous, [targetId]: nextSegments }));
         if (meta.durationSec > 0) {
           setAvailableRecordings(previous => previous.map(item => item.id === targetId && !item.durationSec ? { ...item, durationSec: meta.durationSec } : item));
         }
+        setResumableChunks(0);
         notify(t('Transkripsi lokal selesai. Periksa hasilnya sebelum mengekspor.'));
       },
     });
   }
+
+  useEffect(() => {
+    let cancelled = false;
+    const file = audioFiles.current[activeId];
+    const running = ['validating', 'preparing-model', 'preparing-audio', 'transcribing', 'assembling-result'].includes(transcription.status);
+    if (!file || running || !jobControllerRef.current) {
+      setResumableChunks(0);
+      return;
+    }
+    jobControllerRef.current.findCompatibleCheckpoint({
+      file: file as Blob & { name?: string; type?: string },
+      language,
+    }).then(checkpoint => {
+      if (!cancelled) setResumableChunks(checkpoint?.chunks.length ?? 0);
+    }).catch(() => {
+      if (!cancelled) setResumableChunks(0);
+    });
+    return () => { cancelled = true; };
+  }, [activeId, language, transcription.status, audioSources]);
 
   const loadRecording = (id: string) => {
     if (id === activeId) return;
@@ -245,19 +266,71 @@ export default function App() {
     jobControllerRef.current?.cancelActiveJob();
   };
 
-  const transcribeActive = async () => {
+  const runActiveTranscription = async (resume = true) => {
     const audioFile = audioFiles.current[activeId];
     const running = ['validating', 'preparing-model', 'preparing-audio', 'transcribing', 'assembling-result'].includes(transcription.status);
     if (!audioFile || running) return;
+    if (!resume) {
+      await jobControllerRef.current?.discardCheckpoint({
+        file: audioFile as Blob & { name?: string; type?: string },
+        language,
+      });
+      setResumableChunks(0);
+    }
     await jobControllerRef.current?.runJob({
       file: audioFile as Blob & { name?: string; type?: string },
       language,
+      recordingId: activeId,
       knownDurationSeconds: active.durationSec > 0 ? active.durationSec : undefined,
+      resume,
     });
   };
 
+  const discardActiveCheckpoint = async () => {
+    const audioFile = audioFiles.current[activeId];
+    if (!audioFile) return;
+    const deleted = await jobControllerRef.current?.discardCheckpoint({
+      file: audioFile as Blob & { name?: string; type?: string },
+      language,
+    });
+    if (deleted) {
+      setResumableChunks(0);
+      notify(t("Kemajuan transkripsi yang tersimpan telah dihapus."));
+    }
+  };
+
+  const isTranscriptionRunning = ['validating', 'preparing-model', 'preparing-audio', 'transcribing', 'assembling-result'].includes(transcription.status);
+  const isBackgroundJob = isTranscriptionRunning && Boolean(transcription.recordingId && transcription.recordingId !== activeId);
+  const jobRecordingTitle = transcription.recordingId
+    ? availableRecordings.find(item => item.id === transcription.recordingId)?.title
+    : undefined;
+  const activeSnapshot = !transcription.recordingId || transcription.recordingId === activeId || isBackgroundJob
+    ? transcription
+    : createIdleSnapshot();
+  const canTranscribeActive = Boolean(audioFiles.current[activeId]);
+
   const exportActions = { onExportWord: () => exportAs('doc'), onExportTxt: () => exportAs('txt'), onExportSrt: () => exportAs('srt'), onCopyAll: copyAll };
-  const utilityProps = { ...exportActions, viewMode, onChangeViewMode: setViewMode, segments, speakerNames, activeSpeakerFilter: speakerFilter, onSelectSpeakerFilter: setSpeakerFilter, selectedModel: 'tiny', onOpenWhisperDrawer: () => setModelOpen(true) };
+  const utilityProps = {
+    ...exportActions,
+    viewMode,
+    onChangeViewMode: setViewMode,
+    segments,
+    speakerNames,
+    activeSpeakerFilter: speakerFilter,
+    onSelectSpeakerFilter: setSpeakerFilter,
+    selectedModel: 'tiny',
+    onOpenWhisperDrawer: () => setModelOpen(true),
+    canTranscribe: canTranscribeActive,
+    snapshot: activeSnapshot,
+    isBackgroundJob,
+    jobRecordingTitle,
+    resumableChunks,
+    onTranscribe: () => { void runActiveTranscription(true); },
+    onResume: () => { void runActiveTranscription(true); },
+    onStartFresh: () => { void runActiveTranscription(false); },
+    onDiscardCheckpoint: () => { void discardActiveCheckpoint(); },
+    onCancel: cancelTranscription,
+  };
 
   return <div className={`app-shell ${page === 'studio' ? 'studio-shell' : ''}`}>
     <a className="skip-link" href="#main-content">{t("Langsung ke konten")}</a>
@@ -280,7 +353,20 @@ export default function App() {
     <Dialog open={uploadOpen} onOpenChange={setUploadOpen}><DialogContent><DialogHeader><DialogTitle>{t("Buka rekaman Anda")}</DialogTitle><DialogDescription>{t("Putar, transkripsikan, dan rapikan rekaman langsung di perangkat Anda.")}</DialogDescription></DialogHeader><div className="info-notice"><Info aria-hidden="true" /><p>{t("Setelah rekaman dibuka, jalankan Whisper dari menu Model & perangkat untuk membuat transkripsi lokal.")}</p></div><label className={`file-picker ${pendingFile ? 'file-picked' : ''}`}><FileAudio aria-hidden="true" /><strong>{pendingFile ? pendingFile.name : t("Pilih berkas audio atau video")}</strong><span>{pendingFile ? `${(pendingFile.size / 1024 / 1024).toFixed(1)} MB · ${t('Replace file')}` : t("WAV (PCM 16-bit), MP3, M4A, atau WebM (batas pengaman private alpha berlaku)")}</span><input type="file" aria-label={t("Pilih berkas rekaman")} accept=".wav,.mp3,.m4a,.webm,audio/wav,audio/mpeg,audio/mp4,audio/x-m4a,audio/webm,video/webm" onChange={event => { void chooseFile(event.target.files?.[0]); }} /></label>{uploadError && <p className="form-error" role="alert">{t(uploadError)}</p>}<p className="text-sm text-muted-foreground leading-relaxed">{t("Aplikasi tidak mengunggah rekaman. Berkas dan draf disimpan di browser pada perangkat ini.")}</p><Button disabled={!pendingFile} onClick={importAudio}><Upload aria-hidden="true" />{t("Buka rekaman")}</Button></DialogContent></Dialog>
 
     <Dialog open={toolsOpen} onOpenChange={setToolsOpen}><DialogContent className="tools-dialog"><DialogHeader><DialogTitle>{t("Alat naskah")}</DialogTitle><DialogDescription>{t("Atur tampilan, pilih pembicara, dan ekspor naskah.")}</DialogDescription></DialogHeader><ContextualUtilityPanel {...utilityProps} /></DialogContent></Dialog>
-    <WhisperDrawer isOpen={modelOpen} onClose={() => setModelOpen(false)} canTranscribe={Boolean(audioFiles.current[activeId])} snapshot={transcription} onTranscribe={transcribeActive} onCancel={cancelTranscription} />
+    <WhisperDrawer
+      isOpen={modelOpen}
+      onClose={() => setModelOpen(false)}
+      canTranscribe={canTranscribeActive}
+      snapshot={activeSnapshot}
+      isBackgroundJob={isBackgroundJob}
+      jobRecordingTitle={jobRecordingTitle}
+      resumableChunks={resumableChunks}
+      onTranscribe={() => { void runActiveTranscription(true); }}
+      onResume={() => { void runActiveTranscription(true); }}
+      onStartFresh={() => { void runActiveTranscription(false); }}
+      onDiscardCheckpoint={() => { void discardActiveCheckpoint(); }}
+      onCancel={cancelTranscription}
+    />
 
     <Dialog open={infoPage !== null} onOpenChange={open => { if (!open) setInfoPage(null); }}><DialogContent><DialogHeader><DialogTitle>{infoPage === 'about' ? t("Setiap cerita layak dicatat.") : infoPage === 'pricing' ? t("Harga & lisensi") : t("Pertanyaan tentang Catetin")}</DialogTitle><DialogDescription>{infoPage === 'about' ? t("Catetin adalah ruang kerja untuk mentranskripsikan, menyunting, dan menyiapkan naskah percakapan.") : infoPage === 'pricing' ? t("Editor ini dapat dicoba tanpa akun atau pembayaran.") : t("Yang perlu diketahui sebelum mulai.")}</DialogDescription></DialogHeader>{infoPage === 'about' ? <div className="about-copy"><p>{t("Catetin membantu mengubah rekaman menjadi naskah tanpa mengirim audio ke layanan transkripsi. Whisper berjalan langsung di perangkat Anda.")}</p><p>{t("Draf disimpan di browser dan dapat diekspor sebagai TXT, SRT, atau dokumen kompatibel Word.")}</p><Button onClick={() => { setInfoPage(null); openStudio(); }}>{t("Coba Studio")} <ArrowRight aria-hidden="true" /></Button></div> : infoPage === 'pricing' ? <div className="about-copy"><p>{t("Paket berbayar dan pembelian lisensi belum tersedia. Editor saat ini dapat digunakan tanpa biaya.")}</p><Button onClick={() => { setInfoPage(null); openStudio(); }}>{t("Buka Studio")} <ArrowRight aria-hidden="true" /></Button></div> : <Accordion type="single" collapsible>{questions.map(([question, answer], index) => <AccordionItem key={t(question)} value={String(index)}><AccordionTrigger>{t(question)}</AccordionTrigger><AccordionContent>{t(answer)}</AccordionContent></AccordionItem>)}</Accordion>}</DialogContent></Dialog>
 
