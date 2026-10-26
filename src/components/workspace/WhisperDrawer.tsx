@@ -3,20 +3,25 @@ import { useEffect, useState } from 'react';
 import { Cpu, Info } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import type { TranscriptionState } from '@/lib/transcription';
+import type { TranscriptionUiSnapshot } from '@/features/transcription/job-controller';
 
 interface Props {
   isOpen: boolean;
   onClose: () => void;
-  selectedModel: string;
-  onSelectModel: (model: 'base' | 'small' | 'tiny') => void;
   canTranscribe: boolean;
-  state: TranscriptionState;
+  snapshot: TranscriptionUiSnapshot;
   onTranscribe: () => void;
   onCancel: () => void;
 }
 
-export function WhisperDrawer({ isOpen, onClose, selectedModel, onSelectModel, canTranscribe, state, onTranscribe, onCancel }: Props) {
+const PHASE_STEPS = [
+  ['preparing-model', '1. Menyiapkan model'],
+  ['preparing-audio', '2. Menyiapkan audio'],
+  ['transcribing', '3. Mentranskripsi'],
+  ['assembling-result', '4. Menyusun hasil'],
+] as const;
+
+export function WhisperDrawer({ isOpen, onClose, canTranscribe, snapshot, onTranscribe, onCancel }: Props) {
   const [gpu, setGpu] = useState(t("Memeriksa dukungan peramban…"));
   useEffect(() => {
     if (!isOpen) return;
@@ -31,6 +36,7 @@ export function WhisperDrawer({ isOpen, onClose, selectedModel, onSelectModel, c
     })();
     return () => { cancelled = true; };
   }, [isOpen]);
-  const running = ['decoding', 'model', 'transcription'].includes(state.phase);
-  return <Dialog open={isOpen} onOpenChange={open => { if (!open) onClose(); }}><DialogContent><DialogHeader><DialogTitle>{t("Transkripsi lokal")}</DialogTitle><DialogDescription>{t("Whisper berjalan di perangkat Anda. Audio tidak dikirim ke layanan transkripsi.")}</DialogDescription></DialogHeader><div className="info-notice"><Info aria-hidden="true" /><p>{t("Model diunduh sekali saat pertama digunakan, lalu disimpan di cache browser untuk penggunaan berikutnya.")}</p></div><fieldset className="model-options" disabled={running}><legend>{t("Pilih model")}</legend>{([['tiny', 'Whisper Tiny', t("Paling ringan dan cepat")], ['base', 'Whisper Base', t("Seimbang untuk penggunaan awal")], ['small', 'Whisper Small', t("Lebih akurat, memerlukan memori lebih besar")]] as const).map(([id, name, description]) => <label key={id} className={selectedModel === id ? 'model-selected' : ''}><input type="radio" name="model" checked={selectedModel === id} onChange={() => onSelectModel(id)} /><span><strong>{name}</strong><span>{t(description)}</span></span></label>)}</fieldset><div className="hardware-note"><Cpu aria-hidden="true" /><div><h3>{t("Dukungan perangkat")}</h3><p>{t(gpu)}</p><p>{t("WebGPU digunakan bila tersedia; perangkat lain akan memakai WebAssembly yang lebih lambat.")}</p></div></div>{state.phase !== 'idle' && <div className={`transcription-status ${state.phase === 'error' ? 'is-error' : ''}`} role="status"><strong>{t(state.message)}</strong>{state.progress != null && <progress max="100" value={state.progress} aria-label={t("Kemajuan unduhan model")} />}</div>}<div className="transcription-actions">{running ? <Button variant="outline" onClick={onCancel}>{t("Batalkan")}</Button> : <Button disabled={!canTranscribe} onClick={onTranscribe}>{state.phase === 'complete' ? t("Transkripsikan lagi") : t("Mulai transkripsi")}</Button>}</div>{!canTranscribe && <p className="form-hint">{t("Buka rekaman lokal terlebih dahulu untuk menjalankan transkripsi.")}</p>}</DialogContent></Dialog>;
+  const running = ['validating', 'preparing-model', 'preparing-audio', 'transcribing', 'assembling-result'].includes(snapshot.status);
+  const failed = snapshot.status === 'failed' || snapshot.status === 'unsupported';
+  return <Dialog open={isOpen} onOpenChange={open => { if (!open) onClose(); }}><DialogContent><DialogHeader><DialogTitle>{t("Transkripsi lokal")}</DialogTitle><DialogDescription>{t("Whisper berjalan di perangkat Anda. Audio tidak dikirim ke layanan transkripsi.")}</DialogDescription></DialogHeader><div className="info-notice"><Info aria-hidden="true" /><p>{t("Model diunduh sekali saat pertama digunakan, lalu disimpan di cache browser untuk penggunaan berikutnya.")}</p></div><div className="hardware-note"><Cpu aria-hidden="true" /><div><h3>{t("Dukungan perangkat")}</h3><p>{t(gpu)}</p><p>{t("Model default private alpha: Whisper Tiny (onnx-community/whisper-tiny). WebGPU digunakan bila tersedia; perangkat lain memakai WebAssembly.")}</p><p>{t("Batas pengaman private alpha (bukan jaminan durasi): WAV PCM 16-bit maks. 20 menit / 40 MB; MP3, M4A, atau WebM maks. 5 menit / 10 MB.")}</p></div></div>{snapshot.status !== 'idle' && <div className={`transcription-status ${failed ? 'is-error' : ''}`} role="status" data-status={snapshot.status}>{running && <div className="flex flex-wrap gap-2 text-xs text-muted-foreground pb-1">{PHASE_STEPS.map(([key, label]) => <span key={key} className={snapshot.status === key ? 'font-semibold text-primary' : ''}>{t(label)}</span>)}</div>}<strong>{t(snapshot.messageKey, snapshot.messageParams)}</strong>{running && (snapshot.progress != null ? <progress max="100" value={snapshot.progress} aria-label={t("Kemajuan unduhan model")} /> : <progress aria-label={t("Kemajuan unduhan model")} />)}{(failed || snapshot.status === 'cancelled') && snapshot.nextActionKey && <p className="text-xs leading-relaxed mt-1">{t(snapshot.nextActionKey)}</p>}</div>}<div className="transcription-actions">{running ? <Button variant="outline" onClick={onCancel}>{t("Batalkan")}</Button> : <Button disabled={!canTranscribe} onClick={onTranscribe}>{snapshot.status === 'completed' ? t("Transkripsikan lagi") : failed || snapshot.status === 'cancelled' ? t("Coba lagi") : t("Mulai transkripsi")}</Button>}</div>{!canTranscribe && <p className="form-hint">{t("Buka rekaman lokal terlebih dahulu untuk menjalankan transkripsi.")}</p>}</DialogContent></Dialog>;
 }
