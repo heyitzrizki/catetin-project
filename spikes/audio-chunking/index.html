@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en">
+  <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Catetin audio chunk probe</title></head>
+  <body>
+    <main>
+      <h1>Catetin audio chunk probe</h1>
+      <label>Fixture duration (seconds) <input id="duration" type="number" min="1" value="120"></label>
+      <button id="generate" type="button">Generate PCM WAV fixture</button>
+      <label>Or choose local media <input id="file" type="file" accept="audio/*,.wav,.mp3,.m4a,.webm"></label>
+      <button id="run" type="button" disabled>Run probes</button>
+      <pre id="output" aria-live="polite">Choose or generate a fixture.</pre>
+    </main>
+    <script type="module" src="/main.ts"></script>
+  </body>
+</html>
