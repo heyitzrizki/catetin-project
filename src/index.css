@@ -57,7 +57,12 @@
 .page-container { width: min(100% - 96px, 1248px); margin-inline: auto; }
 .site-header { position: sticky; top: 0; z-index: 30; background: var(--background); border-bottom: 1px solid var(--border); }
 .header-inner { min-height: 88px; display: flex; align-items: center; justify-content: space-between; gap: 24px; }
-.brand { display: inline-flex; align-items: center; gap: 10px; min-height: 44px; color: var(--foreground); font-size: 27px; font-weight: 750; letter-spacing: -.045em; }
+.brand { display: inline-flex; align-items: center; gap: 10px; min-height: 44px; color: var(--foreground); }
+.catetin-brand { display: inline-flex; align-items: center; line-height: 1; }
+.brand .brand-lockup-img { height: 32px; width: auto; max-width: 105px; }
+.brand .brand-mark-img { height: 28px; width: 28px; }
+.footer-brand .brand-lockup-img { height: 24px; width: auto; max-width: 80px; }
+.footer-brand .brand-mark-img { height: 22px; width: 22px; }
 .brand-symbol { width: 32px; height: 34px; border-radius: 4px; background: var(--foreground); color: white; display: grid; place-items: center; font-size: 19px; letter-spacing: -.04em; }
 .site-nav, .studio-nav { display: flex; align-items: center; gap: 32px; font-size: 13px; font-weight: 500; }
 .site-nav > a, .site-nav > button:not([data-slot]), .site-footer nav > *, .studio-nav > button { min-height: 44px; min-width: 44px; display: inline-flex; align-items: center; }

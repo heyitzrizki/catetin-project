@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title">
+  <title id="title">Catetin reversed logo mark</title>
+  
+  <g transform="translate(0 0) scale(1)">
+    <path d="M181 62C162 44 137 36 111 39C68 44 38 80 38 125C38 169 70 205 113 211C142 215 170 205 188 185" fill="none" stroke="#FAF9F6" stroke-width="38" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M57 176L39 224L91 203Z" fill="#FAF9F6"/>
+    <rect x="91" y="111" width="16" height="32" rx="8" fill="#CFE2F1"/>
+    <rect x="120" y="91" width="16" height="72" rx="8" fill="#CFE2F1"/>
+    <rect x="149" y="108" width="16" height="38" rx="8" fill="#CFE2F1"/>
+  </g>
+</svg>

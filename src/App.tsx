@@ -15,6 +15,7 @@ import { ManageTagsDialog } from '@/components/dashboard/ManageTagsDialog';
 import { MoveFolderDialog } from '@/components/dashboard/MoveFolderDialog';
 import { ExportDialog } from '@/components/dashboard/ExportDialog';
 import { ImportDialog } from '@/components/dashboard/ImportDialog';
+import { CatetinBrand } from '@/components/brand/CatetinBrand';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
@@ -650,7 +651,7 @@ export default function App() {
 
   return <div className={`app-shell ${page === 'studio' ? 'studio-shell' : ''}`}>
     <a className="skip-link" href="#main-content">{t("Langsung ke konten")}</a>
-    <header className="site-header"><div className="page-container header-inner"><button className="brand" aria-label={t("Catetin, beranda")} onClick={goHome}><span className="brand-symbol">c.</span><span>catetin</span></button>
+    <header className="site-header"><div className="page-container header-inner"><button className="brand" aria-label={t("Catetin, beranda")} onClick={goHome}><CatetinBrand hasAccessibleParent /></button>
       {page === 'landing' ? (
         <nav aria-label={t("Navigasi utama")} className="site-nav">
           <a href="#cara-kerja" className="nav-how">{t("Cara kerja")}</a>
@@ -908,7 +909,7 @@ export default function App() {
       </main>
     )}
 
-    {page === 'landing' && <footer className="site-footer page-container"><div><span className="footer-brand">catetin</span><p>{t("Ruang untuk setiap cerita.")}</p></div><nav aria-label={t("Navigasi footer")}><button onClick={() => setInfoPage('about')}>{t("Tentang")}</button><a href="#pertanyaan">{t("Pertanyaan")}</a><button onClick={() => setInfoPage('pricing')}>{t("Harga & lisensi")}</button></nav><span>© {new Date().getFullYear()} Catetin</span></footer>}
+    {page === 'landing' && <footer className="site-footer page-container"><div><span className="footer-brand inline-flex items-center"><CatetinBrand height={24} /></span><p>{t("Ruang untuk setiap cerita.")}</p></div><nav aria-label={t("Navigasi footer")}><button onClick={() => setInfoPage('about')}>{t("Tentang")}</button><a href="#pertanyaan">{t("Pertanyaan")}</a><button onClick={() => setInfoPage('pricing')}>{t("Harga & lisensi")}</button></nav><span>© {new Date().getFullYear()} Catetin</span></footer>}
 
     <Dialog open={uploadOpen} onOpenChange={setUploadOpen}>
       <DialogContent>
