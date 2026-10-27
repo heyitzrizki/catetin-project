@@ -1,7 +1,7 @@
 import { LanguageSelect } from '@/components/LanguageSelect';
 import { t, useLanguage } from '@/lib/i18n';
 import { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, ArrowRight, Check, FileAudio, Info, Upload, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, FileAudio, Folder, Info, Plus, Tag, Upload, X } from 'lucide-react';
 import { LandingPage, questions } from '@/components/LandingPage';
 import { WorkspaceHeader } from '@/components/workspace/WorkspaceHeader';
 import { ContinuousTranscriptEditor } from '@/components/workspace/ContinuousTranscriptEditor';
@@ -10,18 +10,29 @@ import { AudioDock } from '@/components/workspace/AudioDock';
 import { WhisperDrawer } from '@/components/workspace/WhisperDrawer';
 import { WorkspaceDashboard } from '@/components/dashboard/WorkspaceDashboard';
 import { NewProjectDialog } from '@/components/dashboard/NewProjectDialog';
+import { FolderDialog } from '@/components/dashboard/FolderDialog';
+import { ManageTagsDialog } from '@/components/dashboard/ManageTagsDialog';
+import { MoveFolderDialog } from '@/components/dashboard/MoveFolderDialog';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
 import { downloadTranscript, formatSeconds, recordings, transcriptText, type DialogSegment, type Recording } from '@/lib/transcript';
 import {
+  createFolder,
   createProject,
+  deleteFolder,
   getWorkspaceStats,
   isDemoRecordingId,
+  listAllTags,
+  listFolders,
   listProjectSummaries,
   listRecentRecordings,
   loadWorkspace,
+  renameFolder,
   saveWorkspace,
+  setRecordingFolder,
+  setRecordingTags,
+  type FolderRecord,
   type ProjectSummary,
   type RecentRecording,
   type WorkspaceStats,
@@ -45,9 +56,23 @@ export default function App() {
     totalDurationSec: 0,
     lastUpdatedAt: null,
   });
+  const [folders, setFolders] = useState<FolderRecord[]>([]);
+  const [allTags, setAllTags] = useState<string[]>([]);
+
+  // Dialog states
   const [newProjectOpen, setNewProjectOpen] = useState(false);
   const [targetProjectId, setTargetProjectId] = useState<string>('');
   const [newProjectTitleForUpload, setNewProjectTitleForUpload] = useState('');
+  const [folderDialogOpen, setFolderDialogOpen] = useState(false);
+  const [folderDialogTargetProjectId, setFolderDialogTargetProjectId] = useState<string | undefined>(undefined);
+  const [folderDialogEditingFolder, setFolderDialogEditingFolder] = useState<FolderRecord | null>(null);
+  const [tagDialogOpen, setTagDialogOpen] = useState(false);
+  const [tagDialogTargetRecording, setTagDialogTargetRecording] = useState<Recording | null>(null);
+  const [moveFolderDialogOpen, setMoveFolderDialogOpen] = useState(false);
+  const [moveFolderTargetRecording, setMoveFolderTargetRecording] = useState<Recording | null>(null);
+
+  // Studio editor sidebar folder filter
+  const [sidebarFolderFilter, setSidebarFolderFilter] = useState<string | 'all' | 'none'>('all');
 
   const [availableRecordings, setAvailableRecordings] = useState<Recording[]>([]);
   const [activeId, setActiveId] = useState('');
@@ -92,22 +117,37 @@ export default function App() {
     ? t('Mode contoh')
     : dashboardProjects.find(p => p.id === activeProjectId)?.title ?? t('Rekaman saya');
 
-  const projectRecordings = activeProjectId === 'demo'
+  // Filter recordings for active project in Studio
+  const baseProjectRecordings = activeProjectId === 'demo'
     ? availableRecordings.filter(r => isDemoRecordingId(r.id))
     : activeProjectId
       ? availableRecordings.filter(r => r.projectId === activeProjectId)
       : availableRecordings.filter(r => !isDemoRecordingId(r.id));
 
+  const displayedProjectRecordings = baseProjectRecordings.filter(rec => {
+    if (activeProjectId === 'demo') return true;
+    if (sidebarFolderFilter === 'all') return true;
+    if (sidebarFolderFilter === 'none') return !rec.folderId;
+    return rec.folderId === sidebarFolderFilter;
+  });
+
+  const activeProjectFolders = folders.filter(f => f.projectId === activeProjectId);
+  const activeFolder = active?.folderId ? folders.find(f => f.id === active.folderId) : undefined;
+
   const refreshDashboardData = async () => {
     try {
-      const [summaries, recents, stats] = await Promise.all([
+      const [summaries, recents, stats, folderList, tagList] = await Promise.all([
         listProjectSummaries(),
         listRecentRecordings(6),
         getWorkspaceStats(),
+        listFolders(),
+        listAllTags(),
       ]);
       setDashboardProjects(summaries);
       setDashboardRecents(recents);
       setDashboardStats(stats);
+      setFolders(folderList);
+      setAllTags(tagList);
       return summaries;
     } catch {
       return [];
@@ -138,6 +178,9 @@ export default function App() {
             ?? saved.recordings[0];
           setActiveId(chosenRec.id);
           if (chosenRec.projectId) setActiveProjectId(chosenRec.projectId);
+        }
+        if (saved.folders?.length) {
+          setFolders(saved.folders);
         }
         setDrafts(saved.drafts ?? {});
         setSpeakerNames(saved.speakerNames ?? {});
@@ -287,6 +330,7 @@ export default function App() {
 
   const handleOpenProject = (projectId: string) => {
     setActiveProjectId(projectId);
+    setSidebarFolderFilter('all');
     const recs = availableRecordings.filter(r => r.projectId === projectId);
     if (recs.length > 0) {
       loadRecording(recs[0].id);
@@ -296,6 +340,7 @@ export default function App() {
 
   const handleOpenRecentRecording = (recordingId: string, projectId?: string) => {
     if (projectId) setActiveProjectId(projectId);
+    setSidebarFolderFilter('all');
     loadRecording(recordingId);
     setStudioView('editor');
   };
@@ -318,7 +363,7 @@ export default function App() {
     notify(t('Project berhasil dibuat.'));
   };
 
-  const handleOpenUpload = (projectId?: string) => {
+  const handleOpenUpload = (projectId?: string, folderId?: string | null) => {
     setPendingFile(null);
     setUploadError('');
     if (projectId && projectId !== 'demo') {
@@ -330,6 +375,42 @@ export default function App() {
     }
     setNewProjectTitleForUpload('');
     setUploadOpen(true);
+  };
+
+  const handleCreateOrUpdateFolder = async (name: string) => {
+    if (folderDialogEditingFolder) {
+      await renameFolder(folderDialogEditingFolder.id, name);
+      notify(t('Folder berhasil diperbarui.'));
+    } else {
+      const targetProj = folderDialogTargetProjectId || activeProjectId || (dashboardProjects[0]?.id ?? 'project-default');
+      await createFolder(targetProj, name);
+      notify(t('Folder berhasil dibuat.'));
+    }
+    await refreshDashboardData();
+  };
+
+  const handleDeleteFolderAction = async (folderId: string) => {
+    await deleteFolder(folderId);
+    setAvailableRecordings(prev => prev.map(r => r.folderId === folderId ? { ...r, folderId: null } : r));
+    if (sidebarFolderFilter === folderId) setSidebarFolderFilter('all');
+    await refreshDashboardData();
+    notify(t('Folder berhasil dihapus.'));
+  };
+
+  const handleSaveTagsAction = async (tags: string[]) => {
+    if (!tagDialogTargetRecording) return;
+    await setRecordingTags(tagDialogTargetRecording.id, tags);
+    setAvailableRecordings(prev => prev.map(r => r.id === tagDialogTargetRecording.id ? { ...r, tags } : r));
+    await refreshDashboardData();
+    notify(t('Tag berhasil diperbarui.'));
+  };
+
+  const handleMoveFolderAction = async (folderId: string | null) => {
+    if (!moveFolderTargetRecording) return;
+    await setRecordingFolder(moveFolderTargetRecording.id, folderId);
+    setAvailableRecordings(prev => prev.map(r => r.id === moveFolderTargetRecording.id ? { ...r, folderId } : r));
+    await refreshDashboardData();
+    notify(t('Rekaman berhasil dipindahkan.'));
   };
 
   const seek = (seconds: number) => {
@@ -420,6 +501,8 @@ export default function App() {
       durationSec: 0,
       segments: [],
       projectId: chosenProjectId,
+      folderId: null,
+      tags: [],
       createdAt: now,
       updatedAt: now,
     };
@@ -428,6 +511,7 @@ export default function App() {
     setAudioSources(previous => ({ ...previous, [id]: source }));
     setActiveId(id);
     setActiveProjectId(chosenProjectId);
+    setSidebarFolderFilter('all');
     setCurrentTime(0);
     setIsPlaying(false);
     setAudioLoading(true);
@@ -558,13 +642,35 @@ export default function App() {
       <main id="main-content" className="workspace-main" tabIndex={-1}>
         <WorkspaceDashboard
           projects={dashboardProjects}
+          folders={folders}
+          allRecordings={availableRecordings.filter(r => !isDemoRecordingId(r.id))}
           recentRecordings={dashboardRecents}
           stats={dashboardStats}
+          allWorkspaceTags={allTags}
           onOpenProject={handleOpenProject}
           onOpenRecording={handleOpenRecentRecording}
           onCreateProjectClick={() => setNewProjectOpen(true)}
           onOpenRecordingClick={handleOpenUpload}
           onTryDemo={handleTryDemo}
+          onCreateFolderClick={projId => {
+            setFolderDialogEditingFolder(null);
+            setFolderDialogTargetProjectId(projId);
+            setFolderDialogOpen(true);
+          }}
+          onRenameFolderClick={f => {
+            setFolderDialogEditingFolder(f);
+            setFolderDialogTargetProjectId(f.projectId);
+            setFolderDialogOpen(true);
+          }}
+          onDeleteFolderClick={handleDeleteFolderAction}
+          onManageTagsClick={rec => {
+            setTagDialogTargetRecording(rec);
+            setTagDialogOpen(true);
+          }}
+          onMoveFolderClick={rec => {
+            setMoveFolderTargetRecording(rec);
+            setMoveFolderDialogOpen(true);
+          }}
         />
       </main>
     ) : (
@@ -594,15 +700,110 @@ export default function App() {
             <Button variant="outline" onClick={() => handleOpenUpload(activeProjectId ?? undefined)}>
               <Upload aria-hidden="true" />{t("Buka rekaman")}
             </Button>
+
+            {/* Folder Tabs / Selector in Sidebar (Only when not demo) */}
+            {activeProjectId !== 'demo' && (
+              <div className="sidebar-folders my-3 flex flex-col gap-1.5 pt-2 border-t border-[var(--border)]">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold text-[var(--muted-foreground)] uppercase tracking-wider">{t('Folder')}</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFolderDialogEditingFolder(null);
+                      setFolderDialogTargetProjectId(activeProjectId ?? undefined);
+                      setFolderDialogOpen(true);
+                    }}
+                    className="text-[10px] text-[var(--primary)] hover:underline flex items-center gap-0.5"
+                    title={t('Buat folder baru')}
+                  >
+                    <Plus className="size-3" aria-hidden="true" />
+                    <span>{t('Folder baru')}</span>
+                  </button>
+                </div>
+
+                <div className="flex flex-wrap gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setSidebarFolderFilter('all')}
+                    className={`text-[10px] px-2 py-0.5 rounded transition-colors ${
+                      sidebarFolderFilter === 'all'
+                        ? 'bg-[var(--primary)] text-white font-medium'
+                        : 'bg-[var(--background)] text-[var(--foreground)] hover:bg-[var(--accent)] border border-[var(--border)]'
+                    }`}
+                  >
+                    {t('Semua')} ({baseProjectRecordings.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSidebarFolderFilter('none')}
+                    className={`text-[10px] px-2 py-0.5 rounded transition-colors ${
+                      sidebarFolderFilter === 'none'
+                        ? 'bg-[var(--primary)] text-white font-medium'
+                        : 'bg-[var(--background)] text-[var(--foreground)] hover:bg-[var(--accent)] border border-[var(--border)]'
+                    }`}
+                  >
+                    {t('Tanpa folder')} ({baseProjectRecordings.filter(r => !r.folderId).length})
+                  </button>
+                  {activeProjectFolders.map(f => (
+                    <button
+                      key={f.id}
+                      type="button"
+                      onClick={() => setSidebarFolderFilter(f.id)}
+                      className={`text-[10px] px-2 py-0.5 rounded transition-colors truncate max-w-[140px] ${
+                        sidebarFolderFilter === f.id
+                          ? 'bg-[var(--primary)] text-white font-medium'
+                          : 'bg-[var(--background)] text-[var(--foreground)] hover:bg-[var(--accent)] border border-[var(--border)]'
+                      }`}
+                    >
+                      {f.name} ({baseProjectRecordings.filter(r => r.folderId === f.id).length})
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <p className="sidebar-label">{t("NASKAH TERSIMPAN LOKAL")}</p>
             <div className="recording-list">
-              {projectRecordings.map(item => (
-                <button key={item.id} aria-current={activeId === item.id ? 'true' : undefined} onClick={() => loadRecording(item.id)}>
-                  <FileAudio aria-hidden="true" />
-                  <span>{t(item.title)}<small>{audioSources[item.id] ? t("Rekaman lokal") : t("Contoh naskah")}</small></span>
-                </button>
-              ))}
-              {projectRecordings.length === 0 && (
+              {displayedProjectRecordings.map(item => {
+                const folder = item.folderId ? folders.find(f => f.id === item.folderId) : undefined;
+                return (
+                  <div
+                    key={item.id}
+                    className={`rounded-lg border transition-colors ${
+                      activeId === item.id
+                        ? 'border-[var(--primary)] bg-[var(--accent)]'
+                        : 'border-transparent hover:bg-[var(--accent)]'
+                    }`}
+                  >
+                    <button
+                      type="button"
+                      aria-current={activeId === item.id ? 'true' : undefined}
+                      onClick={() => loadRecording(item.id)}
+                      className="w-full text-left p-2 flex items-start gap-2.5 min-w-0"
+                    >
+                      <FileAudio className="size-4 text-[var(--primary)] mt-1 flex-shrink-0" aria-hidden="true" />
+                      <div className="min-w-0 flex-1">
+                        <span className="block font-semibold text-xs text-[var(--foreground)] truncate">
+                          {t(item.title)}
+                        </span>
+                        <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                          {folder && (
+                            <span className="text-[9px] bg-[var(--card)] px-1.5 py-0.2 rounded border border-[var(--border)] text-[var(--foreground)]">
+                              {folder.name}
+                            </span>
+                          )}
+                          {(item.tags ?? []).map(tg => (
+                            <span key={tg} className="text-[9px] text-[var(--primary)] font-medium">
+                              #{tg}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </button>
+                  </div>
+                );
+              })}
+              {displayedProjectRecordings.length === 0 && (
                 <div className="text-xs text-[var(--muted-foreground)] p-4 border border-dashed border-[var(--border)] rounded-md text-center">
                   <p>{t("Belum ada rekaman di project ini.")}</p>
                 </div>
@@ -614,7 +815,7 @@ export default function App() {
             </div>
           </aside>
 
-          {projectRecordings.length === 0 ? (
+          {baseProjectRecordings.length === 0 ? (
             <div className="studio-content flex items-center justify-center min-h-[400px]">
               <div className="p-8 text-center bg-[var(--card)] border border-[var(--border)] rounded-xl max-w-md mx-auto shadow-sm">
                 <FileAudio className="size-12 mx-auto text-[var(--muted-foreground)] mb-3" aria-hidden="true" />
@@ -630,7 +831,28 @@ export default function App() {
             </div>
           ) : (
             <div className="studio-content">
-              <WorkspaceHeader activeSample={active} availableRecordings={projectRecordings} onSelectSample={loadRecording} onUploadClick={() => handleOpenUpload(activeProjectId ?? undefined)} searchQuery={searchQuery} onSearchChange={setSearchQuery} onOpenTools={() => setToolsOpen(true)} isCustom={isCustom} canExport={segments.length > 0} {...exportActions} />
+              <WorkspaceHeader
+                activeSample={active}
+                availableRecordings={displayedProjectRecordings}
+                onSelectSample={loadRecording}
+                onUploadClick={() => handleOpenUpload(activeProjectId ?? undefined)}
+                searchQuery={searchQuery}
+                onSearchChange={setSearchQuery}
+                onOpenTools={() => setToolsOpen(true)}
+                isCustom={isCustom}
+                canExport={segments.length > 0}
+                folderName={activeFolder?.name}
+                tags={active?.tags ?? []}
+                onOpenFolderModal={() => {
+                  setMoveFolderTargetRecording(active);
+                  setMoveFolderDialogOpen(true);
+                }}
+                onOpenTagsModal={() => {
+                  setTagDialogTargetRecording(active);
+                  setTagDialogOpen(true);
+                }}
+                {...exportActions}
+              />
               {audioError && <div className="audio-error" role="alert"><Info aria-hidden="true" /><p>{t(audioError)}{t(" Anda tetap dapat menulis naskah secara manual.")}</p><Button variant="ghost" onClick={() => handleOpenUpload(activeProjectId ?? undefined)}>{t("Pilih berkas lain")}</Button></div>}
               <div className="workspace-body"><ContinuousTranscriptEditor key={effectiveId} segments={segments} speakerNames={speakerNames} currentTime={currentTime} onSeek={seek} onRenameSpeaker={(oldName, newName) => { setSpeakerNames(previous => ({ ...previous, [effectiveId]: { ...previous[effectiveId], [oldName]: newName } })); notify(t("Nama pembicara diperbarui di seluruh naskah.")); }} onUpdateText={updateText} searchQuery={searchQuery} activeSpeakerFilter={speakerFilter} viewMode={viewMode} onClearFilters={() => { setSearchQuery(''); setSpeakerFilter(null); }} onAddSegment={addSegment} isCustom={isCustom} /><aside className="desktop-utilities" aria-label={t("Alat naskah")}><ContextualUtilityPanel {...utilityProps} /></aside></div>
               <AudioDock currentTime={currentTime} durationSec={active.durationSec} isPlaying={isPlaying} playbackSpeed={playbackSpeed} onTogglePlay={togglePlay} onSeek={seek} onReset={() => { seek(0); audioRef.current?.pause(); setIsPlaying(false); }} onChangeSpeed={setPlaybackSpeed} isDemo={!isCustom} isLoading={audioLoading} />
@@ -685,6 +907,32 @@ export default function App() {
       open={newProjectOpen}
       onOpenChange={setNewProjectOpen}
       onCreateProject={handleCreateProject}
+    />
+
+    <FolderDialog
+      open={folderDialogOpen}
+      onOpenChange={setFolderDialogOpen}
+      folderId={folderDialogEditingFolder?.id}
+      initialName={folderDialogEditingFolder?.name}
+      onSubmit={handleCreateOrUpdateFolder}
+    />
+
+    <ManageTagsDialog
+      open={tagDialogOpen}
+      onOpenChange={setTagDialogOpen}
+      recordingTitle={tagDialogTargetRecording?.title ?? ''}
+      initialTags={tagDialogTargetRecording?.tags ?? []}
+      allWorkspaceTags={allTags}
+      onSave={handleSaveTagsAction}
+    />
+
+    <MoveFolderDialog
+      open={moveFolderDialogOpen}
+      onOpenChange={setMoveFolderDialogOpen}
+      recordingTitle={moveFolderTargetRecording?.title ?? ''}
+      currentFolderId={moveFolderTargetRecording?.folderId ?? null}
+      folders={folders.filter(f => !moveFolderTargetRecording?.projectId || f.projectId === moveFolderTargetRecording.projectId)}
+      onSelectFolder={handleMoveFolderAction}
     />
 
     <Dialog open={toolsOpen} onOpenChange={setToolsOpen}><DialogContent className="tools-dialog"><DialogHeader><DialogTitle>{t("Alat naskah")}</DialogTitle><DialogDescription>{t("Atur tampilan, pilih pembicara, dan ekspor naskah.")}</DialogDescription></DialogHeader><ContextualUtilityPanel {...utilityProps} /></DialogContent></Dialog>
