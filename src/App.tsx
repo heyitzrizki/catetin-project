@@ -13,6 +13,8 @@ import { NewProjectDialog } from '@/components/dashboard/NewProjectDialog';
 import { FolderDialog } from '@/components/dashboard/FolderDialog';
 import { ManageTagsDialog } from '@/components/dashboard/ManageTagsDialog';
 import { MoveFolderDialog } from '@/components/dashboard/MoveFolderDialog';
+import { ExportDialog } from '@/components/dashboard/ExportDialog';
+import { ImportDialog } from '@/components/dashboard/ImportDialog';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
@@ -70,6 +72,10 @@ export default function App() {
   const [tagDialogTargetRecording, setTagDialogTargetRecording] = useState<Recording | null>(null);
   const [moveFolderDialogOpen, setMoveFolderDialogOpen] = useState(false);
   const [moveFolderTargetRecording, setMoveFolderTargetRecording] = useState<Recording | null>(null);
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
+  const [exportScope, setExportScope] = useState<'project' | 'workspace'>('workspace');
+  const [exportProjectId, setExportProjectId] = useState<string | undefined>(undefined);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
 
   // Studio editor sidebar folder filter
   const [sidebarFolderFilter, setSidebarFolderFilter] = useState<string | 'all' | 'none'>('all');
@@ -441,6 +447,38 @@ export default function App() {
     });
   };
 
+  const reloadWorkspaceState = async () => {
+    const saved = await loadWorkspace();
+    if (saved) {
+      const restoredSources: Record<string, string> = {};
+      audioFiles.current = saved.audioFiles ?? {};
+      Object.entries(audioFiles.current).forEach(([id, blob]) => {
+        const url = URL.createObjectURL(blob);
+        objectUrls.current.push(url);
+        restoredSources[id] = url;
+      });
+      if (saved.recordings?.length) {
+        setAvailableRecordings(saved.recordings);
+        const chosenRec = (saved.activeId ? saved.recordings.find(item => item.id === saved.activeId) : undefined)
+          ?? saved.recordings[0];
+        setActiveId(chosenRec.id);
+        if (chosenRec.projectId) setActiveProjectId(chosenRec.projectId);
+      }
+      if (saved.folders?.length) {
+        setFolders(saved.folders);
+      }
+      setDrafts(saved.drafts ?? {});
+      setSpeakerNames(saved.speakerNames ?? {});
+      setAudioSources(restoredSources);
+    }
+    await refreshDashboardData();
+  };
+
+  const handleImportSuccess = async () => {
+    await reloadWorkspaceState();
+    notify(t('Data arsip berhasil dipulihkan'));
+  };
+
   const copyAll = async () => {
     try { await navigator.clipboard.writeText(transcriptText(segments, speakerNames)); notify(t("Naskah berhasil disalin.")); }
     catch { notify(t("Peramban tidak mengizinkan akses clipboard. Gunakan Ekspor teks polos untuk menyimpan naskah.")); }
@@ -670,6 +708,14 @@ export default function App() {
           onMoveFolderClick={rec => {
             setMoveFolderTargetRecording(rec);
             setMoveFolderDialogOpen(true);
+          }}
+          onExportClick={(scope, projId) => {
+            setExportScope(scope);
+            setExportProjectId(projId);
+            setExportDialogOpen(true);
+          }}
+          onImportClick={() => {
+            setImportDialogOpen(true);
           }}
         />
       </main>
@@ -933,6 +979,20 @@ export default function App() {
       currentFolderId={moveFolderTargetRecording?.folderId ?? null}
       folders={folders.filter(f => !moveFolderTargetRecording?.projectId || f.projectId === moveFolderTargetRecording.projectId)}
       onSelectFolder={handleMoveFolderAction}
+    />
+
+    <ExportDialog
+      isOpen={exportDialogOpen}
+      onClose={() => setExportDialogOpen(false)}
+      scope={exportScope}
+      projectId={exportProjectId}
+      projectTitle={exportProjectId ? dashboardProjects.find(p => p.id === exportProjectId)?.title : undefined}
+    />
+
+    <ImportDialog
+      isOpen={importDialogOpen}
+      onClose={() => setImportDialogOpen(false)}
+      onImportSuccess={handleImportSuccess}
     />
 
     <Dialog open={toolsOpen} onOpenChange={setToolsOpen}><DialogContent className="tools-dialog"><DialogHeader><DialogTitle>{t("Alat naskah")}</DialogTitle><DialogDescription>{t("Atur tampilan, pilih pembicara, dan ekspor naskah.")}</DialogDescription></DialogHeader><ContextualUtilityPanel {...utilityProps} /></DialogContent></Dialog>

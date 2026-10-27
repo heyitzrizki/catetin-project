@@ -219,5 +219,14 @@
   "Folder berhasil dihapus.": { "id": "Folder berhasil dihapus.", "en": "Folder deleted successfully." },
   "Folder berhasil diperbarui.": { "id": "Folder berhasil diperbarui.", "en": "Folder updated successfully." },
   "Rekaman berhasil dipindahkan.": { "id": "Rekaman berhasil dipindahkan.", "en": "Recording moved successfully." },
-  "Tag berhasil diperbarui.": { "id": "Tag berhasil diperbarui.", "en": "Tags updated successfully." }
+  "Tag berhasil diperbarui.": { "id": "Tag berhasil diperbarui.", "en": "Tags updated successfully." },
+  "Data dan penyimpanan": { "id": "Data dan penyimpanan", "en": "Data and storage" },
+  "Lindungi penyimpanan lokal": { "id": "Lindungi penyimpanan lokal", "en": "Protect local storage" },
+  "Export seluruh workspace": { "id": "Export seluruh workspace", "en": "Export entire workspace" },
+  "Import backup": { "id": "Import backup", "en": "Import backup" },
+  "Data arsip berhasil dipulihkan": { "id": "Data arsip berhasil dipulihkan", "en": "Archive data restored successfully" },
+  "Cadangan ringan (Disarankan)": { "id": "Cadangan ringan (Disarankan)", "en": "Lightweight backup (Recommended)" },
+  "Cadangan lengkap (Termasuk rekaman audio)": { "id": "Cadangan lengkap (Termasuk rekaman audio)", "en": "Full backup (Including audio recordings)" },
+  "Unduh arsip .catetin": { "id": "Unduh arsip .catetin", "en": "Download .catetin archive" },
+  "Pulihkan data": { "id": "Pulihkan data", "en": "Restore data" }
 }

@@ -3,6 +3,7 @@ import {
   ArrowRight,
   Clock,
   Cpu,
+  Download,
   FileAudio,
   Folder,
   FolderPlus,
@@ -17,6 +18,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { t, useLanguage } from '@/lib/i18n';
+import { StorageSection } from './StorageSection';
 import type {
   FolderRecord,
   ProjectSummary,
@@ -45,6 +47,8 @@ export interface WorkspaceDashboardProps {
   onDeleteFolderClick: (folderId: string) => void;
   onManageTagsClick: (recording: Recording) => void;
   onMoveFolderClick: (recording: Recording) => void;
+  onExportClick?: (scope: 'project' | 'workspace', projectId?: string) => void;
+  onImportClick?: () => void;
 }
 
 function formatDurationHuman(seconds: number, lang: 'id' | 'en'): string {
@@ -94,6 +98,8 @@ export function WorkspaceDashboard({
   onDeleteFolderClick,
   onManageTagsClick,
   onMoveFolderClick,
+  onExportClick,
+  onImportClick,
 }: WorkspaceDashboardProps) {
   const language = useLanguage() as 'id' | 'en';
   const hasProjects = projects.length > 0;
@@ -614,15 +620,27 @@ export function WorkspaceDashboard({
                         </div>
                       </button>
 
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => onOpenProject(project.id)}
-                        className="gap-1 min-h-[44px] text-xs"
-                      >
-                        {t('Buka')}
-                        <ArrowRight className="size-4" aria-hidden="true" />
-                      </Button>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => onExportClick?.('project', project.id)}
+                          className="gap-1 min-h-[44px] text-xs text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
+                          title="Export proyek .catetin"
+                        >
+                          <Download className="size-3.5" aria-hidden="true" />
+                          <span className="hidden sm:inline">Export</span>
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => onOpenProject(project.id)}
+                          className="gap-1 min-h-[44px] text-xs"
+                        >
+                          {t('Buka')}
+                          <ArrowRight className="size-4" aria-hidden="true" />
+                        </Button>
+                      </div>
                     </div>
 
                     {/* Folders in this project */}
@@ -785,6 +803,12 @@ export function WorkspaceDashboard({
           </section>
         </div>
       )}
+
+      {/* Storage and backup section */}
+      <StorageSection
+        onExportWorkspace={() => onExportClick?.('workspace')}
+        onImportBackup={() => onImportClick?.()}
+      />
     </div>
   );
 }
