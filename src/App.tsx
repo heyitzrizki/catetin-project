@@ -1,4 +1,5 @@
 import { LanguageSelect } from '@/components/LanguageSelect';
+import { AccountControl } from '@/components/account/AccountControl';
 import { t, useLanguage } from '@/lib/i18n';
 import { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, ArrowRight, Check, FileAudio, Folder, Info, Plus, Tag, Upload, X } from 'lucide-react';
@@ -672,7 +673,10 @@ export default function App() {
           <Button variant="ghost" onClick={goHome}><ArrowLeft aria-hidden="true" />{t("Beranda")}</Button>
         </div>
       )}
-      <LanguageSelect />
+      <div className="header-actions">
+        <AccountControl />
+        <LanguageSelect />
+      </div>
     </div></header>
 
     {page === 'landing' ? (

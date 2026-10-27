@@ -70,6 +70,25 @@
 .site-nav > button:last-child { padding-inline: 20px; }
 .studio-nav { gap: 24px; }
 .studio-nav > span { color: var(--muted-foreground); font-size: 12px; }
+.header-actions { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.account-control { display: inline-flex; align-items: center; gap: 8px; }
+.account-btn { display: inline-flex; align-items: center; gap: 7px; min-height: 44px; padding: 8px 14px; border: 1px solid var(--border); border-radius: 6px; background: transparent; color: var(--foreground); font-size: 12px; font-weight: 550; flex-shrink: 0; transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease; }
+.account-btn:hover { background: var(--accent); color: var(--primary); border-color: #b2c1e3; }
+.account-btn-signin { color: var(--primary); border-color: #c4d1eb; }
+.account-btn-signout { color: var(--muted-foreground); font-size: 11px; }
+.account-btn-signout:hover { color: #b91c1c; border-color: #fecaca; background: #fef2f2; }
+.account-btn-loading { opacity: 0.7; cursor: wait; }
+.account-btn-retry { color: var(--primary); font-size: 11px; padding: 6px 10px; }
+.account-user-badge { display: inline-flex; align-items: center; gap: 8px; max-width: 140px; font-size: 12px; font-weight: 550; color: var(--foreground); }
+.account-avatar { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; border: 1px solid var(--border); }
+.account-avatar-placeholder { width: 24px; height: 24px; border-radius: 50%; background: var(--muted); display: grid; place-items: center; color: var(--muted-foreground); }
+.account-user-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+.account-unavailable-badge { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 6px 10px; font-size: 11px; color: var(--muted-foreground); border: 1px dashed var(--border); border-radius: 6px; background: var(--card); }
+@media (max-width: 640px) {
+  .account-user-name { display: none; }
+  .account-unavailable-text { display: none; }
+  .account-unavailable-badge { padding-inline: 8px; }
+}
 .skip-link { position: fixed; top: 8px; left: 8px; transform: translateY(-200%); background: var(--primary); color: #fff; padding: 12px 20px; z-index: 100; }
 .skip-link:focus { transform: translateY(0); }
 .eyebrow { font-size: 11px; font-weight: 650; letter-spacing: .15em; text-transform: uppercase; line-height: 1.8; color: var(--primary); }

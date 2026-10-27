@@ -228,5 +228,13 @@
   "Cadangan ringan (Disarankan)": { "id": "Cadangan ringan (Disarankan)", "en": "Lightweight backup (Recommended)" },
   "Cadangan lengkap (Termasuk rekaman audio)": { "id": "Cadangan lengkap (Termasuk rekaman audio)", "en": "Full backup (Including audio recordings)" },
   "Unduh arsip .catetin": { "id": "Unduh arsip .catetin", "en": "Download .catetin archive" },
-  "Pulihkan data": { "id": "Pulihkan data", "en": "Restore data" }
+  "Pulihkan data": { "id": "Pulihkan data", "en": "Restore data" },
+  "Masuk": { "id": "Masuk", "en": "Sign in" },
+  "Masuk dengan Google": { "id": "Masuk dengan Google", "en": "Sign in with Google" },
+  "Keluar": { "id": "Keluar", "en": "Sign out" },
+  "Memuat akun...": { "id": "Memuat akun...", "en": "Loading account..." },
+  "Layanan akun offline (Studio lokal tetap aktif)": { "id": "Layanan akun offline (Studio lokal tetap aktif)", "en": "Account service offline (Local Studio stays active)" },
+  "Akun": { "id": "Akun", "en": "Account" },
+  "Akun Google": { "id": "Akun Google", "en": "Google account" },
+  "Coba lagi menghubungkan akun": { "id": "Coba lagi menghubungkan akun", "en": "Retry connecting account" }
 }

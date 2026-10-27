@@ -2,11 +2,25 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "catetin-project",
   "compatibility_date": "2026-10-19",
+  "main": "worker/index.ts",
   "observability": {
     "enabled": true
   },
+  "vars": {
+    "APP_ORIGIN": "https://catetin-project.anwars-rizki.workers.dev"
+  },
   "assets": {
     "directory": "./dist",
-    "not_found_handling": "single-page-application"
-  }
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "catetin-account",
+      "database_id": "1f573ae1-19ad-49c1-8f64-78c8d5826de7",
+      "migrations_dir": "migrations"
+    }
+  ]
 }
