@@ -8,11 +8,24 @@ import { ContinuousTranscriptEditor } from '@/components/workspace/ContinuousTra
 import { ContextualUtilityPanel } from '@/components/workspace/ContextualUtilityPanel';
 import { AudioDock } from '@/components/workspace/AudioDock';
 import { WhisperDrawer } from '@/components/workspace/WhisperDrawer';
+import { WorkspaceDashboard } from '@/components/dashboard/WorkspaceDashboard';
+import { NewProjectDialog } from '@/components/dashboard/NewProjectDialog';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
 import { downloadTranscript, formatSeconds, recordings, transcriptText, type DialogSegment, type Recording } from '@/lib/transcript';
-import { loadWorkspace, saveWorkspace } from '@/features/workspace/workspace-store';
+import {
+  createProject,
+  getWorkspaceStats,
+  isDemoRecordingId,
+  listProjectSummaries,
+  listRecentRecordings,
+  loadWorkspace,
+  saveWorkspace,
+  type ProjectSummary,
+  type RecentRecording,
+  type WorkspaceStats,
+} from '@/features/workspace/workspace-store';
 import { decodeAudio } from '@/lib/transcription';
 import { inspectAudioFile } from '@/features/transcription/audio-preparation';
 import { TranscriptionJobController, createIdleSnapshot, type TranscriptionUiSnapshot } from '@/features/transcription/job-controller';
@@ -22,8 +35,22 @@ type InfoPage = 'about' | 'faq' | 'pricing' | null;
 export default function App() {
   const language = useLanguage();
   const [page, setPage] = useState<'landing' | 'studio'>(() => location.hash === '#studio' ? 'studio' : 'landing');
-  const [availableRecordings, setAvailableRecordings] = useState(recordings);
-  const [activeId, setActiveId] = useState(recordings[0].id);
+  const [studioView, setStudioView] = useState<'dashboard' | 'editor'>('dashboard');
+  const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
+  const [dashboardProjects, setDashboardProjects] = useState<ProjectSummary[]>([]);
+  const [dashboardRecents, setDashboardRecents] = useState<RecentRecording[]>([]);
+  const [dashboardStats, setDashboardStats] = useState<WorkspaceStats>({
+    projectCount: 0,
+    recordingCount: 0,
+    totalDurationSec: 0,
+    lastUpdatedAt: null,
+  });
+  const [newProjectOpen, setNewProjectOpen] = useState(false);
+  const [targetProjectId, setTargetProjectId] = useState<string>('');
+  const [newProjectTitleForUpload, setNewProjectTitleForUpload] = useState('');
+
+  const [availableRecordings, setAvailableRecordings] = useState<Recording[]>([]);
+  const [activeId, setActiveId] = useState('');
   const [drafts, setDrafts] = useState<Record<string, DialogSegment[]>>({});
   const [speakerNamesByRecording, setSpeakerNames] = useState<Record<string, Record<string, string>>>({});
   const [searchQuery, setSearchQuery] = useState('');
@@ -53,11 +80,39 @@ export default function App() {
   const jobControllerRef = useRef<TranscriptionJobController | null>(null);
   const activeIdRef = useRef(activeId);
   activeIdRef.current = activeId;
-  const active = availableRecordings.find(item => item.id === activeId)!;
-  const segments = drafts[activeId] ?? active.segments;
-  const speakerNames = speakerNamesByRecording[activeId] ?? {};
-  const audioSrc = audioSources[activeId];
+
+  const active = availableRecordings.find(item => item.id === activeId) ?? availableRecordings[0] ?? recordings[0];
+  const effectiveId = active?.id ?? '';
+  const segments = drafts[effectiveId] ?? active?.segments ?? [];
+  const speakerNames = speakerNamesByRecording[effectiveId] ?? {};
+  const audioSrc = audioSources[effectiveId];
   const isCustom = Boolean(audioSrc);
+
+  const activeProjectTitle = activeProjectId === 'demo'
+    ? t('Mode contoh')
+    : dashboardProjects.find(p => p.id === activeProjectId)?.title ?? t('Rekaman saya');
+
+  const projectRecordings = activeProjectId === 'demo'
+    ? availableRecordings.filter(r => isDemoRecordingId(r.id))
+    : activeProjectId
+      ? availableRecordings.filter(r => r.projectId === activeProjectId)
+      : availableRecordings.filter(r => !isDemoRecordingId(r.id));
+
+  const refreshDashboardData = async () => {
+    try {
+      const [summaries, recents, stats] = await Promise.all([
+        listProjectSummaries(),
+        listRecentRecordings(6),
+        getWorkspaceStats(),
+      ]);
+      setDashboardProjects(summaries);
+      setDashboardRecents(recents);
+      setDashboardStats(stats);
+      return summaries;
+    } catch {
+      return [];
+    }
+  };
 
   useEffect(() => () => {
     objectUrls.current.forEach(url => URL.revokeObjectURL(url));
@@ -67,20 +122,28 @@ export default function App() {
 
   useEffect(() => {
     let cancelled = false;
-    loadWorkspace().then(saved => {
-      if (cancelled || !saved) return;
-      const restoredSources: Record<string, string> = {};
-      audioFiles.current = saved.audioFiles ?? {};
-      Object.entries(audioFiles.current).forEach(([id, blob]) => {
-        const url = URL.createObjectURL(blob);
-        objectUrls.current.push(url);
-        restoredSources[id] = url;
-      });
-      if (saved.recordings?.length) setAvailableRecordings(saved.recordings);
-      setDrafts(saved.drafts ?? {});
-      setSpeakerNames(saved.speakerNames ?? {});
-      setAudioSources(restoredSources);
-      if (saved.activeId && saved.recordings?.some(item => item.id === saved.activeId)) setActiveId(saved.activeId);
+    loadWorkspace().then(async saved => {
+      if (cancelled) return;
+      if (saved) {
+        const restoredSources: Record<string, string> = {};
+        audioFiles.current = saved.audioFiles ?? {};
+        Object.entries(audioFiles.current).forEach(([id, blob]) => {
+          const url = URL.createObjectURL(blob);
+          objectUrls.current.push(url);
+          restoredSources[id] = url;
+        });
+        if (saved.recordings?.length) {
+          setAvailableRecordings(saved.recordings);
+          const chosenRec = (saved.activeId ? saved.recordings.find(item => item.id === saved.activeId) : undefined)
+            ?? saved.recordings[0];
+          setActiveId(chosenRec.id);
+          if (chosenRec.projectId) setActiveProjectId(chosenRec.projectId);
+        }
+        setDrafts(saved.drafts ?? {});
+        setSpeakerNames(saved.speakerNames ?? {});
+        setAudioSources(restoredSources);
+      }
+      await refreshDashboardData();
     }).catch(() => notify(t('Draf lokal tidak dapat dipulihkan.'))).finally(() => { if (!cancelled) setWorkspaceReady(true); });
     return () => { cancelled = true; };
   }, []);
@@ -88,34 +151,52 @@ export default function App() {
   useEffect(() => {
     if (!workspaceReady) return;
     const timer = window.setTimeout(() => {
-      saveWorkspace({ recordings: availableRecordings, drafts, speakerNames: speakerNamesByRecording, audioFiles: audioFiles.current, activeId, selectedModel: 'tiny' })
-        .catch(() => notify(t('Draf lokal tidak dapat disimpan. Periksa ruang penyimpanan browser.')));
+      saveWorkspace({
+        recordings: availableRecordings,
+        drafts,
+        speakerNames: speakerNamesByRecording,
+        audioFiles: audioFiles.current,
+        activeId: effectiveId || undefined,
+        selectedModel: 'tiny',
+      }).catch(() => notify(t('Draf lokal tidak dapat disimpan. Periksa ruang penyimpanan browser.')));
     }, 500);
     return () => clearTimeout(timer);
-  }, [workspaceReady, availableRecordings, drafts, speakerNamesByRecording, activeId]);
+  }, [workspaceReady, availableRecordings, drafts, speakerNamesByRecording, effectiveId]);
 
   useEffect(() => {
-    const syncPage = () => setPage(location.hash === '#studio' ? 'studio' : 'landing');
+    const syncPage = () => {
+      if (location.hash === '#studio') {
+        setPage('studio');
+      } else {
+        setPage('landing');
+      }
+    };
     window.addEventListener('hashchange', syncPage);
     return () => window.removeEventListener('hashchange', syncPage);
   }, []);
 
   useEffect(() => {
-    document.title = page === 'studio' ? `${t(active.title)} · Catetin Studio` : t('Page title');
+    document.title = page === 'studio'
+      ? (studioView === 'dashboard' ? `Dashboard · Catetin Studio` : `${t(active.title)} · Catetin Studio`)
+      : t('Page title');
     window.scrollTo({ top: 0, behavior: 'instant' });
     requestAnimationFrame(() => document.getElementById('main-content')?.focus({ preventScroll: true }));
-  }, [page, active.title]);
-
-  useEffect(() => { document.title = page === "studio" ? `${t(active.title)} · Catetin Studio` : t("Page title"); }, [language, page, active.title]);
+  }, [page, studioView, active?.title]);
 
   useEffect(() => {
-    if (!isPlaying || isCustom || page !== 'studio') return;
+    document.title = page === 'studio'
+      ? (studioView === 'dashboard' ? `Dashboard · Catetin Studio` : `${t(active.title)} · Catetin Studio`)
+      : t('Page title');
+  }, [language, page, studioView, active?.title]);
+
+  useEffect(() => {
+    if (!isPlaying || isCustom || page !== 'studio' || studioView !== 'editor') return;
     const timer = window.setInterval(() => setCurrentTime(time => {
       if (time + playbackSpeed >= active.durationSec) { setIsPlaying(false); return active.durationSec; }
       return time + playbackSpeed;
     }), 1000);
     return () => clearInterval(timer);
-  }, [isPlaying, isCustom, playbackSpeed, active.durationSec, page]);
+  }, [isPlaying, isCustom, playbackSpeed, active?.durationSec, page, studioView]);
 
   useEffect(() => {
     if (audioRef.current) audioRef.current.playbackRate = playbackSpeed;
@@ -143,13 +224,14 @@ export default function App() {
         }
         setResumableChunks(0);
         notify(t('Transkripsi lokal selesai. Periksa hasilnya sebelum mengekspor.'));
+        void refreshDashboardData();
       },
     });
   }
 
   useEffect(() => {
     let cancelled = false;
-    const file = audioFiles.current[activeId];
+    const file = audioFiles.current[effectiveId];
     const running = ['validating', 'preparing-model', 'preparing-audio', 'transcribing', 'assembling-result'].includes(transcription.status);
     if (!file || running || !jobControllerRef.current) {
       setResumableChunks(0);
@@ -164,23 +246,91 @@ export default function App() {
       if (!cancelled) setResumableChunks(0);
     });
     return () => { cancelled = true; };
-  }, [activeId, language, transcription.status, audioSources]);
+  }, [effectiveId, language, transcription.status, audioSources]);
 
   const loadRecording = (id: string) => {
     if (id === activeId) return;
     audioRef.current?.pause();
-    setActiveId(id); setCurrentTime(0); setIsPlaying(false);
-    setSearchQuery(''); setSpeakerFilter(null); setAudioError('');
+    setActiveId(id);
+    setCurrentTime(0);
+    setIsPlaying(false);
+    setSearchQuery('');
+    setSpeakerFilter(null);
+    setAudioError('');
     setAudioLoading(Boolean(audioSources[id]));
   };
 
   const openStudio = (sampleId?: string) => {
-    if (sampleId) loadRecording(sampleId);
+    if (sampleId) {
+      if (!availableRecordings.some(r => r.id === sampleId)) {
+        setAvailableRecordings(previous => {
+          const needed = recordings.filter(r => r.id === sampleId && !previous.some(p => p.id === r.id));
+          return [...previous, ...needed];
+        });
+      }
+      loadRecording(sampleId);
+      setActiveProjectId('demo');
+      setStudioView('editor');
+    } else {
+      setStudioView('dashboard');
+      void refreshDashboardData();
+    }
     setPage('studio');
     if (location.hash !== '#studio') location.hash = 'studio';
   };
 
-  const goHome = () => { setPage('landing'); history.pushState(null, '', location.pathname + location.search); };
+  const goHome = () => {
+    setPage('landing');
+    setStudioView('dashboard');
+    history.pushState(null, '', location.pathname + location.search);
+  };
+
+  const handleOpenProject = (projectId: string) => {
+    setActiveProjectId(projectId);
+    const recs = availableRecordings.filter(r => r.projectId === projectId);
+    if (recs.length > 0) {
+      loadRecording(recs[0].id);
+    }
+    setStudioView('editor');
+  };
+
+  const handleOpenRecentRecording = (recordingId: string, projectId?: string) => {
+    if (projectId) setActiveProjectId(projectId);
+    loadRecording(recordingId);
+    setStudioView('editor');
+  };
+
+  const handleTryDemo = () => {
+    setAvailableRecordings(previous => {
+      const existingIds = new Set(previous.map(p => p.id));
+      const needed = recordings.filter(r => !existingIds.has(r.id));
+      return [...previous, ...needed];
+    });
+    loadRecording('wawancara');
+    setActiveProjectId('demo');
+    setStudioView('editor');
+  };
+
+  const handleCreateProject = async (title: string) => {
+    const created = await createProject(title);
+    await refreshDashboardData();
+    setActiveProjectId(created.id);
+    notify(t('Project berhasil dibuat.'));
+  };
+
+  const handleOpenUpload = (projectId?: string) => {
+    setPendingFile(null);
+    setUploadError('');
+    if (projectId && projectId !== 'demo') {
+      setTargetProjectId(projectId);
+    } else if (dashboardProjects.length > 0) {
+      setTargetProjectId(dashboardProjects[0].id);
+    } else {
+      setTargetProjectId('new');
+    }
+    setNewProjectTitleForUpload('');
+    setUploadOpen(true);
+  };
 
   const seek = (seconds: number) => {
     const time = Math.max(0, Math.min(seconds, active.durationSec));
@@ -197,13 +347,13 @@ export default function App() {
     } else setIsPlaying(value => !value);
   };
 
-  const updateText = (id: number, text: string) => setDrafts(previous => ({ ...previous, [activeId]: (previous[activeId] ?? active.segments).map(s => s.id === id ? { ...s, text } : s) }));
+  const updateText = (id: number, text: string) => setDrafts(previous => ({ ...previous, [effectiveId]: (previous[effectiveId] ?? active.segments).map(s => s.id === id ? { ...s, text } : s) }));
   const addSegment = () => {
     const lastTime = segments.at(-1)?.seconds ?? -1;
     const seconds = Math.floor(Math.max(currentTime, lastTime + 1));
     if (active.durationSec && seconds >= active.durationSec) { notify(t("Naskah sudah mencapai akhir rekaman. Sunting segmen yang ada.")); return; }
     const id = Math.max(0, ...segments.map(s => s.id)) + 1;
-    setDrafts(previous => ({ ...previous, [activeId]: [...segments, { id, seconds, time: formatSeconds(seconds), speaker: 'Pembicara', text: '' }] }));
+    setDrafts(previous => ({ ...previous, [effectiveId]: [...segments, { id, seconds, time: formatSeconds(seconds), speaker: 'Pembicara', text: '' }] }));
     requestAnimationFrame(() => {
       const fields = document.querySelectorAll<HTMLElement>('.segment-text');
       fields[fields.length - 1]?.focus();
@@ -247,20 +397,48 @@ export default function App() {
     setPendingFile(file);
   };
 
-  const importAudio = () => {
+  const importAudio = async () => {
     if (!pendingFile) return;
+
+    let chosenProjectId = targetProjectId;
+    if (chosenProjectId === 'new' || !chosenProjectId) {
+      const titleToUse = newProjectTitleForUpload.trim() || t("Rekaman saya");
+      const created = await createProject(titleToUse);
+      chosenProjectId = created.id;
+    }
+
     const id = `local-${Date.now()}`;
     const source = URL.createObjectURL(pendingFile);
     objectUrls.current.push(source);
     audioFiles.current[id] = pendingFile;
-    const recording: Recording = { id, title: pendingFile.name.replace(/\.[^.]+$/, ''), filename: pendingFile.name, category: t("Rekaman lokal"), durationSec: 0, segments: [] };
+    const now = Date.now();
+    const recording: Recording = {
+      id,
+      title: pendingFile.name.replace(/\.[^.]+$/, ''),
+      filename: pendingFile.name,
+      category: t("Rekaman lokal"),
+      durationSec: 0,
+      segments: [],
+      projectId: chosenProjectId,
+      createdAt: now,
+      updatedAt: now,
+    };
     audioRef.current?.pause();
-    setAvailableRecordings(previous => [...previous, recording]);
+    setAvailableRecordings(previous => [...previous.filter(r => r.id !== id), recording]);
     setAudioSources(previous => ({ ...previous, [id]: source }));
-    setActiveId(id); setCurrentTime(0); setIsPlaying(false); setAudioLoading(true); setAudioError('');
-    setSearchQuery(''); setSpeakerFilter(null); setUploadOpen(false); setPendingFile(null);
+    setActiveId(id);
+    setActiveProjectId(chosenProjectId);
+    setCurrentTime(0);
+    setIsPlaying(false);
+    setAudioLoading(true);
+    setAudioError('');
+    setSearchQuery('');
+    setSpeakerFilter(null);
+    setUploadOpen(false);
+    setPendingFile(null);
     setTranscription(createIdleSnapshot());
-    openStudio();
+    setStudioView('editor');
+    void refreshDashboardData();
   };
 
   const cancelTranscription = () => {
@@ -268,7 +446,7 @@ export default function App() {
   };
 
   const executeActiveTranscription = async (resume = true) => {
-    const audioFile = audioFiles.current[activeId];
+    const audioFile = audioFiles.current[effectiveId];
     const running = ['validating', 'preparing-model', 'preparing-audio', 'transcribing', 'assembling-result'].includes(transcription.status);
     if (!audioFile || running) return;
     setOverwriteConfirm(null);
@@ -282,18 +460,18 @@ export default function App() {
     await jobControllerRef.current?.runJob({
       file: audioFile as Blob & { name?: string; type?: string },
       language,
-      recordingId: activeId,
+      recordingId: effectiveId,
       knownDurationSeconds: active.durationSec > 0 ? active.durationSec : undefined,
       resume,
     });
   };
 
   const runActiveTranscription = async (resume = true) => {
-    const audioFile = audioFiles.current[activeId];
+    const audioFile = audioFiles.current[effectiveId];
     const running = ['validating', 'preparing-model', 'preparing-audio', 'transcribing', 'assembling-result'].includes(transcription.status);
     if (!audioFile || running) return;
     const hasExistingOrEditedTranscript = segments.length > 0
-      || (drafts[activeId]?.length ?? 0) > 0
+      || (drafts[effectiveId]?.length ?? 0) > 0
       || Object.keys(speakerNames).length > 0;
     if (hasExistingOrEditedTranscript) {
       setOverwriteConfirm({ resume });
@@ -303,7 +481,7 @@ export default function App() {
   };
 
   const discardActiveCheckpoint = async () => {
-    const audioFile = audioFiles.current[activeId];
+    const audioFile = audioFiles.current[effectiveId];
     if (!audioFile) return;
     const deleted = await jobControllerRef.current?.discardCheckpoint({
       file: audioFile as Blob & { name?: string; type?: string },
@@ -316,14 +494,14 @@ export default function App() {
   };
 
   const isTranscriptionRunning = ['validating', 'preparing-model', 'preparing-audio', 'transcribing', 'assembling-result'].includes(transcription.status);
-  const isBackgroundJob = isTranscriptionRunning && Boolean(transcription.recordingId && transcription.recordingId !== activeId);
+  const isBackgroundJob = isTranscriptionRunning && Boolean(transcription.recordingId && transcription.recordingId !== effectiveId);
   const jobRecordingTitle = transcription.recordingId
     ? availableRecordings.find(item => item.id === transcription.recordingId)?.title
     : undefined;
-  const activeSnapshot = !transcription.recordingId || transcription.recordingId === activeId || isBackgroundJob
+  const activeSnapshot = !transcription.recordingId || transcription.recordingId === effectiveId || isBackgroundJob
     ? transcription
     : createIdleSnapshot();
-  const canTranscribeActive = Boolean(audioFiles.current[activeId]);
+  const canTranscribeActive = Boolean(audioFiles.current[effectiveId]);
 
   const exportActions = { onExportWord: () => exportAs('doc'), onExportTxt: () => exportAs('txt'), onExportSrt: () => exportAs('srt'), onCopyAll: copyAll };
   const utilityProps = {
@@ -334,7 +512,7 @@ export default function App() {
     speakerNames,
     activeSpeakerFilter: speakerFilter,
     onSelectSpeakerFilter: setSpeakerFilter,
-    selectedModel: 'tiny',
+    selectedModel: 'tiny' as const,
     onOpenWhisperDrawer: () => setModelOpen(true),
     canTranscribe: canTranscribeActive,
     snapshot: activeSnapshot,
@@ -351,21 +529,163 @@ export default function App() {
   return <div className={`app-shell ${page === 'studio' ? 'studio-shell' : ''}`}>
     <a className="skip-link" href="#main-content">{t("Langsung ke konten")}</a>
     <header className="site-header"><div className="page-container header-inner"><button className="brand" aria-label={t("Catetin, beranda")} onClick={goHome}><span className="brand-symbol">c.</span><span>catetin</span></button>
-      {page === 'landing' ? <nav aria-label={t("Navigasi utama")} className="site-nav"><a href="#cara-kerja" className="nav-how">{t("Cara kerja")}</a><a href="#privasi" className="nav-privacy">{t("Privasi")}</a><a href="#contoh" className="nav-examples">{t("Contoh")}</a><button onClick={() => setInfoPage('about')}>{t("Tentang")}</button><Button onClick={() => openStudio()}>{t("Buka Studio")} <ArrowRight aria-hidden="true" /></Button></nav> : <div className="studio-nav"><span>{t("Studio transkrip")}</span><Button variant="ghost" onClick={goHome}><ArrowLeft aria-hidden="true" />{t("Beranda")}</Button></div>}
+      {page === 'landing' ? (
+        <nav aria-label={t("Navigasi utama")} className="site-nav">
+          <a href="#cara-kerja" className="nav-how">{t("Cara kerja")}</a>
+          <a href="#privasi" className="nav-privacy">{t("Privasi")}</a>
+          <a href="#contoh" className="nav-examples">{t("Contoh")}</a>
+          <button onClick={() => setInfoPage('about')}>{t("Tentang")}</button>
+          <Button onClick={() => openStudio()}>{t("Buka Studio")} <ArrowRight aria-hidden="true" /></Button>
+        </nav>
+      ) : (
+        <div className="studio-nav">
+          {studioView === 'editor' && (
+            <Button variant="ghost" onClick={() => { setStudioView('dashboard'); void refreshDashboardData(); }}>
+              <ArrowLeft className="size-4" aria-hidden="true" />
+              {t("Dashboard")}
+            </Button>
+          )}
+          <span>{t("Studio transkrip")}</span>
+          <Button variant="ghost" onClick={goHome}><ArrowLeft aria-hidden="true" />{t("Beranda")}</Button>
+        </div>
+      )}
       <LanguageSelect />
     </div></header>
 
-    {page === 'landing' ? <LandingPage onOpenStudio={openStudio} onOpenRecording={() => { setPendingFile(null); setUploadError(''); setUploadOpen(true); }} /> : <main id="main-content" className="workspace-main" tabIndex={-1}>
-      <div className="studio-frame"><aside className="recording-sidebar" aria-label={t("Rekaman dalam sesi")}><div className="sidebar-heading"><span>{t("STUDIO CATETIN")}</span><h2>{t("Ruang rekamanmu.")}</h2></div><Button variant="outline" onClick={() => { setPendingFile(null); setUploadError(''); setUploadOpen(true); }}><Upload aria-hidden="true" />{t("Buka rekaman")}</Button><p className="sidebar-label">{t("NASKAH TERSIMPAN LOKAL")}</p><div className="recording-list">{availableRecordings.map(item => <button key={item.id} aria-current={activeId === item.id ? 'true' : undefined} onClick={() => loadRecording(item.id)}><FileAudio aria-hidden="true" /><span>{t(item.title)}<small>{audioSources[item.id] ? t("Rekaman lokal") : t("Contoh naskah")}</small></span></button>)}</div><div className="sidebar-local"><Info aria-hidden="true" /><p>{t("Audio dan draf tersimpan lokal.")}<br/>{t("Ekspor hasil penting sebagai cadangan.")}</p></div></aside><div className="studio-content">
-      <WorkspaceHeader activeSample={active} availableRecordings={availableRecordings} onSelectSample={loadRecording} onUploadClick={() => { setPendingFile(null); setUploadError(''); setUploadOpen(true); }} searchQuery={searchQuery} onSearchChange={setSearchQuery} onOpenTools={() => setToolsOpen(true)} isCustom={isCustom} canExport={segments.length > 0} {...exportActions} />
-      {audioError && <div className="audio-error" role="alert"><Info aria-hidden="true" /><p>{t(audioError)}{t(" Anda tetap dapat menulis naskah secara manual.")}</p><Button variant="ghost" onClick={() => setUploadOpen(true)}>{t("Pilih berkas lain")}</Button></div>}
-      <div className="workspace-body"><ContinuousTranscriptEditor key={active.id} segments={segments} speakerNames={speakerNames} currentTime={currentTime} onSeek={seek} onRenameSpeaker={(oldName, newName) => { setSpeakerNames(previous => ({ ...previous, [activeId]: { ...previous[activeId], [oldName]: newName } })); notify(t("Nama pembicara diperbarui di seluruh naskah.")); }} onUpdateText={updateText} searchQuery={searchQuery} activeSpeakerFilter={speakerFilter} viewMode={viewMode} onClearFilters={() => { setSearchQuery(''); setSpeakerFilter(null); }} onAddSegment={addSegment} isCustom={isCustom} /><aside className="desktop-utilities" aria-label={t("Alat naskah")}><ContextualUtilityPanel {...utilityProps} /></aside></div>
-      <AudioDock currentTime={currentTime} durationSec={active.durationSec} isPlaying={isPlaying} playbackSpeed={playbackSpeed} onTogglePlay={togglePlay} onSeek={seek} onReset={() => { seek(0); audioRef.current?.pause(); setIsPlaying(false); }} onChangeSpeed={setPlaybackSpeed} isDemo={!isCustom} isLoading={audioLoading} /></div></div>
-    </main>}
+    {page === 'landing' ? (
+      <LandingPage onOpenStudio={openStudio} onOpenRecording={() => handleOpenUpload()} />
+    ) : studioView === 'dashboard' ? (
+      <main id="main-content" className="workspace-main" tabIndex={-1}>
+        <WorkspaceDashboard
+          projects={dashboardProjects}
+          recentRecordings={dashboardRecents}
+          stats={dashboardStats}
+          onOpenProject={handleOpenProject}
+          onOpenRecording={handleOpenRecentRecording}
+          onCreateProjectClick={() => setNewProjectOpen(true)}
+          onOpenRecordingClick={handleOpenUpload}
+          onTryDemo={handleTryDemo}
+        />
+      </main>
+    ) : (
+      <main id="main-content" className="workspace-main" tabIndex={-1}>
+        <div className="studio-frame">
+          <aside className="recording-sidebar" aria-label={t("Rekaman dalam sesi")}>
+            <Button
+              variant="ghost"
+              onClick={() => { setStudioView('dashboard'); void refreshDashboardData(); }}
+              className="mb-4 justify-start gap-2 min-h-[44px] text-xs font-semibold w-full"
+            >
+              <ArrowLeft className="size-4" aria-hidden="true" />
+              {t("Kembali ke dashboard")}
+            </Button>
+
+            {activeProjectId === 'demo' && (
+              <div className="demo-notice bg-[var(--accent)] text-[var(--primary)] text-xs p-3 rounded-md mb-4 border border-[var(--border)]">
+                <span className="font-semibold block mb-1">{t("Mode contoh")}</span>
+                <span className="text-[11px] leading-relaxed block">{t("Mode contoh: Rekaman ini tidak disimpan ke workspace lokal.")}</span>
+              </div>
+            )}
+
+            <div className="sidebar-heading">
+              <span>{activeProjectTitle.toUpperCase()}</span>
+              <h2>{t("Ruang rekamanmu.")}</h2>
+            </div>
+            <Button variant="outline" onClick={() => handleOpenUpload(activeProjectId ?? undefined)}>
+              <Upload aria-hidden="true" />{t("Buka rekaman")}
+            </Button>
+            <p className="sidebar-label">{t("NASKAH TERSIMPAN LOKAL")}</p>
+            <div className="recording-list">
+              {projectRecordings.map(item => (
+                <button key={item.id} aria-current={activeId === item.id ? 'true' : undefined} onClick={() => loadRecording(item.id)}>
+                  <FileAudio aria-hidden="true" />
+                  <span>{t(item.title)}<small>{audioSources[item.id] ? t("Rekaman lokal") : t("Contoh naskah")}</small></span>
+                </button>
+              ))}
+              {projectRecordings.length === 0 && (
+                <div className="text-xs text-[var(--muted-foreground)] p-4 border border-dashed border-[var(--border)] rounded-md text-center">
+                  <p>{t("Belum ada rekaman di project ini.")}</p>
+                </div>
+              )}
+            </div>
+            <div className="sidebar-local">
+              <Info aria-hidden="true" />
+              <p>{t("Audio dan draf tersimpan lokal.")}<br/>{t("Ekspor hasil penting sebagai cadangan.")}</p>
+            </div>
+          </aside>
+
+          {projectRecordings.length === 0 ? (
+            <div className="studio-content flex items-center justify-center min-h-[400px]">
+              <div className="p-8 text-center bg-[var(--card)] border border-[var(--border)] rounded-xl max-w-md mx-auto shadow-sm">
+                <FileAudio className="size-12 mx-auto text-[var(--muted-foreground)] mb-3" aria-hidden="true" />
+                <h3 className="font-semibold text-base text-[var(--foreground)]">{t("Belum ada rekaman di project ini.")}</h3>
+                <p className="text-sm text-[var(--muted-foreground)] mt-2 mb-5 leading-relaxed">
+                  {t("Buka rekaman untuk mulai mentranskripsi atau menyunting naskah.")}
+                </p>
+                <Button onClick={() => handleOpenUpload(activeProjectId ?? undefined)} className="gap-2 min-h-[44px]">
+                  <Upload className="size-4" aria-hidden="true" />
+                  {t("Buka rekaman")}
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="studio-content">
+              <WorkspaceHeader activeSample={active} availableRecordings={projectRecordings} onSelectSample={loadRecording} onUploadClick={() => handleOpenUpload(activeProjectId ?? undefined)} searchQuery={searchQuery} onSearchChange={setSearchQuery} onOpenTools={() => setToolsOpen(true)} isCustom={isCustom} canExport={segments.length > 0} {...exportActions} />
+              {audioError && <div className="audio-error" role="alert"><Info aria-hidden="true" /><p>{t(audioError)}{t(" Anda tetap dapat menulis naskah secara manual.")}</p><Button variant="ghost" onClick={() => handleOpenUpload(activeProjectId ?? undefined)}>{t("Pilih berkas lain")}</Button></div>}
+              <div className="workspace-body"><ContinuousTranscriptEditor key={effectiveId} segments={segments} speakerNames={speakerNames} currentTime={currentTime} onSeek={seek} onRenameSpeaker={(oldName, newName) => { setSpeakerNames(previous => ({ ...previous, [effectiveId]: { ...previous[effectiveId], [oldName]: newName } })); notify(t("Nama pembicara diperbarui di seluruh naskah.")); }} onUpdateText={updateText} searchQuery={searchQuery} activeSpeakerFilter={speakerFilter} viewMode={viewMode} onClearFilters={() => { setSearchQuery(''); setSpeakerFilter(null); }} onAddSegment={addSegment} isCustom={isCustom} /><aside className="desktop-utilities" aria-label={t("Alat naskah")}><ContextualUtilityPanel {...utilityProps} /></aside></div>
+              <AudioDock currentTime={currentTime} durationSec={active.durationSec} isPlaying={isPlaying} playbackSpeed={playbackSpeed} onTogglePlay={togglePlay} onSeek={seek} onReset={() => { seek(0); audioRef.current?.pause(); setIsPlaying(false); }} onChangeSpeed={setPlaybackSpeed} isDemo={!isCustom} isLoading={audioLoading} />
+            </div>
+          )}
+        </div>
+      </main>
+    )}
 
     {page === 'landing' && <footer className="site-footer page-container"><div><span className="footer-brand">catetin</span><p>{t("Ruang untuk setiap cerita.")}</p></div><nav aria-label={t("Navigasi footer")}><button onClick={() => setInfoPage('about')}>{t("Tentang")}</button><a href="#pertanyaan">{t("Pertanyaan")}</a><button onClick={() => setInfoPage('pricing')}>{t("Harga & lisensi")}</button></nav><span>© {new Date().getFullYear()} Catetin</span></footer>}
 
-    <Dialog open={uploadOpen} onOpenChange={setUploadOpen}><DialogContent><DialogHeader><DialogTitle>{t("Buka rekaman Anda")}</DialogTitle><DialogDescription>{t("Putar, transkripsikan, dan rapikan rekaman langsung di perangkat Anda.")}</DialogDescription></DialogHeader><div className="info-notice"><Info aria-hidden="true" /><p>{t("Setelah rekaman dibuka, jalankan Whisper dari menu Model & perangkat untuk membuat transkripsi lokal.")}</p></div><label className={`file-picker ${pendingFile ? 'file-picked' : ''}`}><FileAudio aria-hidden="true" /><strong>{pendingFile ? pendingFile.name : t("Pilih berkas audio atau video")}</strong><span>{pendingFile ? `${(pendingFile.size / 1024 / 1024).toFixed(1)} MB · ${t('Replace file')}` : t("WAV (PCM 16-bit), MP3, M4A, atau WebM (batas pengaman private alpha berlaku)")}</span><input type="file" aria-label={t("Pilih berkas rekaman")} accept=".wav,.mp3,.m4a,.webm,audio/wav,audio/mpeg,audio/mp4,audio/x-m4a,audio/webm,video/webm" onChange={event => { void chooseFile(event.target.files?.[0]); }} /></label>{uploadError && <p className="form-error" role="alert">{t(uploadError)}</p>}<p className="text-sm text-muted-foreground leading-relaxed">{t("Aplikasi tidak mengunggah rekaman. Berkas dan draf disimpan di browser pada perangkat ini.")}</p><Button disabled={!pendingFile} onClick={importAudio}><Upload aria-hidden="true" />{t("Buka rekaman")}</Button></DialogContent></Dialog>
+    <Dialog open={uploadOpen} onOpenChange={setUploadOpen}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{t("Buka rekaman Anda")}</DialogTitle>
+          <DialogDescription>{t("Putar, transkripsikan, dan rapikan rekaman langsung di perangkat Anda.")}</DialogDescription>
+        </DialogHeader>
+        <div className="info-notice"><Info aria-hidden="true" /><p>{t("Setelah rekaman dibuka, jalankan Whisper dari menu Model & perangkat untuk membuat transkripsi lokal.")}</p></div>
+
+        <div className="project-binding-section flex flex-col gap-1.5 my-2">
+          <label htmlFor="upload-target-project" className="text-xs font-semibold text-[var(--foreground)]">
+            {t("Pilih project tujuan")}
+          </label>
+          <select
+            id="upload-target-project"
+            value={targetProjectId}
+            onChange={e => setTargetProjectId(e.target.value)}
+            className="w-full px-3 py-2 text-sm rounded-md border border-[var(--border)] bg-[var(--card)] text-[var(--foreground)] min-h-[44px]"
+          >
+            {dashboardProjects.map(p => (
+              <option key={p.id} value={p.id}>{p.title}</option>
+            ))}
+            <option value="new">{t("+ Buat project baru...")}</option>
+          </select>
+          {targetProjectId === 'new' && (
+            <input
+              type="text"
+              value={newProjectTitleForUpload}
+              onChange={e => setNewProjectTitleForUpload(e.target.value)}
+              placeholder={t("Nama project")}
+              className="w-full px-3 py-2 text-sm rounded-md border border-[var(--border)] bg-[var(--card)] text-[var(--foreground)] mt-1.5 min-h-[44px]"
+              maxLength={80}
+            />
+          )}
+        </div>
+
+        <label className={`file-picker ${pendingFile ? 'file-picked' : ''}`}><FileAudio aria-hidden="true" /><strong>{pendingFile ? pendingFile.name : t("Pilih berkas audio atau video")}</strong><span>{pendingFile ? `${(pendingFile.size / 1024 / 1024).toFixed(1)} MB · ${t('Replace file')}` : t("WAV (PCM 16-bit), MP3, M4A, atau WebM (batas pengaman private alpha berlaku)")}</span><input type="file" aria-label={t("Pilih berkas rekaman")} accept=".wav,.mp3,.m4a,.webm,audio/wav,audio/mpeg,audio/mp4,audio/x-m4a,audio/webm,video/webm" onChange={event => { void chooseFile(event.target.files?.[0]); }} /></label>{uploadError && <p className="form-error" role="alert">{t(uploadError)}</p>}<p className="text-sm text-muted-foreground leading-relaxed">{t("Aplikasi tidak mengunggah rekaman. Berkas dan draf disimpan di browser pada perangkat ini.")}</p><Button disabled={!pendingFile} onClick={importAudio}><Upload aria-hidden="true" />{t("Buka rekaman")}</Button>
+      </DialogContent>
+    </Dialog>
+
+    <NewProjectDialog
+      open={newProjectOpen}
+      onOpenChange={setNewProjectOpen}
+      onCreateProject={handleCreateProject}
+    />
 
     <Dialog open={toolsOpen} onOpenChange={setToolsOpen}><DialogContent className="tools-dialog"><DialogHeader><DialogTitle>{t("Alat naskah")}</DialogTitle><DialogDescription>{t("Atur tampilan, pilih pembicara, dan ekspor naskah.")}</DialogDescription></DialogHeader><ContextualUtilityPanel {...utilityProps} /></DialogContent></Dialog>
     <WhisperDrawer
@@ -398,7 +718,7 @@ export default function App() {
 
     <Dialog open={infoPage !== null} onOpenChange={open => { if (!open) setInfoPage(null); }}><DialogContent><DialogHeader><DialogTitle>{infoPage === 'about' ? t("Setiap cerita layak dicatat.") : infoPage === 'pricing' ? t("Harga & lisensi") : t("Pertanyaan tentang Catetin")}</DialogTitle><DialogDescription>{infoPage === 'about' ? t("Catetin adalah ruang kerja untuk mentranskripsikan, menyunting, dan menyiapkan naskah percakapan.") : infoPage === 'pricing' ? t("Editor ini dapat dicoba tanpa akun atau pembayaran.") : t("Yang perlu diketahui sebelum mulai.")}</DialogDescription></DialogHeader>{infoPage === 'about' ? <div className="about-copy"><p>{t("Catetin membantu mengubah rekaman menjadi naskah tanpa mengirim audio ke layanan transkripsi. Whisper berjalan langsung di perangkat Anda.")}</p><p>{t("Draf disimpan di browser dan dapat diekspor sebagai TXT, SRT, atau dokumen kompatibel Word.")}</p><Button onClick={() => { setInfoPage(null); openStudio(); }}>{t("Coba Studio")} <ArrowRight aria-hidden="true" /></Button></div> : infoPage === 'pricing' ? <div className="about-copy"><p>{t("Paket berbayar dan pembelian lisensi belum tersedia. Editor saat ini dapat digunakan tanpa biaya.")}</p><Button onClick={() => { setInfoPage(null); openStudio(); }}>{t("Buka Studio")} <ArrowRight aria-hidden="true" /></Button></div> : <Accordion type="single" collapsible>{questions.map(([question, answer], index) => <AccordionItem key={t(question)} value={String(index)}><AccordionTrigger>{t(question)}</AccordionTrigger><AccordionContent>{t(answer)}</AccordionContent></AccordionItem>)}</Accordion>}</DialogContent></Dialog>
 
-    <audio ref={audioRef} src={audioSrc} preload="metadata" onLoadedMetadata={event => { const duration = event.currentTarget.duration; if (Number.isFinite(duration)) setAvailableRecordings(previous => previous.map(item => item.id === activeId ? { ...item, durationSec: duration } : item)); setAudioLoading(false); }} onCanPlay={() => setAudioLoading(false)} onTimeUpdate={event => { if (audioSrc) setCurrentTime(event.currentTarget.currentTime); }} onPlay={() => setIsPlaying(true)} onPause={() => setIsPlaying(false)} onEnded={() => setIsPlaying(false)} onError={() => { if (audioSrc) { setAudioLoading(false); setIsPlaying(false); setAudioError(t("Format rekaman ini tidak dapat dibaca oleh peramban.")); } }} />
+    <audio ref={audioRef} src={audioSrc} preload="metadata" onLoadedMetadata={event => { const duration = event.currentTarget.duration; if (Number.isFinite(duration)) setAvailableRecordings(previous => previous.map(item => item.id === effectiveId ? { ...item, durationSec: duration } : item)); setAudioLoading(false); }} onCanPlay={() => setAudioLoading(false)} onTimeUpdate={event => { if (audioSrc) setCurrentTime(event.currentTarget.currentTime); }} onPlay={() => setIsPlaying(true)} onPause={() => setIsPlaying(false)} onEnded={() => setIsPlaying(false)} onError={() => { if (audioSrc) { setAudioLoading(false); setIsPlaying(false); setAudioError(t("Format rekaman ini tidak dapat dibaca oleh peramban.")); } }} />
     <div className="toast-region" role="status" aria-live="polite" aria-atomic="true">{toast && <div className="app-toast"><Check className="size-4" aria-hidden="true" /><p>{t(toast)}</p><button onClick={() => setToast('')} aria-label={t("Tutup pemberitahuan")}><X className="size-4" aria-hidden="true" /></button></div>}</div>
   </div>;
 }
