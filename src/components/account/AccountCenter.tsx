@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useAccountSession, type AccountStatus, type AccountUser, type UseAccountSessionResult } from '@/features/account/use-account-session';
 import {
   fetchAccountSummary,
+  fetchAccountEntitlement,
   listUserSessions,
   revokeOtherUserSessions,
   revokeSingleSession,
@@ -9,6 +10,7 @@ import {
   humanizeUserAgent,
   type AccountSummary,
   type AccountSessionItem,
+  type AccountEntitlement,
 } from '@/features/account/account-api';
 import { t } from '@/lib/i18n';
 import {
@@ -27,6 +29,7 @@ import {
   RotateCw,
   HardDrive,
   Info,
+  Sparkles,
 } from 'lucide-react';
 import { createGuardedAction } from './AccountControl';
 import { SignOutConfirmDialog } from './SignOutConfirmDialog';
@@ -45,6 +48,9 @@ export interface AccountCenterViewProps {
   summaryStatus?: 'loading' | 'success' | 'error';
   summary: AccountSummary | null;
   summaryError?: string | null;
+  entitlementStatus?: 'loading' | 'success' | 'error';
+  entitlement?: AccountEntitlement | null;
+  entitlementError?: string | null;
   sessionsStatus?: 'loading' | 'success' | 'error';
   sessions: AccountSessionItem[];
   sessionsError?: string | null;
@@ -62,6 +68,8 @@ export interface AccountCenterViewProps {
   onRetry: () => void;
   onRetrySummary?: () => void;
   onRetrySessions?: () => void;
+  onRetryEntitlement?: () => void;
+  onOpenPricing?: () => void;
   onSignIn: () => void | Promise<void>;
 }
 
@@ -72,6 +80,9 @@ export function AccountCenterView({
   summaryStatus = 'success',
   summary,
   summaryError,
+  entitlementStatus = 'success',
+  entitlement,
+  entitlementError,
   sessionsStatus = 'success',
   sessions,
   sessionsError,
@@ -85,6 +96,8 @@ export function AccountCenterView({
   onRetry,
   onRetrySummary,
   onRetrySessions,
+  onRetryEntitlement,
+  onOpenPricing,
   onSignIn,
 }: AccountCenterViewProps) {
   const [internalBusy, setInternalBusy] = useState(false);
@@ -356,6 +369,140 @@ export function AccountCenterView({
               triggerRef={signOutTriggerRef}
             />
           </div>
+        </section>
+
+        {/* Section: Paket Akun (Stage 4C1 Entitlement) */}
+        <section className="account-section bg-white p-6 rounded-2xl border border-stone-200 shadow-xs">
+          <div className="mb-4 flex items-center justify-between">
+            <div>
+              <h2 className="text-base font-semibold text-stone-900">{t('Paket Akun')}</h2>
+              <p className="text-xs text-stone-500 mt-0.5">
+                {t('Status langganan dan akses fitur akun Anda.')}
+              </p>
+            </div>
+            {onOpenPricing ? (
+              <button
+                type="button"
+                onClick={onOpenPricing}
+                className="text-xs font-medium text-stone-600 hover:text-stone-900 transition-colors"
+              >
+                {t('Detail paket & harga')} &rarr;
+              </button>
+            ) : (
+              <a
+                href="#pricing"
+                className="text-xs font-medium text-stone-600 hover:text-stone-900 transition-colors"
+              >
+                {t('Detail paket & harga')} &rarr;
+              </a>
+            )}
+          </div>
+
+          {entitlementStatus === 'loading' ? (
+            <div className="py-6 text-center text-stone-400" aria-busy="true">
+              <Loader2 className="size-5 animate-spin mx-auto mb-2" aria-hidden="true" />
+              <span className="text-xs">{t('Memuat status paket...')}</span>
+            </div>
+          ) : entitlementStatus === 'error' ? (
+            <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-800 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="size-4 shrink-0 text-amber-600" aria-hidden="true" />
+                <span>{entitlementError || t('Gagal memuat status paket akun.')}</span>
+              </div>
+              {onRetryEntitlement && (
+                <button
+                  type="button"
+                  onClick={onRetryEntitlement}
+                  className="account-btn px-2.5 py-1 text-xs font-medium text-amber-900 border border-amber-300 rounded-md hover:bg-amber-100"
+                >
+                  {t('Coba lagi')}
+                </button>
+              )}
+            </div>
+          ) : entitlement?.plan === 'pro' ? (
+            <div className="rounded-xl border border-stone-200 bg-stone-50/60 p-4">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <span className="flex size-7 items-center justify-center rounded-lg bg-[#172f49] text-white">
+                    <Sparkles className="size-4 text-amber-400" aria-hidden="true" />
+                  </span>
+                  <span className="text-sm font-semibold text-stone-900">{t('Catetin Pro')}</span>
+                </div>
+                <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full ${
+                  entitlement.status === 'grace'
+                    ? 'bg-amber-100 text-amber-800'
+                    : 'bg-emerald-100 text-emerald-800'
+                }`}>
+                  {entitlement.status === 'grace' ? t('Masa tenggang') : t('Aktif')}
+                </span>
+              </div>
+              <p className="text-xs text-stone-600 leading-relaxed">
+                {t('Akses fitur profesional aktif untuk akun ini. Seluruh fitur lokal dan naskah Anda tetap tersimpan privat di perangkat.')}
+              </p>
+              {entitlement.endsAt && (
+                <p className="text-[11px] text-stone-500 mt-2">
+                  {t('Berlaku hingga:')} {new Date(entitlement.endsAt).toLocaleDateString('id-ID', {
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric',
+                  })}
+                </p>
+              )}
+            </div>
+          ) : (
+            <div className="rounded-xl border border-stone-200 bg-stone-50/60 p-4">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <span className="flex size-7 items-center justify-center rounded-lg bg-stone-200 text-stone-700">
+                    <HardDrive className="size-4" aria-hidden="true" />
+                  </span>
+                  <span className="text-sm font-semibold text-stone-900">{t('Catetin Free')}</span>
+                </div>
+                <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full ${
+                  entitlement?.status === 'pending'
+                    ? 'bg-amber-100 text-amber-800'
+                    : 'text-stone-600 bg-stone-200/80'
+                }`}>
+                  {entitlement?.status === 'pending' ? t('Segera aktif') : t('Aktif selamanya')}
+                </span>
+              </div>
+              <p className="text-xs text-stone-600 leading-relaxed">
+                {entitlement?.status === 'pending'
+                  ? t('Paket Pro dijadwalkan aktif pada masa mendatang. Saat ini Anda menggunakan paket Free.')
+                  : t('Paket Free aktif. Transkripsi lokal tanpa kuota cloud, mengikuti batas pengaman format dan perangkat.')}
+              </p>
+              {entitlement?.status === 'pending' && entitlement.startsAt && (
+                <p className="text-[11px] text-stone-500 mt-2">
+                  {t('Mulai aktif:')} {new Date(entitlement.startsAt).toLocaleDateString('id-ID', {
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric',
+                  })}
+                </p>
+              )}
+              <div className="mt-3 pt-3 border-t border-stone-200/60 flex items-center justify-between">
+                <span className="text-[11px] text-stone-500">
+                  {t('Ingin fitur editorial lanjutan?')}
+                </span>
+                {onOpenPricing ? (
+                  <button
+                    type="button"
+                    onClick={onOpenPricing}
+                    className="text-xs font-semibold text-[#172f49] hover:underline"
+                  >
+                    {t('Pelajari paket Pro')} &rarr;
+                  </button>
+                ) : (
+                  <a
+                    href="#pricing"
+                    className="text-xs font-semibold text-[#172f49] hover:underline"
+                  >
+                    {t('Pelajari paket Pro')} &rarr;
+                  </a>
+                )}
+              </div>
+            </div>
+          )}
         </section>
 
         {/* Section 2: Ringkasan Penggunaan Cloud (Requirement 5: Separate error from empty) */}
@@ -702,6 +849,7 @@ export function AccountCenterView({
 export interface AccountCenterProps {
   session: UseAccountSessionResult;
   onBack: () => void;
+  onOpenPricing?: () => void;
   localStats?: {
     projectCount: number;
     recordingCount: number;
@@ -709,7 +857,7 @@ export interface AccountCenterProps {
   };
 }
 
-export function AccountCenter({ session, onBack, localStats }: AccountCenterProps) {
+export function AccountCenter({ session, onBack, onOpenPricing, localStats }: AccountCenterProps) {
   const [summary, setSummary] = useState<AccountSummary | null>(null);
   const [summaryStatus, setSummaryStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const [summaryError, setSummaryError] = useState<string | null>(null);
@@ -718,8 +866,15 @@ export function AccountCenter({ session, onBack, localStats }: AccountCenterProp
   const [sessionsStatus, setSessionsStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const [sessionsError, setSessionsError] = useState<string | null>(null);
 
+  const [entitlement, setEntitlement] = useState<AccountEntitlement | null>(null);
+  const [entitlementStatus, setEntitlementStatus] = useState<'loading' | 'success' | 'error'>('loading');
+  const [entitlementError, setEntitlementError] = useState<string | null>(null);
+
   // Request generation tokens & session tracking to prevent deferred stale responses
-  const generationRef = useRef(0);
+  const sessionEpochRef = useRef(0);
+  const summaryReqRef = useRef(0);
+  const sessionsReqRef = useRef(0);
+  const entitlementReqRef = useRef(0);
   const unmountedRef = useRef(false);
   const sessionRef = useRef(session);
   sessionRef.current = session;
@@ -730,19 +885,23 @@ export function AccountCenter({ session, onBack, localStats }: AccountCenterProp
   // Immediate reset when unauthenticated or user changes
   useEffect(() => {
     if (session.status !== 'authenticated' || !currentUserId) {
-      generationRef.current++;
+      sessionEpochRef.current++;
       setSummary(null);
       setSummaryStatus(session.status === 'loading' ? 'loading' : 'success');
       setSummaryError(null);
       setSessions([]);
       setSessionsStatus(session.status === 'loading' ? 'loading' : 'success');
       setSessionsError(null);
+      setEntitlement(null);
+      setEntitlementStatus(session.status === 'loading' ? 'loading' : 'success');
+      setEntitlementError(null);
     }
   }, [session.status, currentUserId]);
 
   const loadSummary = useCallback(async () => {
     if (session.status !== 'authenticated' || !session.user?.id) return;
-    const reqGen = ++generationRef.current;
+    const reqEpoch = sessionEpochRef.current;
+    const reqToken = ++summaryReqRef.current;
     const reqUserId = session.user.id;
     const reqSessionId = session.sessionId;
 
@@ -754,7 +913,8 @@ export function AccountCenter({ session, onBack, localStats }: AccountCenterProp
     // Stale response guard: discard if generation changed, unmounted, or session identity changed
     if (
       unmountedRef.current ||
-      generationRef.current !== reqGen ||
+      sessionEpochRef.current !== reqEpoch ||
+      summaryReqRef.current !== reqToken ||
       sessionRef.current.status !== 'authenticated' ||
       sessionRef.current.user?.id !== reqUserId ||
       sessionRef.current.sessionId !== reqSessionId
@@ -776,7 +936,8 @@ export function AccountCenter({ session, onBack, localStats }: AccountCenterProp
 
   const loadSessions = useCallback(async () => {
     if (session.status !== 'authenticated' || !session.user?.id) return;
-    const reqGen = ++generationRef.current;
+    const reqEpoch = sessionEpochRef.current;
+    const reqToken = ++sessionsReqRef.current;
     const reqUserId = session.user.id;
     const reqSessionId = session.sessionId;
 
@@ -788,7 +949,8 @@ export function AccountCenter({ session, onBack, localStats }: AccountCenterProp
     // Stale response guard: discard if generation changed, unmounted, or session identity changed
     if (
       unmountedRef.current ||
-      generationRef.current !== reqGen ||
+      sessionEpochRef.current !== reqEpoch ||
+      sessionsReqRef.current !== reqToken ||
       sessionRef.current.status !== 'authenticated' ||
       sessionRef.current.user?.id !== reqUserId ||
       sessionRef.current.sessionId !== reqSessionId
@@ -808,9 +970,45 @@ export function AccountCenter({ session, onBack, localStats }: AccountCenterProp
     }
   }, [session.status, session.user?.id, session.sessionId]);
 
+  const loadEntitlement = useCallback(async () => {
+    if (session.status !== 'authenticated' || !session.user?.id) return;
+    const reqEpoch = sessionEpochRef.current;
+    const reqToken = ++entitlementReqRef.current;
+    const reqUserId = session.user.id;
+    const reqSessionId = session.sessionId;
+
+    setEntitlementStatus('loading');
+    setEntitlementError(null);
+
+    const res = await fetchAccountEntitlement();
+
+    // Stale response guard: discard if generation changed, unmounted, or session identity changed
+    if (
+      unmountedRef.current ||
+      sessionEpochRef.current !== reqEpoch ||
+      entitlementReqRef.current !== reqToken ||
+      sessionRef.current.status !== 'authenticated' ||
+      sessionRef.current.user?.id !== reqUserId ||
+      sessionRef.current.sessionId !== reqSessionId
+    ) {
+      return;
+    }
+
+    if (res.status === 'success') {
+      setEntitlement(res.data);
+      setEntitlementStatus('success');
+    } else if (res.status === 'error') {
+      setEntitlementError(res.message);
+      setEntitlementStatus('error');
+    } else {
+      setEntitlement(null);
+      setEntitlementStatus('error');
+    }
+  }, [session.status, session.user?.id, session.sessionId]);
+
   const loadAll = useCallback(async () => {
-    await Promise.all([loadSummary(), loadSessions()]);
-  }, [loadSummary, loadSessions]);
+    await Promise.all([loadSummary(), loadSessions(), loadEntitlement()]);
+  }, [loadSummary, loadSessions, loadEntitlement]);
 
   useEffect(() => {
     unmountedRef.current = false;
@@ -819,7 +1017,7 @@ export function AccountCenter({ session, onBack, localStats }: AccountCenterProp
     }
     return () => {
       unmountedRef.current = true;
-      generationRef.current++;
+      sessionEpochRef.current++;
     };
   }, [session.status, session.user?.id, session.sessionId, loadAll]);
 
@@ -859,6 +1057,9 @@ export function AccountCenter({ session, onBack, localStats }: AccountCenterProp
       summaryStatus={summaryStatus}
       summary={summary}
       summaryError={summaryError}
+      entitlementStatus={entitlementStatus}
+      entitlement={entitlement}
+      entitlementError={entitlementError}
       sessionsStatus={sessionsStatus}
       sessions={sessions}
       sessionsError={sessionsError}
@@ -871,6 +1072,8 @@ export function AccountCenter({ session, onBack, localStats }: AccountCenterProp
       onRetry={session.refresh}
       onRetrySummary={loadSummary}
       onRetrySessions={loadSessions}
+      onRetryEntitlement={loadEntitlement}
+      onOpenPricing={onOpenPricing}
       onSignIn={session.signInWithGoogle}
     />
   );

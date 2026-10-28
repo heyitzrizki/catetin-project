@@ -1,6 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { humanizeUserAgent, isAllowedEventType, recordUsageEvent } from '../../src/features/account/account-api.ts';
+import {
+  humanizeUserAgent,
+  isAllowedEventType,
+  recordUsageEvent,
+  parseAccountEntitlement,
+  fetchAccountEntitlement,
+} from '../../src/features/account/account-api.ts';
 
 test('humanizeUserAgent memformat nama browser dan sistem operasi secara manusiawi tanpa raw user-agent panjang atau IP', () => {
   // Windows + Chrome
@@ -139,6 +145,79 @@ test('Stale auth closure prevention: controller dibuat saat loading lalu status 
 
     await onTranscriptionComplete();
     assert.equal(fetchCallCount, 1, 'Guest completion dilarang memicu fetch tambahan (tetap 1)');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('parseAccountEntitlement: memvalidasi enum, tanggal, dan feature keys allowlisted', () => {
+  const validPayload = {
+    plan: 'pro',
+    status: 'active',
+    startsAt: '2026-10-01T00:00:00Z',
+    endsAt: '2027-10-01T00:00:00Z',
+    source: 'promotion',
+    serverNow: '2026-10-28T12:00:00Z',
+    features: ['local_workspace', 'local_transcription', 'standard_exports', 'local_backup'],
+  };
+
+  const parsedValid = parseAccountEntitlement(validPayload);
+  assert.equal(parsedValid.ok, true);
+  if (parsedValid.ok) {
+    assert.equal(parsedValid.value.plan, 'pro');
+    assert.equal(parsedValid.value.status, 'active');
+  }
+
+  // 1. Malformed enum plan
+  assert.equal(parseAccountEntitlement({ ...validPayload, plan: 'ultra' }).ok, false);
+
+  // 2. Malformed status
+  assert.equal(parseAccountEntitlement({ ...validPayload, status: 'canceled' }).ok, false);
+
+  // 3. Status pending valid
+  const pendingPayload = { ...validPayload, plan: 'free', status: 'pending' };
+  assert.equal(parseAccountEntitlement(pendingPayload).ok, true);
+
+  // 4. Malformed source
+  assert.equal(parseAccountEntitlement({ ...validPayload, source: 'stripe' }).ok, false);
+
+  // 5. Invalid dates
+  assert.equal(parseAccountEntitlement({ ...validPayload, startsAt: 'invalid-date' }).ok, false);
+  assert.equal(parseAccountEntitlement({ ...validPayload, endsAt: 'invalid-date' }).ok, false);
+  assert.equal(parseAccountEntitlement({ ...validPayload, serverNow: 'invalid-date' }).ok, false);
+
+  // 6. Foreign / untrusted feature keys
+  assert.equal(parseAccountEntitlement({ ...validPayload, features: ['untrusted_feature_inject'] }).ok, false);
+
+  // 7. Incomplete payload
+  assert.equal(parseAccountEntitlement(null).ok, false);
+  assert.equal(parseAccountEntitlement([]).ok, false);
+  assert.equal(parseAccountEntitlement({ plan: 'free' }).ok, false);
+});
+
+test('fetchAccountEntitlement: response 200 malformed ditolak sebagai error dan TIDAK dianggap Free', async () => {
+  const originalFetch = globalThis.fetch;
+
+  try {
+    // Simulasi respons 200 dengan JSON yang rusak/malformed
+    globalThis.fetch = (async () => {
+      return new Response(JSON.stringify({
+        plan: 'invalid_tier',
+        status: 'active',
+        features: ['not_a_valid_feature'],
+      }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }) as any;
+
+    const res = await fetchAccountEntitlement();
+
+    // Harus error, BUKAN success dan BUKAN Free palsu
+    assert.equal(res.status, 'error');
+    if (res.status === 'error') {
+      assert.ok(res.message.length > 0);
+    }
   } finally {
     globalThis.fetch = originalFetch;
   }

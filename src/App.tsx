@@ -7,6 +7,7 @@ import { t, useLanguage } from '@/lib/i18n';
 import { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, ArrowRight, Check, FileAudio, Folder, Info, Plus, Tag, Upload, X } from 'lucide-react';
 import { LandingPage, questions } from '@/components/LandingPage';
+import { PricingPage } from '@/components/pricing/PricingPage';
 import { WorkspaceHeader } from '@/components/workspace/WorkspaceHeader';
 import { ContinuousTranscriptEditor } from '@/components/workspace/ContinuousTranscriptEditor';
 import { ContextualUtilityPanel } from '@/components/workspace/ContextualUtilityPanel';
@@ -53,9 +54,10 @@ type InfoPage = 'about' | 'faq' | 'pricing' | null;
 export default function App() {
   const language = useLanguage();
   const session = useAccountSession();
-  const [page, setPage] = useState<'landing' | 'studio' | 'account'>(() => {
+  const [page, setPage] = useState<'landing' | 'studio' | 'account' | 'pricing'>(() => {
     if (location.hash === '#account') return 'account';
     if (location.hash === '#studio') return 'studio';
+    if (location.hash === '#pricing') return 'pricing';
     return 'landing';
   });
   const [studioView, setStudioView] = useState<'dashboard' | 'editor'>('dashboard');
@@ -230,6 +232,8 @@ export default function App() {
         setPage('account');
       } else if (location.hash === '#studio') {
         setPage('studio');
+      } else if (location.hash === '#pricing') {
+        setPage('pricing');
       } else {
         setPage('landing');
       }
@@ -241,6 +245,8 @@ export default function App() {
   useEffect(() => {
     document.title = page === 'account'
       ? `${t('Pusat Akun')} · Catetin`
+      : page === 'pricing'
+      ? `${t('Pilihan Paket & Harga')} · Catetin`
       : page === 'studio'
       ? (studioView === 'dashboard' ? `Dashboard · Catetin Studio` : `${t(active.title)} · Catetin Studio`)
       : t('Page title');
@@ -251,6 +257,8 @@ export default function App() {
   useEffect(() => {
     document.title = page === 'account'
       ? `${t('Pusat Akun')} · Catetin`
+      : page === 'pricing'
+      ? `${t('Pilihan Paket & Harga')} · Catetin`
       : page === 'studio'
       ? (studioView === 'dashboard' ? `Dashboard · Catetin Studio` : `${t(active.title)} · Catetin Studio`)
       : t('Page title');
@@ -356,6 +364,11 @@ export default function App() {
   const openAccount = () => {
     setPage('account');
     if (location.hash !== '#account') location.hash = 'account';
+  };
+
+  const openPricing = () => {
+    setPage('pricing');
+    if (location.hash !== '#pricing') location.hash = 'pricing';
   };
 
   const handleOpenProject = (projectId: string) => {
@@ -673,7 +686,7 @@ export default function App() {
     onCancel: cancelTranscription,
   };
 
-  return <div className={`app-shell ${page === 'studio' ? 'studio-shell' : page === 'account' ? 'account-shell' : 'landing-shell'}`}>
+  return <div className={`app-shell ${page === 'studio' ? 'studio-shell' : page === 'account' ? 'account-shell' : page === 'pricing' ? 'pricing-shell' : 'landing-shell'}`}>
     <a className="skip-link" href="#main-content">{t("Langsung ke konten")}</a>
     <header className={`site-header ${page === 'landing' ? 'site-header-landing' : ''}`}><div className="page-container header-inner"><button className="brand" aria-label={t("Catetin, beranda")} onClick={goHome}><CatetinBrand hasAccessibleParent reversed={page === 'landing'} /></button>
       {page === 'landing' ? (
@@ -681,6 +694,7 @@ export default function App() {
           <a href="#cara-kerja" className="nav-how">{t("Cara kerja")}</a>
           <a href="#privasi" className="nav-privacy">{t("Privasi")}</a>
           <a href="#contoh" className="nav-examples">{t("Contoh")}</a>
+          <a href="#pricing" className="nav-pricing">{t("Harga")}</a>
           <button onClick={() => setInfoPage('about')}>{t("Tentang")}</button>
           <Button onClick={() => openStudio()}>{t("Buka Studio")} <ArrowRight aria-hidden="true" /></Button>
         </nav>
@@ -692,6 +706,16 @@ export default function App() {
           </Button>
           <Button variant="ghost" onClick={goHome}>
             {t("Beranda")}
+          </Button>
+        </div>
+      ) : page === 'pricing' ? (
+        <div className="studio-nav">
+          <Button variant="ghost" onClick={goHome}>
+            <ArrowLeft className="size-4" aria-hidden="true" />
+            {t("Beranda")}
+          </Button>
+          <Button variant="ghost" onClick={() => openStudio()}>
+            {t("Studio")}
           </Button>
         </div>
       ) : (
@@ -721,9 +745,12 @@ export default function App() {
             goHome();
           }
         }}
+        onOpenPricing={openPricing}
         localStats={dashboardStats}
         session={session}
       />
+    ) : page === 'pricing' ? (
+      <PricingPage onOpenStudio={openStudio} onGoHome={goHome} />
     ) : page === 'landing' ? (
       <LandingPage onOpenStudio={openStudio} onOpenRecording={() => handleOpenUpload()} />
     ) : studioView === 'dashboard' ? (
@@ -958,7 +985,7 @@ export default function App() {
       </main>
     )}
 
-    {page === 'landing' && <footer className="site-footer page-container"><div><span className="footer-brand inline-flex items-center"><CatetinBrand height={24} /></span><p>{t("Ruang untuk setiap cerita.")}</p></div><nav aria-label={t("Navigasi footer")}><button onClick={() => setInfoPage('about')}>{t("Tentang")}</button><a href="#pertanyaan">{t("Pertanyaan")}</a><button onClick={() => setInfoPage('pricing')}>{t("Harga & lisensi")}</button></nav><span>© {new Date().getFullYear()} Catetin</span></footer>}
+    {page === 'landing' && <footer className="site-footer page-container"><div><span className="footer-brand inline-flex items-center"><CatetinBrand height={24} /></span><p>{t("Ruang untuk setiap cerita.")}</p></div><nav aria-label={t("Navigasi footer")}><button onClick={() => setInfoPage('about')}>{t("Tentang")}</button><a href="#pertanyaan">{t("Pertanyaan")}</a><a href="#pricing">{t("Harga & lisensi")}</a></nav><span>© {new Date().getFullYear()} Catetin</span></footer>}
 
     <Dialog open={uploadOpen} onOpenChange={setUploadOpen}>
       <DialogContent>

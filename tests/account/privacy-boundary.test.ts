@@ -116,4 +116,20 @@ test('privacy boundary: worker account code tidak memuat referensi atau tabel wo
   assert.equal(content.includes('folderId'), false, 'worker/account tidak boleh menerima folderId');
   assert.equal(content.includes('transcriptText'), false, 'worker/account tidak boleh memproses transcriptText');
   assert.equal(content.includes('audioBuffer'), false, 'worker/account tidak boleh memproses audioBuffer');
+
+  const entitlementWorkerPath = path.resolve(process.cwd(), 'worker/entitlement.ts');
+  const entitlementContent = fs.readFileSync(entitlementWorkerPath, 'utf8');
+
+  assert.equal(entitlementContent.includes('recordingId'), false, 'worker/entitlement tidak boleh menerima recordingId');
+  assert.equal(entitlementContent.includes('transcriptText'), false, 'worker/entitlement tidak boleh memproses transcriptText');
+  assert.equal(entitlementContent.includes('audioBuffer'), false, 'worker/entitlement tidak boleh memproses audioBuffer');
+});
+
+test('privacy boundary: pricing page tidak mengimpor store workspace lokal', () => {
+  const pricingPagePath = path.resolve(process.cwd(), 'src/components/pricing/PricingPage.tsx');
+  const content = fs.readFileSync(pricingPagePath, 'utf8');
+
+  assert.equal(content.includes('workspace-store'), false, 'PricingPage tidak boleh mengimpor workspace-store');
+  assert.equal(content.includes('draft-store'), false, 'PricingPage tidak boleh mengimpor draft-store');
+  assert.equal(content.includes('indexedDB'), false, 'PricingPage tidak boleh membaca indexedDB');
 });

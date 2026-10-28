@@ -394,3 +394,244 @@ test('DOM interaction tests: rapid double-click revoke session token yang sama m
   root.unmount();
   win.document.body.removeChild(container);
 });
+
+test('konkurensi: tiga loader paralel (summary, sessions, entitlement) semuanya sukses dan tampil di UI', async () => {
+  cleanBody();
+  const container = win.document.createElement('div');
+  win.document.body.appendChild(container);
+  const root = ReactDOM.createRoot(container as any);
+
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async (url: string) => {
+    const urlStr = String(url);
+    if (urlStr.includes('/api/account/summary')) {
+      return new Response(JSON.stringify({
+        user: { id: 'u_p_1', name: 'Parallel User', email: 'parallel@example.com', createdAt: '2026-10-01' },
+        usage: { totals: { local_transcription_completed: 7, transcript_export_completed: 3, catetin_backup_completed: 1 }, recentDaily: [], totalCount: 11 },
+      }));
+    }
+    if (urlStr.includes('list-sessions')) {
+      return new Response(JSON.stringify([
+        { id: 's_par_1', createdAt: '2026-10-28', expiresAt: '2026-11-28', userAgent: 'Chrome on Windows' },
+      ]));
+    }
+    if (urlStr.includes('/api/account/entitlement')) {
+      return new Response(JSON.stringify({
+        plan: 'pro',
+        status: 'active',
+        startsAt: '2026-10-01T00:00:00Z',
+        endsAt: '2027-10-01T00:00:00Z',
+        source: 'promotion',
+        serverNow: '2026-10-28T12:00:00Z',
+        features: ['local_workspace', 'local_transcription', 'standard_exports', 'local_backup'],
+      }));
+    }
+    return new Response(JSON.stringify({ ok: true }));
+  }) as any;
+
+  try {
+    const session: UseAccountSessionResult = {
+      status: 'authenticated',
+      user: { id: 'u_p_1', name: 'Parallel User', email: 'parallel@example.com', image: null },
+      sessionId: 's_par_1',
+      error: null,
+      refresh: async () => {},
+      signInWithGoogle: async () => {},
+      signOut: async () => ({ success: true as const }),
+    };
+
+    root.render(<AccountCenter session={session} onBack={() => {}} />);
+    await new Promise((r) => setTimeout(r, 120));
+
+    const html = container.innerHTML;
+    // Bukti summary sukses tampil
+    assert.ok(html.includes('Transkripsi selesai'), 'Summary usage harus tampil');
+    assert.ok(html.includes('7'), 'Hitungan transkripsi 7 harus tampil');
+
+    // Bukti sessions sukses tampil
+    assert.ok(html.includes('Perangkat ini'), 'Sesi perangkat ini harus tampil');
+
+    // Bukti entitlement sukses tampil
+    assert.ok(html.includes('Catetin Pro'), 'Paket Pro dari entitlement harus tampil');
+    assert.ok(html.includes('Aktif'), 'Status Pro aktif harus tampil');
+  } finally {
+    globalThis.fetch = originalFetch;
+    root.unmount();
+    cleanBody();
+  }
+});
+
+test('konkurensi: deferred-response integration test menyelesaikan summary, sessions, dan entitlement dalam urutan acak dan membuktikan ketiganya tampil', async () => {
+  cleanBody();
+  const container = win.document.createElement('div');
+  win.document.body.appendChild(container);
+  const root = ReactDOM.createRoot(container as any);
+
+  let resolveSummary: (val: any) => void;
+  let resolveSessions: (val: any) => void;
+  let resolveEntitlement: (val: any) => void;
+
+  const summaryPromise = new Promise((res) => { resolveSummary = res; });
+  const sessionsPromise = new Promise((res) => { resolveSessions = res; });
+  const entitlementPromise = new Promise((res) => { resolveEntitlement = res; });
+
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async (url: string) => {
+    const urlStr = String(url);
+    if (urlStr.includes('/api/account/summary')) return summaryPromise;
+    if (urlStr.includes('list-sessions')) return sessionsPromise;
+    if (urlStr.includes('/api/account/entitlement')) return entitlementPromise;
+    return new Response(JSON.stringify({ ok: true }));
+  }) as any;
+
+  try {
+    const session: UseAccountSessionResult = {
+      status: 'authenticated',
+      user: { id: 'u_def_1', name: 'Deferred User', email: 'def@example.com', image: null },
+      sessionId: 's_def_1',
+      error: null,
+      refresh: async () => {},
+      signInWithGoogle: async () => {},
+      signOut: async () => ({ success: true as const }),
+    };
+
+    root.render(<AccountCenter session={session} onBack={() => {}} />);
+    await new Promise((r) => setTimeout(r, 60));
+
+    // Urutan penyelesaian berbeda: 1. Entitlement selesai duluan
+    resolveEntitlement!(new Response(JSON.stringify({
+      plan: 'pro',
+      status: 'active',
+      startsAt: '2026-10-01T00:00:00Z',
+      endsAt: '2027-10-01T00:00:00Z',
+      source: 'promotion',
+      serverNow: '2026-10-28T12:00:00Z',
+      features: ['local_workspace', 'local_transcription', 'standard_exports', 'local_backup'],
+    })));
+    await new Promise((r) => setTimeout(r, 60));
+
+    // Urutan 2: Sessions selesai berikutnya
+    resolveSessions!(new Response(JSON.stringify([
+      { id: 's_def_1', createdAt: '2026-10-28', expiresAt: '2026-11-28', userAgent: 'Mac Safari' },
+    ])));
+    await new Promise((r) => setTimeout(r, 60));
+
+    // Urutan 3: Summary selesai paling akhir
+    resolveSummary!(new Response(JSON.stringify({
+      user: { id: 'u_def_1', name: 'Deferred User', email: 'def@example.com', createdAt: '2026-10-01' },
+      usage: { totals: { local_transcription_completed: 42, transcript_export_completed: 10, catetin_backup_completed: 5 }, recentDaily: [], totalCount: 57 },
+    })));
+    await new Promise((r) => setTimeout(r, 80));
+
+    const html = container.innerHTML;
+    // Ketiganya wajib berhasil tampil di DOM tanpa saling menimpa
+    assert.ok(html.includes('Catetin Pro'), 'Entitlement yang selesai pertama harus tetap tampil');
+    assert.ok(html.includes('Perangkat ini'), 'Sessions yang selesai kedua harus tampil');
+    assert.ok(html.includes('42'), 'Summary yang selesai terakhir harus tampil');
+  } finally {
+    globalThis.fetch = originalFetch;
+    root.unmount();
+    cleanBody();
+  }
+});
+
+test('konkurensi: logout atau user switch membuang ketiga response lama yang masih in-flight', async () => {
+  cleanBody();
+  const container = win.document.createElement('div');
+  win.document.body.appendChild(container);
+  const root = ReactDOM.createRoot(container as any);
+
+  let resolveUserASummary: (val: any) => void;
+  let resolveUserASessions: (val: any) => void;
+  let resolveUserAEntitlement: (val: any) => void;
+
+  const summaryPromise = new Promise((res) => { resolveUserASummary = res; });
+  const sessionsPromise = new Promise((res) => { resolveUserASessions = res; });
+  const entitlementPromise = new Promise((res) => { resolveUserAEntitlement = res; });
+
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async (url: string) => {
+    const urlStr = String(url);
+    if (urlStr.includes('/api/account/summary')) return summaryPromise;
+    if (urlStr.includes('list-sessions')) return sessionsPromise;
+    if (urlStr.includes('/api/account/entitlement')) return entitlementPromise;
+    return new Response(JSON.stringify({ ok: true }));
+  }) as any;
+
+  try {
+    const sessionUserA: UseAccountSessionResult = {
+      status: 'authenticated',
+      user: { id: 'u_secret_A', name: 'User A Top Secret', email: 'secretA@example.com', image: null },
+      sessionId: 's_secret_A',
+      error: null,
+      refresh: async () => {},
+      signInWithGoogle: async () => {},
+      signOut: async () => ({ success: true as const }),
+    };
+
+    root.render(<AccountCenter session={sessionUserA} onBack={() => {}} />);
+    await new Promise((r) => setTimeout(r, 60));
+
+    // User A logout sebelum ketiga request selesai
+    const sessionGuest: UseAccountSessionResult = {
+      status: 'guest',
+      user: null,
+      sessionId: null,
+      error: null,
+      refresh: async () => {},
+      signInWithGoogle: async () => {},
+      signOut: async () => ({ success: true as const }),
+    };
+    root.render(<AccountCenter session={sessionGuest} onBack={() => {}} />);
+    await new Promise((r) => setTimeout(r, 60));
+
+    // Ketiga response User A kini selesai tiba
+    resolveUserAEntitlement!(new Response(JSON.stringify({
+      plan: 'pro',
+      status: 'active',
+      startsAt: '2026-10-01T00:00:00Z',
+      endsAt: '2027-10-01T00:00:00Z',
+      source: 'promotion',
+      serverNow: '2026-10-28T12:00:00Z',
+      features: ['local_workspace', 'local_transcription', 'standard_exports', 'local_backup'],
+    })));
+    resolveUserASessions!(new Response(JSON.stringify([
+      { id: 's_secret_A', createdAt: '2026-10-28', expiresAt: '2026-11-28', userAgent: 'Secret Device' },
+    ])));
+    resolveUserASummary!(new Response(JSON.stringify({
+      user: { id: 'u_secret_A', name: 'User A Top Secret', email: 'secretA@example.com', createdAt: '2026-10-01' },
+      usage: { totals: { local_transcription_completed: 888 }, recentDaily: [], totalCount: 888 },
+    })));
+    await new Promise((r) => setTimeout(r, 80));
+
+    const html = container.innerHTML;
+    // Tidak boleh ada data User A yang bocor
+    assert.equal(html.includes('User A Top Secret'), false, 'Nama rahasia User A dilarang tampil');
+    assert.equal(html.includes('888'), false, 'Usage rahasia User A dilarang tampil');
+    assert.equal(html.includes('Catetin Pro'), false, 'Status Pro User A dilarang tampil');
+  } finally {
+    globalThis.fetch = originalFetch;
+    root.unmount();
+    cleanBody();
+  }
+});
+
+test('AccountCenterView: status pending merender label Segera aktif dan tanggal mulai aktif', () => {
+  const props = createMockViewProps({
+    entitlementStatus: 'success',
+    entitlement: {
+      plan: 'free',
+      status: 'pending',
+      startsAt: '2026-11-01T00:00:00Z',
+      endsAt: '2027-11-01T00:00:00Z',
+      source: 'promotion',
+      serverNow: '2026-10-28T12:00:00Z',
+      features: ['local_workspace', 'local_transcription', 'standard_exports', 'local_backup'],
+    },
+  });
+
+  const html = renderToString(<AccountCenterView {...props} />);
+  assert.ok(html.includes('Catetin Free'), 'Plan efektif saat pending harus Free');
+  assert.ok(html.includes('Segera aktif'), 'Badge pending harus berbunyi Segera aktif');
+  assert.ok(html.includes('Mulai aktif:'), 'Informasi tanggal mulai aktif harus tertera');
+});

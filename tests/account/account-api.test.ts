@@ -28,9 +28,11 @@ function setupTestDatabase() {
   const db = new DatabaseSync(':memory:');
   const m1 = fs.readFileSync(path.resolve(process.cwd(), 'migrations/0001_better_auth.sql'), 'utf8');
   const m2 = fs.readFileSync(path.resolve(process.cwd(), 'migrations/0002_account_usage.sql'), 'utf8');
+  const m3 = fs.readFileSync(path.resolve(process.cwd(), 'migrations/0003_account_entitlement.sql'), 'utf8');
   db.exec('PRAGMA foreign_keys = ON;');
   db.exec(m1);
   db.exec(m2);
+  db.exec(m3);
 
   // Mock D1 transaction/batch yang merepresentasikan sifat atomik sesungguhnya (bukan Promise.all)
   const d1Compat = {

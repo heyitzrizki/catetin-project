@@ -1,6 +1,7 @@
 import type { Env } from './env.ts';
 import { createAuth } from './auth.ts';
 import { jsonResponse, normalizeOrigin, isOriginAllowed } from './http.ts';
+import { resolveEffectiveEntitlement, type RawEntitlementRow } from './entitlement.ts';
 
 export const ALLOWED_EVENT_TYPES = [
   'local_transcription_completed',
@@ -190,7 +191,23 @@ export async function handleAccountRequest(request: Request, env: Env): Promise<
       return accountJsonResponse({ ok: true, eventType, usageDate });
     }
 
-    // 5. DELETE /api/account
+    // 5. GET /api/account/entitlement
+    if (pathname === '/api/account/entitlement') {
+      if (request.method !== 'GET') {
+        return accountJsonResponse({ error: 'method_not_allowed' }, 405);
+      }
+
+      // Security: userId is taken strictly from the authenticated session, never from query or body
+      const queryResult = await env.DB.prepare(
+        'SELECT "userId", "plan", "status", "source", "startsAt", "endsAt", "createdAt", "updatedAt" FROM "account_entitlement" WHERE "userId" = ?'
+      ).bind(userId).all<RawEntitlementRow>();
+
+      const row = (queryResult.results?.[0] as RawEntitlementRow | undefined) ?? null;
+      const resolution = resolveEffectiveEntitlement(row);
+      return accountJsonResponse(resolution);
+    }
+
+    // 6. DELETE /api/account
     if (pathname === '/api/account') {
       if (request.method !== 'DELETE') {
         return accountJsonResponse({ error: 'method_not_allowed' }, 405);
@@ -215,6 +232,7 @@ export async function handleAccountRequest(request: Request, env: Env): Promise<
       // Atomic Batch Transaction in D1
       // If any statement in env.DB.batch fails, the entire batch transaction rolls back!
       await env.DB.batch([
+        env.DB.prepare('DELETE FROM "account_entitlement" WHERE "userId" = ?').bind(userId),
         env.DB.prepare('DELETE FROM "account_usage" WHERE "userId" = ?').bind(userId),
         env.DB.prepare('DELETE FROM "session" WHERE "userId" = ?').bind(userId),
         env.DB.prepare('DELETE FROM "account" WHERE "userId" = ?').bind(userId),
