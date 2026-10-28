@@ -106,3 +106,14 @@ test('privacy boundary: request account API tidak mengirim payload audio, naskah
     close();
   }
 });
+
+test('privacy boundary: worker account code tidak memuat referensi atau tabel workspace lokal', () => {
+  const accountWorkerPath = path.resolve(process.cwd(), 'worker/account.ts');
+  const content = fs.readFileSync(accountWorkerPath, 'utf8');
+
+  assert.equal(content.includes('recordingId'), false, 'worker/account tidak boleh menerima recordingId');
+  assert.equal(content.includes('projectId'), false, 'worker/account tidak boleh menerima projectId');
+  assert.equal(content.includes('folderId'), false, 'worker/account tidak boleh menerima folderId');
+  assert.equal(content.includes('transcriptText'), false, 'worker/account tidak boleh memproses transcriptText');
+  assert.equal(content.includes('audioBuffer'), false, 'worker/account tidak boleh memproses audioBuffer');
+});

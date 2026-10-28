@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Download, FileAudio, FileText, AlertTriangle, CheckCircle2, Loader2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { exportArchive, type ExportArchiveResult } from '@/features/workspace/catetin-archive';
+import { recordUsageEvent } from '@/features/account/account-api';
 
 export interface ExportDialogProps {
   isOpen: boolean;
@@ -9,6 +10,7 @@ export interface ExportDialogProps {
   scope: 'project' | 'workspace';
   projectId?: string;
   projectTitle?: string;
+  isUserAuthenticated?: boolean;
 }
 
 export const ExportDialog: React.FC<ExportDialogProps> = ({
@@ -17,6 +19,7 @@ export const ExportDialog: React.FC<ExportDialogProps> = ({
   scope,
   projectId,
   projectTitle,
+  isUserAuthenticated = false,
 }) => {
   const [includeAudio, setIncludeAudio] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -47,6 +50,8 @@ export const ExportDialog: React.FC<ExportDialogProps> = ({
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
+
+      void recordUsageEvent('catetin_backup_completed', isUserAuthenticated);
 
       setCompletedResult(result);
       if (result.warnings.length > 0) {

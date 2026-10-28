@@ -1,5 +1,8 @@
 import { LanguageSelect } from '@/components/LanguageSelect';
 import { AccountControl } from '@/components/account/AccountControl';
+import { AccountCenter } from '@/components/account/AccountCenter';
+import { useAccountSession } from '@/features/account/use-account-session';
+import { recordUsageEvent } from '@/features/account/account-api';
 import { t, useLanguage } from '@/lib/i18n';
 import { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, ArrowRight, Check, FileAudio, Folder, Info, Plus, Tag, Upload, X } from 'lucide-react';
@@ -49,7 +52,12 @@ type InfoPage = 'about' | 'faq' | 'pricing' | null;
 
 export default function App() {
   const language = useLanguage();
-  const [page, setPage] = useState<'landing' | 'studio'>(() => location.hash === '#studio' ? 'studio' : 'landing');
+  const session = useAccountSession();
+  const [page, setPage] = useState<'landing' | 'studio' | 'account'>(() => {
+    if (location.hash === '#account') return 'account';
+    if (location.hash === '#studio') return 'studio';
+    return 'landing';
+  });
   const [studioView, setStudioView] = useState<'dashboard' | 'editor'>('dashboard');
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
   const [dashboardProjects, setDashboardProjects] = useState<ProjectSummary[]>([]);
@@ -113,6 +121,8 @@ export default function App() {
   const jobControllerRef = useRef<TranscriptionJobController | null>(null);
   const activeIdRef = useRef(activeId);
   activeIdRef.current = activeId;
+  const sessionRef = useRef(session);
+  sessionRef.current = session;
 
   const active = availableRecordings.find(item => item.id === activeId) ?? availableRecordings[0] ?? recordings[0];
   const effectiveId = active?.id ?? '';
@@ -216,7 +226,9 @@ export default function App() {
 
   useEffect(() => {
     const syncPage = () => {
-      if (location.hash === '#studio') {
+      if (location.hash === '#account') {
+        setPage('account');
+      } else if (location.hash === '#studio') {
         setPage('studio');
       } else {
         setPage('landing');
@@ -227,7 +239,9 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    document.title = page === 'studio'
+    document.title = page === 'account'
+      ? `${t('Pusat Akun')} · Catetin`
+      : page === 'studio'
       ? (studioView === 'dashboard' ? `Dashboard · Catetin Studio` : `${t(active.title)} · Catetin Studio`)
       : t('Page title');
     window.scrollTo({ top: 0, behavior: 'instant' });
@@ -235,7 +249,9 @@ export default function App() {
   }, [page, studioView, active?.title]);
 
   useEffect(() => {
-    document.title = page === 'studio'
+    document.title = page === 'account'
+      ? `${t('Pusat Akun')} · Catetin`
+      : page === 'studio'
       ? (studioView === 'dashboard' ? `Dashboard · Catetin Studio` : `${t(active.title)} · Catetin Studio`)
       : t('Page title');
   }, [language, page, studioView, active?.title]);
@@ -275,6 +291,7 @@ export default function App() {
         }
         setResumableChunks(0);
         notify(t('Transkripsi lokal selesai. Periksa hasilnya sebelum mengekspor.'));
+        void recordUsageEvent('local_transcription_completed', sessionRef.current.status === 'authenticated');
         void refreshDashboardData();
       },
     });
@@ -334,6 +351,11 @@ export default function App() {
     setPage('landing');
     setStudioView('dashboard');
     history.pushState(null, '', location.pathname + location.search);
+  };
+
+  const openAccount = () => {
+    setPage('account');
+    if (location.hash !== '#account') location.hash = 'account';
   };
 
   const handleOpenProject = (projectId: string) => {
@@ -489,6 +511,7 @@ export default function App() {
   const exportAs = (format: 'txt' | 'srt' | 'doc') => {
     if (!segments.length) return;
     downloadTranscript(format, active, segments, speakerNames);
+    void recordUsageEvent('transcript_export_completed', sessionRef.current.status === 'authenticated');
     notify(t('Export ready', {format}));
   };
 
@@ -650,7 +673,7 @@ export default function App() {
     onCancel: cancelTranscription,
   };
 
-  return <div className={`app-shell ${page === 'studio' ? 'studio-shell' : ''}`}>
+  return <div className={`app-shell ${page === 'studio' ? 'studio-shell' : page === 'account' ? 'account-shell' : ''}`}>
     <a className="skip-link" href="#main-content">{t("Langsung ke konten")}</a>
     <header className="site-header"><div className="page-container header-inner"><button className="brand" aria-label={t("Catetin, beranda")} onClick={goHome}><CatetinBrand hasAccessibleParent /></button>
       {page === 'landing' ? (
@@ -661,6 +684,16 @@ export default function App() {
           <button onClick={() => setInfoPage('about')}>{t("Tentang")}</button>
           <Button onClick={() => openStudio()}>{t("Buka Studio")} <ArrowRight aria-hidden="true" /></Button>
         </nav>
+      ) : page === 'account' ? (
+        <div className="studio-nav">
+          <Button variant="ghost" onClick={() => openStudio()}>
+            <ArrowLeft className="size-4" aria-hidden="true" />
+            {t("Studio")}
+          </Button>
+          <Button variant="ghost" onClick={goHome}>
+            {t("Beranda")}
+          </Button>
+        </div>
       ) : (
         <div className="studio-nav">
           {studioView === 'editor' && (
@@ -674,12 +707,24 @@ export default function App() {
         </div>
       )}
       <div className="header-actions">
-        <AccountControl />
+        <AccountControl onOpenAccount={openAccount} session={session} />
         <LanguageSelect />
       </div>
     </div></header>
 
-    {page === 'landing' ? (
+    {page === 'account' ? (
+      <AccountCenter
+        onBack={() => {
+          if (activeProjectId || availableRecordings.length > 0) {
+            openStudio();
+          } else {
+            goHome();
+          }
+        }}
+        localStats={dashboardStats}
+        session={session}
+      />
+    ) : page === 'landing' ? (
       <LandingPage onOpenStudio={openStudio} onOpenRecording={() => handleOpenUpload()} />
     ) : studioView === 'dashboard' ? (
       <main id="main-content" className="workspace-main" tabIndex={-1}>
@@ -992,6 +1037,7 @@ export default function App() {
       scope={exportScope}
       projectId={exportProjectId}
       projectTitle={exportProjectId ? dashboardProjects.find(p => p.id === exportProjectId)?.title : undefined}
+      isUserAuthenticated={session.status === 'authenticated'}
     />
 
     <ImportDialog

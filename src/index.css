@@ -84,10 +84,32 @@
 .account-avatar-placeholder { width: 24px; height: 24px; border-radius: 50%; background: var(--muted); display: grid; place-items: center; color: var(--muted-foreground); }
 .account-user-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
 .account-unavailable-badge { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 6px 10px; font-size: 11px; color: var(--muted-foreground); border: 1px dashed var(--border); border-radius: 6px; background: var(--card); }
+.account-user-badge-interactive {
+  cursor: pointer;
+  border-radius: 6px;
+  padding: 4px 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  transition: background-color 140ms ease, border-color 140ms ease;
+}
+.account-user-badge-interactive:hover {
+  background: var(--accent);
+  border-color: #cbd5e1;
+}
+.account-center-container {
+  width: min(100% - 32px, 860px);
+  margin-inline: auto;
+  padding-block: 32px 64px;
+}
+.account-shell {
+  min-height: 100vh;
+  background: #faf9f6;
+}
 @media (max-width: 640px) {
   .account-user-name { display: none; }
   .account-unavailable-text { display: none; }
   .account-unavailable-badge { padding-inline: 8px; }
+  .account-center-container { width: min(100% - 24px, 860px); padding-block: 20px 48px; }
 }
 .skip-link { position: fixed; top: 8px; left: 8px; transform: translateY(-200%); background: var(--primary); color: #fff; padding: 12px 20px; z-index: 100; }
 .skip-link:focus { transform: translateY(0); }

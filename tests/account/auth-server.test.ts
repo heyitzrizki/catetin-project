@@ -156,7 +156,10 @@ test('handleAuthRequest menolak untrusted callbackURL pada query atau body denga
   // Untrusted callback in JSON body
   const bodyReq = new Request('http://localhost:3000/api/auth/sign-in/social', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'Origin': 'http://localhost:3000',
+    },
     body: JSON.stringify({ provider: 'google', callbackURL: 'https://evil.com/stolen' }),
   });
   const bodyRes = await handleAuthRequest(bodyReq, env);
@@ -250,6 +253,137 @@ test('compatibility integration: Better Auth schema validation default berjalan 
     assert.equal(body, null);
   } finally {
     // Bersihkan resource database setelah test
+    rawDb.close();
+  }
+});
+
+test('Strict Origin untuk Better Auth mutations: verifikasi valid production origin, evil origin, missing origin, dan localhost pada production', async () => {
+  const prodEnv = createMockEnv({ APP_ORIGIN: PROD_ORIGIN });
+
+  // 1. Missing Origin pada POST mutation harus ditolak 403
+  const missingOriginReq = new Request(`${PROD_ORIGIN}/api/auth/sign-in/social`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ provider: 'google' }),
+  });
+  const missingOriginRes = await handleAuthRequest(missingOriginReq, prodEnv);
+  assert.equal(missingOriginRes.status, 403);
+  const missingBody = await missingOriginRes.json();
+  assert.equal(missingBody.error, 'untrusted_origin');
+
+  // 2. Referer ada tapi Origin hilang: tetap ditolak 403 (Referer bukan pengganti Origin)
+  const refererOnlyReq = new Request(`${PROD_ORIGIN}/api/auth/sign-in/social`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Referer': `${PROD_ORIGIN}/studio`,
+    },
+    body: JSON.stringify({ provider: 'google' }),
+  });
+  const refererOnlyRes = await handleAuthRequest(refererOnlyReq, prodEnv);
+  assert.equal(refererOnlyRes.status, 403);
+
+  // 3. Evil Origin pada POST mutation harus ditolak 403
+  const evilOriginReq = new Request(`${PROD_ORIGIN}/api/auth/sign-in/social`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Origin': 'https://evil.example.com',
+    },
+    body: JSON.stringify({ provider: 'google' }),
+  });
+  const evilOriginRes = await handleAuthRequest(evilOriginReq, prodEnv);
+  assert.equal(evilOriginRes.status, 403);
+
+  // 4. Localhost Origin pada production harus ditolak 403
+  const localhostProdReq = new Request(`${PROD_ORIGIN}/api/auth/sign-in/social`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Origin': 'http://localhost:3000',
+    },
+    body: JSON.stringify({ provider: 'google' }),
+  });
+  const localhostProdRes = await handleAuthRequest(localhostProdReq, prodEnv);
+  assert.equal(localhostProdRes.status, 403);
+
+  // 5. Valid production Origin: lolos validasi origin (bukan 403)
+  const validProdReq = new Request(`${PROD_ORIGIN}/api/auth/sign-in/social`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Origin': PROD_ORIGIN,
+    },
+    body: JSON.stringify({ provider: 'google' }),
+  });
+  const validProdRes = await handleAuthRequest(validProdReq, prodEnv);
+  assert.notEqual(validProdRes.status, 403);
+
+  // 6. OAuth callback GET tanpa Origin tetap bekerja (tidak ditolak 403)
+  const callbackGetReq = new Request(`${PROD_ORIGIN}/api/auth/callback/google?code=dummy-code&state=dummy-state`, {
+    method: 'GET',
+  });
+  const callbackGetRes = await handleAuthRequest(callbackGetReq, prodEnv);
+  assert.notEqual(callbackGetRes.status, 403);
+});
+
+test('Cache policy endpoint auth: Cache-Control no-store, Vary Cookie Origin, dan pelestarian multiple Set-Cookie', async () => {
+  const env = createMockEnv();
+
+  // 1. Error response (403 untrusted origin) memuat no-store dan Vary Cookie, Origin
+  const errorReq = new Request('http://localhost:3000/api/auth/sign-in/social', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Origin': 'https://evil.example.com',
+    },
+    body: JSON.stringify({ provider: 'google' }),
+  });
+  const errorRes = await handleAuthRequest(errorReq, env);
+  assert.equal(errorRes.status, 403);
+  assert.equal(errorRes.headers.get('Cache-Control'), 'no-store');
+  const errorVary = errorRes.headers.get('Vary') || '';
+  assert.ok(errorVary.includes('Cookie'));
+  assert.ok(errorVary.includes('Origin'));
+
+  // 2. GET /api/auth/get-session memuat no-store dan Vary Cookie, Origin
+  const rawDb = new DatabaseSync(':memory:');
+  try {
+    const migrationSql = fs.readFileSync(path.resolve(process.cwd(), 'migrations/0001_better_auth.sql'), 'utf-8');
+    rawDb.exec(migrationSql);
+    const d1Compat = {
+      prepare: (query: string) => {
+        const stmt = rawDb.prepare(query);
+        return {
+          bind: (...values: any[]) => ({
+            all: async () => ({ results: stmt.all(...values), meta: {} }),
+            run: async () => {
+              stmt.run(...values);
+              return { results: [], meta: {} };
+            },
+          }),
+          all: async () => ({ results: stmt.all(), meta: {} }),
+          run: async () => {
+            stmt.run();
+            return { results: [], meta: {} };
+          },
+        };
+      },
+      batch: async (stmts: any[]) => Promise.all(stmts.map((s) => s.all())),
+      exec: async (query: string) => {
+        rawDb.exec(query);
+      },
+    };
+
+    const envWithDb = createMockEnv({ DB: d1Compat as any });
+    const getSessionReq = new Request('http://localhost:3000/api/auth/get-session', { method: 'GET' });
+    const getSessionRes = await handleAuthRequest(getSessionReq, envWithDb);
+    assert.equal(getSessionRes.status, 200);
+    assert.equal(getSessionRes.headers.get('Cache-Control'), 'no-store');
+    const getSessionVary = getSessionRes.headers.get('Vary') || '';
+    assert.ok(getSessionVary.includes('Cookie'));
+    assert.ok(getSessionVary.includes('Origin'));
+  } finally {
     rawDb.close();
   }
 });

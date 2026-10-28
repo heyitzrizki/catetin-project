@@ -13,6 +13,7 @@ export type AccountStatus = 'loading' | 'guest' | 'authenticated' | 'unavailable
 export interface AccountSessionState {
   status: AccountStatus;
   user: AccountUser | null;
+  sessionId?: string | null;
   error: string | null;
 }
 
@@ -23,29 +24,32 @@ export interface UseAccountSessionResult extends AccountSessionState {
 }
 
 export function resolveSessionState(
-  payload: { data?: { user?: any } | null; error?: { status?: number; message?: string } | null } | null,
+  payload: { data?: { user?: any; session?: any } | null; error?: { status?: number; message?: string } | null } | null,
   thrownError: unknown
 ): AccountSessionState {
   if (thrownError) {
     return {
       status: 'unavailable',
       user: null,
+      sessionId: null,
       error: thrownError instanceof Error ? thrownError.message : 'auth_unavailable',
     };
   }
 
   if (payload?.error) {
     if (payload.error.status === 401 || payload.error.status === 403) {
-      return { status: 'guest', user: null, error: null };
+      return { status: 'guest', user: null, sessionId: null, error: null };
     }
     return {
       status: 'unavailable',
       user: null,
+      sessionId: null,
       error: payload.error.message || 'auth_unavailable',
     };
   }
 
   const user = payload?.data?.user;
+  const session = payload?.data?.session;
   if (user && typeof user.id === 'string' && typeof user.email === 'string') {
     return {
       status: 'authenticated',
@@ -55,11 +59,12 @@ export function resolveSessionState(
         email: user.email,
         image: user.image ?? null,
       },
+      sessionId: session?.id ?? null,
       error: null,
     };
   }
 
-  return { status: 'guest', user: null, error: null };
+  return { status: 'guest', user: null, sessionId: null, error: null };
 }
 
 export async function executeSignOut(

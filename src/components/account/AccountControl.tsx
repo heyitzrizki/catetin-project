@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { useAccountSession, type AccountStatus, type AccountUser } from '@/features/account/use-account-session';
+import { useAccountSession, type AccountStatus, type AccountUser, type UseAccountSessionResult } from '@/features/account/use-account-session';
 import { t } from '@/lib/i18n';
 import { LogIn, LogOut, User, AlertCircle, Loader2, RotateCw } from 'lucide-react';
 
@@ -10,6 +10,7 @@ export interface AccountControlViewProps {
   onSignIn: () => void | Promise<void>;
   onSignOut: () => void | Promise<void>;
   onRetry?: () => void | Promise<void>;
+  onOpenAccount?: () => void;
   busy?: boolean;
 }
 
@@ -38,6 +39,7 @@ export function AccountControlView({
   onSignIn,
   onSignOut,
   onRetry,
+  onOpenAccount,
   busy: controlledBusy,
 }: AccountControlViewProps) {
   const [internalBusy, setInternalBusy] = useState(false);
@@ -92,18 +94,36 @@ export function AccountControlView({
 
   if (status === 'authenticated' && user) {
     const displayName = user.name || user.email.split('@')[0];
+    const badgeContent = (
+      <>
+        {user.image ? (
+          <img src={user.image} alt="" className="account-avatar" aria-hidden="true" />
+        ) : (
+          <span className="account-avatar-placeholder" aria-hidden="true">
+            <User className="size-3.5" />
+          </span>
+        )}
+        <span className="account-user-name">{displayName}</span>
+      </>
+    );
+
     return (
       <div className="account-control account-authenticated">
-        <div className="account-user-badge" title={user.email}>
-          {user.image ? (
-            <img src={user.image} alt="" className="account-avatar" aria-hidden="true" />
-          ) : (
-            <span className="account-avatar-placeholder" aria-hidden="true">
-              <User className="size-3.5" />
-            </span>
-          )}
-          <span className="account-user-name">{displayName}</span>
-        </div>
+        {onOpenAccount ? (
+          <button
+            type="button"
+            className="account-user-badge account-user-badge-interactive"
+            onClick={onOpenAccount}
+            title={`${user.email} (${t('Buka Pusat Akun')})`}
+            aria-label={t('Buka Pusat Akun')}
+          >
+            {badgeContent}
+          </button>
+        ) : (
+          <div className="account-user-badge" title={user.email}>
+            {badgeContent}
+          </div>
+        )}
         <button
           type="button"
           className="account-btn account-btn-signout"
@@ -134,9 +154,15 @@ export function AccountControlView({
   );
 }
 
-export function AccountControl() {
-  const session = useAccountSession();
+export interface AccountControlProps {
+  session: UseAccountSessionResult;
+  onOpenAccount?: () => void;
+}
 
+export function AccountControl({
+  session,
+  onOpenAccount,
+}: AccountControlProps) {
   return (
     <AccountControlView
       status={session.status}
@@ -145,6 +171,16 @@ export function AccountControl() {
       onSignIn={session.signInWithGoogle}
       onSignOut={session.signOut}
       onRetry={session.refresh}
+      onOpenAccount={onOpenAccount}
     />
   );
+}
+
+export function StandaloneAccountControl({
+  onOpenAccount,
+}: {
+  onOpenAccount?: () => void;
+} = {}) {
+  const session = useAccountSession();
+  return <AccountControl session={session} onOpenAccount={onOpenAccount} />;
 }

@@ -1,5 +1,6 @@
 import type { Env, ExecutionContext } from './env.ts';
 import { handleAuthRequest } from './auth.ts';
+import { handleAccountRequest } from './account.ts';
 
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
@@ -17,6 +18,10 @@ export default {
 
     if (url.pathname === '/api/auth' || url.pathname.startsWith('/api/auth/')) {
       return handleAuthRequest(request, env);
+    }
+
+    if (url.pathname === '/api/account' || url.pathname.startsWith('/api/account/')) {
+      return handleAccountRequest(request, env);
     }
 
     if (url.pathname.startsWith('/api/')) {
