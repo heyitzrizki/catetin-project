@@ -10,7 +10,7 @@ const rows = [
 ] as const;
 
 export function ComparisonSection() {
-  return <section className="lp-compare comparison-section page-container" aria-labelledby="compare-title">
+  return <section className="lp-compare comparison-section page-container scroll-reveal" aria-labelledby="compare-title">
     <div className="lp-section-head">
       <div><p className="eyebrow">{t('LOKAL ATAU CLOUD')}</p><h2 id="compare-title">{t('Pilih tempat rekamanmu')}<br/>{t('diproses.')}</h2></div>
       <p>{t('Lihat perbedaan cara Catetin dan layanan cloud memproses rekamanmu.')}</p>

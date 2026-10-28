@@ -19,7 +19,7 @@ export interface AccountSessionState {
 
 export interface UseAccountSessionResult extends AccountSessionState {
   signInWithGoogle: () => Promise<void>;
-  signOut: () => Promise<void>;
+  signOut: () => Promise<{ success: true }>;
   refresh: () => Promise<void>;
 }
 
@@ -133,8 +133,12 @@ export function useAccountSession(): UseAccountSessionResult {
     }
   }, []);
 
-  const signOut = useCallback(async () => {
-    await executeSignOut(authClient, fetchSession, setState);
+  const signOut = useCallback(async (): Promise<{ success: true }> => {
+    const nextState = await executeSignOut(authClient, fetchSession, setState);
+    if (nextState.status !== 'guest' || nextState.error) {
+      throw new Error(nextState.error || 'sign_out_failed');
+    }
+    return { success: true };
   }, [fetchSession]);
 
   return {

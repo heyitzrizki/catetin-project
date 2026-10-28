@@ -673,9 +673,9 @@ export default function App() {
     onCancel: cancelTranscription,
   };
 
-  return <div className={`app-shell ${page === 'studio' ? 'studio-shell' : page === 'account' ? 'account-shell' : ''}`}>
+  return <div className={`app-shell ${page === 'studio' ? 'studio-shell' : page === 'account' ? 'account-shell' : 'landing-shell'}`}>
     <a className="skip-link" href="#main-content">{t("Langsung ke konten")}</a>
-    <header className="site-header"><div className="page-container header-inner"><button className="brand" aria-label={t("Catetin, beranda")} onClick={goHome}><CatetinBrand hasAccessibleParent /></button>
+    <header className={`site-header ${page === 'landing' ? 'site-header-landing' : ''}`}><div className="page-container header-inner"><button className="brand" aria-label={t("Catetin, beranda")} onClick={goHome}><CatetinBrand hasAccessibleParent reversed={page === 'landing'} /></button>
       {page === 'landing' ? (
         <nav aria-label={t("Navigasi utama")} className="site-nav">
           <a href="#cara-kerja" className="nav-how">{t("Cara kerja")}</a>

@@ -33,6 +33,13 @@ export const CatetinBrand: React.FC<CatetinBrandProps> = ({
     ? '/brand/catetin-mark-reversed.svg'
     : '/brand/catetin-mark.svg';
 
+  // Desktop default height: 34px (~32-36px range); ratio: 727/230 ≈ 3.16
+  const defaultHeight = 34;
+  const lockupHeight = height ?? defaultHeight;
+  const lockupWidth = Math.round(lockupHeight * 3.16);
+  // Mark minimum visual presence is 28px, unless specifically constrained by a smaller height (like footer 22-24px)
+  const markSize = height ? Math.max(20, Math.min(height, 28)) : 28;
+
   if (markOnly) {
     return (
       <span className={`catetin-brand inline-flex items-center ${className}`}>
@@ -40,10 +47,10 @@ export const CatetinBrand: React.FC<CatetinBrandProps> = ({
           src={markSrc}
           alt=""
           aria-hidden="true"
-          width={height || 28}
-          height={height || 28}
+          width={markSize}
+          height={markSize}
           className="brand-mark-img block select-none"
-          style={height ? { height: `${height}px`, width: `${height}px` } : undefined}
+          style={height ? { height: `${markSize}px`, width: `${markSize}px` } : undefined}
           draggable={false}
         />
         {!hasAccessibleParent && <span className="sr-only">Catetin</span>}
@@ -58,10 +65,10 @@ export const CatetinBrand: React.FC<CatetinBrandProps> = ({
         src={lockupSrc}
         alt=""
         aria-hidden="true"
-        width={height ? Math.round(height * 3.16) : 95}
-        height={height || 30}
+        width={lockupWidth}
+        height={lockupHeight}
         className="brand-lockup-img hidden min-[400px]:block select-none"
-        style={height ? { height: `${height}px`, width: 'auto' } : undefined}
+        style={height ? { height: `${lockupHeight}px`, width: 'auto' } : undefined}
         draggable={false}
       />
       {/* Standalone mark for narrow viewports (<400px) */}
@@ -69,10 +76,10 @@ export const CatetinBrand: React.FC<CatetinBrandProps> = ({
         src={markSrc}
         alt=""
         aria-hidden="true"
-        width={height || 28}
-        height={height || 28}
+        width={markSize}
+        height={markSize}
         className="brand-mark-img block min-[400px]:hidden select-none"
-        style={height ? { height: `${height}px`, width: `${height}px` } : undefined}
+        style={height ? { height: `${markSize}px`, width: `${markSize}px` } : undefined}
         draggable={false}
       />
       {!hasAccessibleParent && <span className="sr-only">Catetin</span>}

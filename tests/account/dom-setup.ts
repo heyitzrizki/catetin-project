@@ -4,6 +4,8 @@ const win = new GlobalWindow({ url: 'http://localhost:3000' });
 
 globalThis.window = win as any;
 globalThis.document = win.document as any;
+globalThis.location = win.location as any;
+globalThis.history = win.history as any;
 globalThis.HTMLElement = win.HTMLElement as any;
 globalThis.HTMLButtonElement = win.HTMLButtonElement as any;
 globalThis.Element = win.Element as any;
@@ -38,5 +40,18 @@ globalThis.MouseEvent = win.MouseEvent as any;
 globalThis.FocusEvent = win.FocusEvent as any;
 globalThis.requestAnimationFrame = ((cb: any) => setTimeout(cb, 0)) as any;
 globalThis.cancelAnimationFrame = ((id: any) => clearTimeout(id)) as any;
+(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
+
+// Prevent happy-dom Web Animations cancellation AbortError from triggering unhandledRejection
+if ((win as any).Element?.prototype?.animate) {
+  const originalAnimate = (win as any).Element.prototype.animate;
+  (win as any).Element.prototype.animate = function (...args: any[]) {
+    const anim = originalAnimate.apply(this, args);
+    if (anim && anim.finished && typeof anim.finished.catch === 'function') {
+      anim.finished.catch(() => {});
+    }
+    return anim;
+  };
+}
 
 export { win };

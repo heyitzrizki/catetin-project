@@ -214,7 +214,7 @@ test('Cegah duplicate session hooks: rendering AccountControl dan AccountCenter 
       error: null,
       refresh: async () => {},
       signInWithGoogle: async () => {},
-      signOut: async () => {},
+      signOut: async () => ({ success: true as const }),
     };
 
     renderToString(
@@ -260,7 +260,7 @@ test('Cegah stale account response: response deferred dari User A tidak boleh di
       error: null,
       refresh: async () => {},
       signInWithGoogle: async () => {},
-      signOut: async () => {},
+      signOut: async () => ({ success: true as const }),
     };
 
     // 1. Render AccountCenter dengan User A
@@ -275,7 +275,7 @@ test('Cegah stale account response: response deferred dari User A tidak boleh di
       error: null,
       refresh: async () => {},
       signInWithGoogle: async () => {},
-      signOut: async () => {},
+      signOut: async () => ({ success: true as const }),
     };
     root.render(<AccountCenter session={sessionGuest} onBack={() => {}} />);
     await new Promise((r) => setTimeout(r, 60));

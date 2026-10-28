@@ -29,6 +29,7 @@ import {
   Info,
 } from 'lucide-react';
 import { createGuardedAction } from './AccountControl';
+import { SignOutConfirmDialog } from './SignOutConfirmDialog';
 import {
   Dialog,
   DialogContent,
@@ -54,7 +55,7 @@ export interface AccountCenterViewProps {
   };
   actionBusy?: boolean;
   onBack: () => void;
-  onSignOut: () => void | Promise<void>;
+  onSignOut: () => Promise<{ success: true } | void> | { success: true } | void;
   onRevokeOtherSessions: () => Promise<void>;
   onRevokeSession: (token: string) => Promise<void>;
   onDeleteAccount: () => Promise<void>;
@@ -88,6 +89,8 @@ export function AccountCenterView({
 }: AccountCenterViewProps) {
   const [internalBusy, setInternalBusy] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [signOutConfirmOpen, setSignOutConfirmOpen] = useState(false);
+  const signOutTriggerRef = useRef<HTMLButtonElement | null>(null);
   const [actionMessage, setActionMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
   // Requirement 7: Concurrency guard for revoking session tokens
@@ -336,8 +339,9 @@ export function AccountCenterView({
               </div>
             </div>
             <button
+              ref={signOutTriggerRef}
               type="button"
-              onClick={handleGuardedSignOut}
+              onClick={() => setSignOutConfirmOpen(true)}
               disabled={busy}
               className="account-btn inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl border border-stone-200 text-stone-700 hover:bg-stone-50 text-sm font-medium transition-colors"
               aria-label={t('Keluar')}
@@ -345,6 +349,12 @@ export function AccountCenterView({
               <LogOut className="size-4" aria-hidden="true" />
               <span>{t('Keluar')}</span>
             </button>
+            <SignOutConfirmDialog
+              open={signOutConfirmOpen}
+              onOpenChange={setSignOutConfirmOpen}
+              onConfirm={handleGuardedSignOut}
+              triggerRef={signOutTriggerRef}
+            />
           </div>
         </section>
 

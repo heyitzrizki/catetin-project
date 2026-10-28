@@ -1,30 +1,31 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { useAccountSession, type AccountStatus, type AccountUser, type UseAccountSessionResult } from '@/features/account/use-account-session';
 import { t } from '@/lib/i18n';
 import { LogIn, LogOut, User, AlertCircle, Loader2, RotateCw } from 'lucide-react';
+import { SignOutConfirmDialog } from './SignOutConfirmDialog';
 
 export interface AccountControlViewProps {
   status: AccountStatus;
   user: AccountUser | null;
   error: string | null;
   onSignIn: () => void | Promise<void>;
-  onSignOut: () => void | Promise<void>;
+  onSignOut: () => Promise<{ success: true } | void> | { success: true } | void;
   onRetry?: () => void | Promise<void>;
   onOpenAccount?: () => void;
   busy?: boolean;
 }
 
-export function createGuardedAction(
-  fn?: () => void | Promise<void>,
+export function createGuardedAction<T = void>(
+  fn?: () => T | Promise<T>,
   onBusyChange?: (busy: boolean) => void
-): () => Promise<void> {
+): () => Promise<T | undefined> {
   let inFlight = false;
   return async () => {
     if (inFlight || !fn) return;
     inFlight = true;
     onBusyChange?.(true);
     try {
-      await fn();
+      return await fn();
     } finally {
       inFlight = false;
       onBusyChange?.(false);
@@ -43,6 +44,8 @@ export function AccountControlView({
   busy: controlledBusy,
 }: AccountControlViewProps) {
   const [internalBusy, setInternalBusy] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const signOutTriggerRef = useRef<HTMLButtonElement | null>(null);
   const busy = controlledBusy ?? internalBusy;
 
   const handleSignIn = useMemo(
@@ -57,6 +60,11 @@ export function AccountControlView({
     () => createGuardedAction(onRetry, setInternalBusy),
     [onRetry]
   );
+
+  const handleOpenConfirm = () => {
+    if (busy) return;
+    setConfirmOpen(true);
+  };
 
   if (status === 'loading') {
     return (
@@ -125,15 +133,22 @@ export function AccountControlView({
           </div>
         )}
         <button
+          ref={signOutTriggerRef}
           type="button"
           className="account-btn account-btn-signout"
-          onClick={handleSignOut}
+          onClick={handleOpenConfirm}
           disabled={busy}
           aria-label={t('Keluar')}
         >
           <LogOut className="size-4" aria-hidden="true" />
           <span className="account-btn-text">{t('Keluar')}</span>
         </button>
+        <SignOutConfirmDialog
+          open={confirmOpen}
+          onOpenChange={setConfirmOpen}
+          onConfirm={handleSignOut}
+          triggerRef={signOutTriggerRef}
+        />
       </div>
     );
   }
