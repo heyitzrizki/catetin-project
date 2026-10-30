@@ -863,6 +863,38 @@ export async function loadWorkspace(): Promise<SavedWorkspace | null> {
   }
 }
 
+export async function addSingleRecordingToWorkspace(
+  recording: RecordingRecord,
+  audioBlob: Blob,
+  segments: DialogSegment[] = [],
+  speakerNames: Record<string, string> = {}
+): Promise<void> {
+  if (typeof indexedDB === 'undefined') return;
+  const db = await openWorkspaceDatabase();
+  try {
+    await migrateLegacyWorkspace(db);
+    const now = Date.now();
+    await inTransaction(db, [S.projects, S.recordings, S.transcripts, S.audio, S.meta], 'readwrite', async tx => {
+      const recordings = tx.objectStore(S.recordings);
+      const audio = tx.objectStore(S.audio);
+      const transcripts = tx.objectStore(S.transcripts);
+      const meta = tx.objectStore(S.meta);
+
+      recordings.put(recording);
+      audio.put(audioBlob, recording.id);
+      transcripts.put({
+        recordingId: recording.id,
+        segments,
+        speakerNames,
+        updatedAt: now,
+      } satisfies TranscriptRecord);
+      meta.put(recording.id, 'activeId');
+    });
+  } finally {
+    db.close();
+  }
+}
+
 export async function saveWorkspace(value: SavedWorkspace) {
   if (typeof indexedDB === 'undefined') return;
   const db = await openWorkspaceDatabase();
