@@ -124,6 +124,13 @@ export class RecordingEngine {
     return this.capabilities;
   }
 
+  getSegmentConfig(): { segmentCoreSeconds: number; segmentOverlapSeconds: number } {
+    return {
+      segmentCoreSeconds: this.segmentCoreSec,
+      segmentOverlapSeconds: this.segmentOverlapSec,
+    };
+  }
+
   getActiveDurationMs(): number {
     if (this.startPerfMs === null) return 0;
     const now = performance.now();

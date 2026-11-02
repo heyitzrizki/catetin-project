@@ -21,7 +21,7 @@ import { AudioLevelMeter } from './AudioLevelMeter';
 
 interface RecordingSetupDialogProps {
   open: boolean;
-  projects: ProjectRecord[];
+  projects: Array<{ id: string; title: string }> | ProjectRecord[];
   selectedProjectId: string;
   onSelectProjectId: (projectId: string) => void;
   title: string;
@@ -53,12 +53,26 @@ export const RecordingSetupDialog: React.FC<RecordingSetupDialogProps> = ({
   const [storageEstimate, setStorageEstimate] = useState<StorageEstimateInfo | null>(null);
   const [persistenceStatus, setPersistenceStatus] = useState<StoragePersistenceStatus>('unsupported');
 
+  const effectiveSelectedProjectId =
+    projects.length > 0
+      ? projects.some(p => p.id === selectedProjectId)
+        ? selectedProjectId
+        : projects[0].id
+      : 'project-default';
+
   useEffect(() => {
     if (open) {
       void getStorageEstimate().then(setStorageEstimate);
       void getStoragePersistence().then(setPersistenceStatus);
     }
   }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    if (selectedProjectId !== effectiveSelectedProjectId) {
+      onSelectProjectId(effectiveSelectedProjectId);
+    }
+  }, [open, selectedProjectId, effectiveSelectedProjectId, onSelectProjectId]);
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen && !isStarting) onBack(); }}>
@@ -108,29 +122,38 @@ export const RecordingSetupDialog: React.FC<RecordingSetupDialogProps> = ({
           </div>
 
           {/* Project Selection */}
-          {projects.length > 0 && (
-            <div>
-              <label
-                htmlFor="recording-project-select"
-                className="block text-xs font-semibold text-[var(--foreground)] mb-1.5"
-              >
-                {t('Pilih project')}
-              </label>
-              <select
-                id="recording-project-select"
-                value={selectedProjectId}
-                onChange={(e) => onSelectProjectId(e.target.value)}
-                disabled={isStarting}
-                className="w-full px-3 py-2 text-sm rounded-lg border border-[var(--border)] bg-[var(--background)] text-[var(--foreground)] min-h-[44px] focus-visible:outline-2 focus-visible:outline-[var(--primary)]"
-              >
-                {projects.map((p) => (
+          <div>
+            <label
+              htmlFor="recording-project-select"
+              className="block text-xs font-semibold text-[var(--foreground)] mb-1.5"
+            >
+              {t('Pilih project')}
+            </label>
+            <select
+              id="recording-project-select"
+              value={effectiveSelectedProjectId}
+              onChange={(e) => onSelectProjectId(e.target.value)}
+              disabled={isStarting}
+              className="w-full px-3 py-2 text-sm rounded-lg border border-[var(--border)] bg-[var(--background)] text-[var(--foreground)] min-h-[44px] focus-visible:outline-2 focus-visible:outline-[var(--primary)]"
+            >
+              {projects.length > 0 ? (
+                projects.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.title}
                   </option>
-                ))}
-              </select>
-            </div>
-          )}
+                ))
+              ) : (
+                <option value="project-default">
+                  {t('Rekaman saya (Project default)')}
+                </option>
+              )}
+            </select>
+            {projects.length === 0 && (
+              <p className="text-[11px] text-[var(--muted-foreground)] mt-1.5 leading-relaxed">
+                {t('Workspace belum memiliki project terpisah. Rekaman akan disimpan di project utama.')}
+              </p>
+            )}
+          </div>
 
           {/* Microphone Selector */}
           <div>
@@ -188,13 +211,13 @@ export const RecordingSetupDialog: React.FC<RecordingSetupDialogProps> = ({
           </div>
         </div>
 
-        <DialogFooter className="gap-2 sm:gap-2">
+        <DialogFooter className="flex-col sm:flex-row gap-2 w-full">
           <Button
             type="button"
             variant="outline"
             disabled={isStarting}
             onClick={onBack}
-            className="min-h-[44px]"
+            className="min-h-[44px] w-full sm:w-auto"
           >
             {t('Kembali')}
           </Button>
@@ -203,7 +226,7 @@ export const RecordingSetupDialog: React.FC<RecordingSetupDialogProps> = ({
             disabled={!title.trim() || isStarting}
             aria-busy={isStarting}
             onClick={onStart}
-            className="min-h-[44px] gap-2"
+            className="min-h-[44px] w-full sm:w-auto gap-2"
           >
             {isStarting ? (
               <Loader2 className="size-4 animate-spin" aria-hidden="true" />

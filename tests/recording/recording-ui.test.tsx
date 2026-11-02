@@ -48,6 +48,7 @@ import { DiscardRecordingDialog } from '../../src/components/recording/DiscardRe
 import { RecordingRecoveryPanel } from '../../src/components/recording/RecordingRecoveryPanel';
 import { AudioLevelMeter } from '../../src/components/recording/AudioLevelMeter';
 import { RecordingStore } from '../../src/features/recording/recording-store';
+import { finalizeRecordingSession } from '../../src/features/recording/recording-finalizer';
 import { checkRecordingCapabilities } from '../../src/features/recording/recording-capabilities';
 import { useLocalRecording } from '../../src/features/recording/use-local-recording';
 import { t, setLanguage } from '../../src/lib/i18n';
@@ -131,7 +132,7 @@ class MockMediaRecorder {
     queueMicrotask(() => {
       if (this.ondataavailable) {
         this.ondataavailable({
-          data: new Blob([new Uint8Array([1, 2, 3])], { type: this.mimeType }),
+          data: new Blob([new Uint8Array([0x1a, 0x45, 0xdf, 0xa3])], { type: this.mimeType }),
           timeStamp: Date.now(),
         });
       }
@@ -139,7 +140,47 @@ class MockMediaRecorder {
   }
 }
 
+class MockUiAudioElement {
+  preload = 'auto';
+  src = '';
+  duration = 2.0;
+  error: { code: number; message: string } | null = null;
+  listeners: Map<string, Set<(...args: any[]) => void>> = new Map();
+
+  addEventListener(type: string, cb: (...args: any[]) => void) {
+    if (!this.listeners.has(type)) {
+      this.listeners.set(type, new Set());
+    }
+    this.listeners.get(type)!.add(cb);
+  }
+
+  removeEventListener(type: string, cb: (...args: any[]) => void) {
+    this.listeners.get(type)?.delete(cb);
+  }
+
+  pause() {}
+
+  removeAttribute(attr: string) {
+    if (attr === 'src') {
+      this.src = '';
+    }
+  }
+
+  load() {
+    if (!this.src) return;
+    queueMicrotask(() => {
+      if (!this.src) return;
+      const set = this.listeners.get('canplay');
+      if (set) {
+        for (const fn of Array.from(set)) fn();
+      }
+    });
+  }
+}
+
 (globalThis as any).MediaRecorder = MockMediaRecorder;
+(globalThis as any).Audio = MockUiAudioElement;
+(win as any).Audio = MockUiAudioElement;
 
 const supportedCapabilities: BrowserCapabilities = {
   supported: true,
@@ -174,11 +215,17 @@ function TestRecordingApp({
   saveToWorkspaceFn,
   onSaveSuccess,
   notify,
+  activeProjectId,
+  projects: customProjects,
   hasProjects = true,
+  segmentCoreSeconds,
+  segmentOverlapSeconds,
   onExposeRecording,
 }: {
   store: RecordingStore;
   capabilities?: BrowserCapabilities;
+  activeProjectId?: string;
+  projects?: Array<{ id: string; title: string; folderId: null; tags: string[]; createdAt: number; updatedAt: number; recordingCount: number; totalDurationSec: number }>;
   getMediaStream?: (constraints: MediaStreamConstraints) => Promise<MediaStream>;
   enumerateDevices?: () => Promise<MediaDeviceInfo[]>;
   saveToWorkspaceFn?: (
@@ -190,11 +237,24 @@ function TestRecordingApp({
   onSaveSuccess?: () => void;
   notify?: (msg: string) => void;
   hasProjects?: boolean;
+  segmentCoreSeconds?: number;
+  segmentOverlapSeconds?: number;
   onExposeRecording?: (rec: ReturnType<typeof useLocalRecording>) => void;
 }) {
+  const projectsList =
+    customProjects !== undefined
+      ? customProjects
+      : hasProjects
+        ? [{ id: 'proj-1', title: 'Rapat Proyek', folderId: null, tags: [], createdAt: 0, updatedAt: 0, recordingCount: 0, totalDurationSec: 0 }]
+        : [];
+
   const recording = useLocalRecording({
     store,
     capabilities,
+    activeProjectId,
+    projects: projectsList,
+    segmentCoreSeconds,
+    segmentOverlapSeconds,
     getMediaStream,
     enumerateDevices,
     saveToWorkspaceFn,
@@ -205,10 +265,6 @@ function TestRecordingApp({
   if (onExposeRecording) {
     onExposeRecording(recording);
   }
-
-  const projectsList = hasProjects
-    ? [{ id: 'proj-1', title: 'Rapat Proyek', folderId: null, tags: [], createdAt: 0, updatedAt: 0, recordingCount: 0, totalDurationSec: 0 }]
-    : [];
 
   return (
     <div>
@@ -1104,7 +1160,7 @@ test('14. Recovery finalization memuat archive + durable transcript checkpoints 
   await store.appendArchiveChunk({
     sessionId,
     chunkIndex: 0,
-    blob: new Blob([new Uint8Array([10, 20, 30, 40])], { type: 'audio/webm;codecs=opus' }),
+    blob: new Blob([new Uint8Array([0x1a, 0x45, 0xdf, 0xa3])], { type: 'audio/webm;codecs=opus' }),
     sizeBytes: 4,
     timestampMs: 1000,
     activeDurationMs: 65000,
@@ -1408,7 +1464,7 @@ test('18. ID/EN copy tersedia dan bebas dari em dash', { timeout: 10000 }, async
   assert.equal(t('Rekam pertemuan'), 'Rekam pertemuan');
   assert.equal(t('Lokal di perangkat'), 'Lokal di perangkat');
   assert.equal(t('Batalkan rekaman?'), 'Batalkan rekaman?');
-  assert.ok(!t('Penyimpanan persisten belum aktif. Browser dapat membersihkan data lokal saat ruang perangkat terbatas. Selesaikan dan ekspor rekaman penting sebagai cadangan.').includes('—'));
+  assert.ok(!t('Penyimpanan persisten belum aktif. Browser dapat membersihkan data lokal saat ruang perangkat terbatas. Selesaikan dan ekspor rekaman penting sebagai cadangan.').includes('\u2014'));
 
   setLanguage('en');
   assert.equal(t('Rekam pertemuan'), 'Record meeting');
@@ -1643,6 +1699,281 @@ test('22. CRITICAL 3: Double permission & double start race guard', { timeout: 1
 
   const sessions = await store.listRecoverableSessions();
   assert.equal(sessions.length, 1, 'Hanya satu sesi rekaman yang boleh dibuat');
+
+  store.close();
+});
+
+test('23. Production path ignores global window.__CATETIN_TEST_CONFIG__ and uses UseLocalRecordingOptions DI (IMPORTANT 3)', async () => {
+  (win as any).__CATETIN_TEST_CONFIG__ = {
+    segmentCoreSeconds: 2,
+    segmentOverlapSeconds: 1,
+  };
+
+  const store = new RecordingStore(`test-prod-guard-${Date.now()}`);
+  let exposedHook: any = null;
+
+  mountTestApp(
+    <TestRecordingApp
+      store={store}
+      capabilities={supportedCapabilities}
+      onExposeRecording={rec => { exposedHook = rec; }}
+      getMediaStream={async () => new MockMediaStream([new MockAudioTrack()]) as any}
+    />
+  );
+  await flushAsync();
+  assert.ok(exposedHook);
+
+  await act(async () => {
+    await exposedHook.openConsent();
+    await exposedHook.proceedToSetup();
+    await exposedHook.startRecording();
+  });
+  await flushAsync();
+
+  assert.equal(exposedHook.engineState.status, 'recording');
+  // Observe actual engine segment configuration: must be default 60s core and 5s overlap, ignoring window.__CATETIN_TEST_CONFIG__
+  assert.deepEqual(exposedHook.getEngineSegmentConfig(), {
+    segmentCoreSeconds: 60,
+    segmentOverlapSeconds: 5,
+  });
+
+  // Now verify UseLocalRecordingOptions dependency injection sets segment configuration on engine
+  const storeDi = new RecordingStore(`test-di-guard-${Date.now()}`);
+  let diHook: any = null;
+  mountTestApp(
+    <TestRecordingApp
+      store={storeDi}
+      capabilities={supportedCapabilities}
+      segmentCoreSeconds={15}
+      segmentOverlapSeconds={3}
+      onExposeRecording={rec => { diHook = rec; }}
+      getMediaStream={async () => new MockMediaStream([new MockAudioTrack()]) as any}
+    />
+  );
+  await flushAsync();
+  await act(async () => {
+    await diHook.openConsent();
+    await diHook.proceedToSetup();
+    await diHook.startRecording();
+  });
+  await flushAsync();
+
+  assert.deepEqual(diHook.getEngineSegmentConfig(), {
+    segmentCoreSeconds: 15,
+    segmentOverlapSeconds: 3,
+  });
+
+  delete (win as any).__CATETIN_TEST_CONFIG__;
+  store.close();
+  storeDi.close();
+});
+
+test('24. Project selector synchronization when activeProjectId is absent, explicit selection, default project, and recovery preservation (IMPORTANT 1)', async () => {
+  const store = new RecordingStore(`test-proj-sel-${Date.now()}`);
+  let exposedHook: any = null;
+  const savedRecordings: any[] = [];
+
+  const sampleProjects = [
+    { id: 'project-alpha', title: 'Proyek Alpha', folderId: null, tags: [], createdAt: 0, updatedAt: 0, recordingCount: 0, totalDurationSec: 0 },
+    { id: 'project-beta', title: 'Proyek Beta', folderId: null, tags: [], createdAt: 0, updatedAt: 0, recordingCount: 0, totalDurationSec: 0 },
+  ];
+
+  // Case 1: projects A/B available, NO activeProjectId provided -> UI displays A and state synchronizes to project-alpha (NOT project-default)
+  mountTestApp(
+    <TestRecordingApp
+      store={store}
+      capabilities={supportedCapabilities}
+      projects={sampleProjects}
+      activeProjectId={undefined}
+      onExposeRecording={rec => { exposedHook = rec; }}
+      saveToWorkspaceFn={async (rec) => { savedRecordings.push(rec); }}
+      getMediaStream={async () => new MockMediaStream([new MockAudioTrack()]) as any}
+    />
+  );
+  await flushAsync();
+  assert.ok(exposedHook);
+  assert.equal(exposedHook.selectedProjectId, 'project-alpha', 'State harus otomatis sinkron ke project pertama saat activeProjectId kosong');
+
+  await act(async () => {
+    await exposedHook.openConsent();
+    await exposedHook.proceedToSetup();
+  });
+  await flushAsync();
+
+  const selectInSetup = win.document.querySelector('#recording-project-select') as unknown as HTMLSelectElement;
+  assert.ok(selectInSetup);
+  assert.equal(selectInSetup.value, 'project-alpha', 'Select UI harus menampilkan project-alpha');
+  assert.equal(exposedHook.selectedProjectId, 'project-alpha');
+
+  // Start recording without changing project dropdown -> must save to project-alpha, NOT project-default
+  await act(async () => {
+    await exposedHook.startRecording();
+  });
+  await flushAsync();
+
+  const sessions1 = await store.listRecoverableSessions();
+  assert.equal(sessions1.length, 1);
+  assert.equal(sessions1[0].targetProjectId, 'project-alpha', 'Rekaman harus disimpan ke project-alpha yang terlihat di UI');
+
+  // Stop first recording to save and verify workspace record has projectId === 'project-alpha'
+  await act(async () => {
+    await exposedHook.stopRecording();
+  });
+  await flushAsync();
+  assert.equal(savedRecordings.length, 1);
+  assert.equal(savedRecordings[0].projectId, 'project-alpha');
+
+  // Case 2: User explicitly changes project to project-beta in setup dialog, and recovery preserves targetProjectId
+  await act(async () => {
+    await exposedHook.openConsent();
+    await exposedHook.proceedToSetup();
+  });
+  await flushAsync();
+
+  act(() => {
+    exposedHook.setSelectedProjectId('project-beta');
+  });
+  await flushAsync();
+  assert.equal(exposedHook.selectedProjectId, 'project-beta');
+
+  await act(async () => {
+    await exposedHook.startRecording();
+  });
+  await flushAsync();
+
+  const sessions2 = await store.listRecoverableSessions();
+  assert.equal(sessions2.length, 1);
+  assert.equal(sessions2[0].targetProjectId, 'project-beta');
+
+  await store.appendArchiveChunk({
+    sessionId: sessions2[0].sessionId,
+    chunkIndex: 0,
+    blob: new Blob([new Uint8Array([0x1a, 0x45, 0xdf, 0xa3])], { type: 'audio/webm;codecs=opus' }),
+    sizeBytes: 4,
+    timestampMs: 1000,
+    activeDurationMs: 1000,
+    createdAt: Date.now(),
+  });
+
+  await act(async () => {
+    await exposedHook.recoverDraftSession(sessions2[0]);
+  });
+  await flushAsync();
+  assert.equal(savedRecordings.length, 2);
+  assert.equal(savedRecordings[1].projectId, 'project-beta');
+
+  // Case 3: Empty projects fallback rendering in RecordingSetupDialog uses project-default
+  let syncedEmptyProjectId = '';
+  mountTestApp(
+    <RecordingSetupDialog
+      open={true}
+      projects={[]}
+      selectedProjectId=""
+      onSelectProjectId={id => { syncedEmptyProjectId = id; }}
+      title="Uji Project Kosong"
+      onChangeTitle={() => {}}
+      devices={[]}
+      selectedDeviceId=""
+      onSelectDeviceId={() => {}}
+      stream={null}
+      onBack={() => {}}
+      onStart={() => {}}
+    />
+  );
+  await flushAsync();
+
+  const selectEl = win.document.querySelector('#recording-project-select') as unknown as HTMLSelectElement;
+  assert.ok(selectEl, 'Project select element harus tetap dirender saat workspace kosong');
+  assert.equal(selectEl.value, 'project-default');
+  assert.equal(syncedEmptyProjectId, 'project-default');
+  assert.ok(win.document.body.textContent?.includes('Workspace belum memiliki project terpisah'), 'Harus menampilkan penjelasan ramah');
+
+  store.close();
+});
+
+test('25. CRITICAL 1 & 2: Invalid archive with 3 finalized segments preserves all segments and never saves single segment as full recording', async () => {
+  const store = new RecordingStore(`test-audio-val-${Date.now()}`);
+  const sessionId = 'session-audio-val';
+
+  await store.saveSession({
+    sessionId,
+    targetProjectId: 'project-default',
+    title: 'Uji Validasi Audio 3 Segmen',
+    status: 'recoverable',
+    startedAt: Date.now() - 180000,
+    lastUpdatedAt: Date.now(),
+    activeDurationMs: 180000,
+    mimeType: 'audio/webm;codecs=opus',
+    archiveChunkCount: 0,
+    archiveTotalBytes: 0,
+    segmentCount: 3,
+    errorCode: null,
+    errorMessage: null,
+  });
+
+  // Put a chunk with chunkIndex 1 (missing chunk 0 header)
+  await store.appendArchiveChunk({
+    sessionId,
+    chunkIndex: 1,
+    blob: new Blob([new Uint8Array([5, 6, 7, 8])], { type: 'audio/webm;codecs=opus' }),
+    sizeBytes: 4,
+    timestampMs: Date.now(),
+    activeDurationMs: 180000,
+    createdAt: Date.now(),
+  });
+
+  // Add 3 finalized transcription segments
+  for (let i = 0; i < 3; i++) {
+    await store.appendTranscriptionSegment({
+      sessionId,
+      segmentIndex: i,
+      blob: new Blob([new Uint8Array([0x1a, 0x45, 0xdf, 0xa3, i + 1])], { type: 'audio/webm;codecs=opus' }),
+      sizeBytes: 5,
+      durationSec: 60,
+      plannedStartSec: i * 60,
+      plannedEndSec: (i + 1) * 60,
+      overlapStartSec: i * 60,
+      overlapEndSec: i === 0 ? 0 : i * 60 + 5,
+      createdAt: Date.now(),
+      transcribed: true,
+      transcriptDialogs: [
+        { id: i + 1, speaker: 'Pembicara 1', text: `Bagian ${i + 1}`, seconds: i * 60 + 2, time: `0${i}:02` },
+      ],
+    });
+  }
+
+  let savedToWorkspace = false;
+  let deleteSessionCalled = false;
+  const origDelete = store.deleteSessionData.bind(store);
+  store.deleteSessionData = async (id: string) => {
+    deleteSessionCalled = true;
+    return origDelete(id);
+  };
+
+  await assert.rejects(
+    async () =>
+      finalizeRecordingSession(sessionId, store, {
+        saveToWorkspaceFn: async () => {
+          savedToWorkspace = true;
+        },
+      }),
+    (err: any) => {
+      assert.equal(err.code, 'archive-finalization-failed');
+      assert.equal(err.retryable, true);
+      return true;
+    }
+  );
+
+  // Must NOT save single segment to workspace or delete draft
+  assert.equal(savedToWorkspace, false, 'Tidak boleh menyimpan satu segmen sebagai pengganti seluruh rekaman');
+  assert.equal(deleteSessionCalled, false, 'Draft tidak boleh dihapus saat arsip utama tidak valid');
+
+  const sessionAfterFailure = await store.getSession(sessionId);
+  assert.ok(sessionAfterFailure);
+  assert.equal(sessionAfterFailure.status, 'recoverable');
+
+  const preservedSegments = await store.getTranscriptionSegments(sessionId);
+  assert.equal(preservedSegments.length, 3, 'Seluruh 3 segmen transkripsi wajib tetap tersimpan');
 
   store.close();
 });

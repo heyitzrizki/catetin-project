@@ -1469,6 +1469,36 @@ mark { color: var(--primary); background: #e5ecfa; padding: 1px 3px; border-radi
   width: min(100% - 48px, 1680px);
   min-height: 62px;
 }
+@media (max-width: 540px) {
+  .studio-shell .header-inner {
+    width: calc(100% - 24px);
+    gap: 6px;
+  }
+  .studio-shell .header-actions {
+    gap: 6px;
+  }
+  .studio-shell .account-btn {
+    padding-inline: 10px;
+    font-size: 11px;
+    gap: 5px;
+  }
+}
+@media (max-width: 360px) {
+  .studio-shell .header-inner {
+    width: calc(100% - 16px);
+    gap: 4px;
+  }
+  .studio-shell .header-actions {
+    gap: 4px;
+  }
+  .studio-shell .account-btn {
+    padding-inline: 8px;
+  }
+  .studio-shell .studio-nav > button {
+    font-size: 11px;
+    padding-inline: 5px;
+  }
+}
 .studio-shell .studio-nav {
   gap: 18px;
 }

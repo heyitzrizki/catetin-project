@@ -523,6 +523,7 @@ export default function App() {
 
   const recording = useLocalRecording({
     activeProjectId: activeProjectId ?? undefined,
+    projects: dashboardProjects,
     onSaveSuccess: async (result) => {
       await reloadWorkspaceState();
       setStudioView('editor');

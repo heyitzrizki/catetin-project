@@ -74,7 +74,7 @@ export const ActiveRecordingDialog: React.FC<ActiveRecordingDialogProps> = ({
   return (
     <Dialog open={open}>
       <DialogContent
-        className="max-w-md sm:max-w-lg"
+        className="max-w-md sm:max-w-lg [&>button:last-child]:hidden"
         onPointerDownOutside={(e) => {
           // Strictly prevent backdrop click from silently closing the active recording
           e.preventDefault();
@@ -142,12 +142,12 @@ export const ActiveRecordingDialog: React.FC<ActiveRecordingDialogProps> = ({
             )}
           </div>
 
-          <DialogTitle className="text-xl font-bold text-[var(--foreground)] truncate text-left">
+          <DialogTitle className="text-base sm:text-xl font-bold text-[var(--foreground)] break-words text-left min-w-0">
             {title}
           </DialogTitle>
-          <DialogDescription className="text-xs text-[var(--muted-foreground)] text-left flex items-center gap-1.5 truncate">
+          <DialogDescription className="text-xs text-[var(--muted-foreground)] text-left flex items-center gap-1.5 min-w-0">
             <Mic className="size-3.5 flex-shrink-0" aria-hidden="true" />
-            <span className="truncate">{selectedDeviceName || t('Mikrofon bawaan')}</span>
+            <span className="truncate min-w-0">{selectedDeviceName || t('Mikrofon bawaan')}</span>
           </DialogDescription>
         </DialogHeader>
 
@@ -204,25 +204,16 @@ export const ActiveRecordingDialog: React.FC<ActiveRecordingDialogProps> = ({
         </div>
 
         {/* Control Actions */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 pt-2 border-t border-[var(--border)]">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 pt-3 border-t border-[var(--border)] w-full min-w-0">
           {!isFinalizing && !isRecoverable ? (
             <>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={onRequestCancel}
-                className="order-3 sm:order-1 min-h-[44px]"
-              >
-                {t('Batalkan')}
-              </Button>
-
-              <div className="order-1 sm:order-2 flex items-center gap-2 flex-1 justify-end">
+              <div className="order-1 sm:order-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
                 {isPaused ? (
                   <Button
                     type="button"
                     variant="outline"
                     onClick={onResume}
-                    className="min-h-[44px] gap-2 flex-1 sm:flex-initial"
+                    className="min-h-[44px] gap-2 w-full sm:w-auto"
                   >
                     <Play className="size-4" aria-hidden="true" />
                     {t('Lanjutkan')}
@@ -232,7 +223,7 @@ export const ActiveRecordingDialog: React.FC<ActiveRecordingDialogProps> = ({
                     type="button"
                     variant="outline"
                     onClick={onPause}
-                    className="min-h-[44px] gap-2 flex-1 sm:flex-initial"
+                    className="min-h-[44px] gap-2 w-full sm:w-auto"
                   >
                     <Pause className="size-4" aria-hidden="true" />
                     {t('Jeda')}
@@ -242,12 +233,21 @@ export const ActiveRecordingDialog: React.FC<ActiveRecordingDialogProps> = ({
                 <Button
                   type="button"
                   onClick={onStop}
-                  className="min-h-[44px] gap-2 flex-1 sm:flex-initial bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
+                  className="min-h-[44px] gap-2 w-full sm:w-auto bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
                 >
                   <Square className="size-4 fill-current" aria-hidden="true" />
                   {t('Selesai')}
                 </Button>
               </div>
+
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onRequestCancel}
+                className="order-2 sm:order-1 min-h-[44px] w-full sm:w-auto"
+              >
+                {t('Batalkan')}
+              </Button>
             </>
           ) : isRecoverable ? (
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2 w-full">

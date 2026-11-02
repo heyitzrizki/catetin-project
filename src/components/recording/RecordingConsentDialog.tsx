@@ -118,13 +118,13 @@ export const RecordingConsentDialog: React.FC<RecordingConsentDialogProps> = ({
           </label>
         </div>
 
-        <DialogFooter className="gap-2 sm:gap-2">
+        <DialogFooter className="flex-col sm:flex-row gap-2 w-full">
           <Button
             type="button"
             variant="outline"
             disabled={isRequestingPermission}
             onClick={() => handleOpenChange(false)}
-            className="min-h-[44px]"
+            className="min-h-[44px] w-full sm:w-auto"
           >
             {t('Batal')}
           </Button>
@@ -133,7 +133,7 @@ export const RecordingConsentDialog: React.FC<RecordingConsentDialogProps> = ({
             disabled={!hasInformedParticipants || !isSupported || isRequestingPermission}
             aria-busy={isRequestingPermission}
             onClick={handleProceed}
-            className="min-h-[44px] gap-2"
+            className="min-h-[44px] w-full sm:w-auto gap-2"
           >
             {isRequestingPermission && <Loader2 className="size-4 animate-spin" aria-hidden="true" />}
             <span>{t('Lanjut pilih mikrofon')}</span>

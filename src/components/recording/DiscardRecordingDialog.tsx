@@ -57,14 +57,14 @@ export const DiscardRecordingDialog: React.FC<DiscardRecordingDialogProps> = ({
           </DialogDescription>
         </DialogHeader>
 
-        <DialogFooter className="gap-2 sm:gap-2 mt-2">
+        <DialogFooter className="flex-col sm:flex-row gap-2 mt-2 w-full">
           {/* Default/Keep Button has initial focus */}
           <Button
             id="discard-dialog-cancel-btn"
             type="button"
             variant="outline"
             onClick={() => onOpenChange(false)}
-            className="min-h-[44px]"
+            className="min-h-[44px] w-full sm:w-auto"
           >
             {cancelLabel}
           </Button>
@@ -76,7 +76,7 @@ export const DiscardRecordingDialog: React.FC<DiscardRecordingDialogProps> = ({
               onOpenChange(false);
               onConfirm();
             }}
-            className="min-h-[44px]"
+            className="min-h-[44px] w-full sm:w-auto"
           >
             {confirmLabel}
           </Button>

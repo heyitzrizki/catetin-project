@@ -45,6 +45,9 @@ export interface UseLocalRecordingOptions {
   store?: RecordingStore;
   capabilities?: BrowserCapabilities;
   activeProjectId?: string;
+  projects?: Array<{ id: string; title: string }>;
+  segmentCoreSeconds?: number;
+  segmentOverlapSeconds?: number;
   saveToWorkspaceFn?: (
     recording: RecordingRecord,
     audioBlob: Blob,
@@ -55,6 +58,28 @@ export interface UseLocalRecordingOptions {
   notify?: (message: string) => void;
   getMediaStream?: (constraints: MediaStreamConstraints) => Promise<MediaStream>;
   enumerateDevices?: () => Promise<MediaDeviceInfo[]>;
+}
+
+/**
+ * Resolves the target project ID synchronously:
+ * - When projects exist: uses activeProjectId if valid in projects, otherwise defaults to projects[0].id.
+ * - When projects is explicitly empty ([]): uses 'project-default'.
+ * - When projects is not provided: uses activeProjectId || 'project-default'.
+ */
+export function resolveTargetProjectId(
+  projects?: Array<{ id: string; title: string }>,
+  activeProjectId?: string
+): string {
+  if (projects && projects.length > 0) {
+    if (activeProjectId && projects.some(p => p.id === activeProjectId)) {
+      return activeProjectId;
+    }
+    return projects[0].id;
+  }
+  if (projects && projects.length === 0) {
+    return 'project-default';
+  }
+  return activeProjectId || 'project-default';
 }
 
 export function useLocalRecording(options: UseLocalRecordingOptions = {}) {
@@ -92,7 +117,9 @@ export function useLocalRecording(options: UseLocalRecordingOptions = {}) {
   const [recordingError, setRecordingError] = useState<RecordingError | null>(null);
 
   const [recordingTitle, setRecordingTitle] = useState(() => getDefaultRecordingTitle(new Date(), language));
-  const [selectedProjectId, setSelectedProjectId] = useState<string>(options.activeProjectId ?? 'project-default');
+  const [selectedProjectId, setSelectedProjectId] = useState<string>(() =>
+    resolveTargetProjectId(options.projects, options.activeProjectId)
+  );
   const [selectedDeviceId, setSelectedDeviceId] = useState<string>('');
   const [selectedDeviceName, setSelectedDeviceName] = useState<string>('');
   const [audioDevices, setAudioDevices] = useState<MediaDeviceInfo[]>([]);
@@ -101,6 +128,10 @@ export function useLocalRecording(options: UseLocalRecordingOptions = {}) {
   const [activeStream, setActiveStream] = useState<MediaStream | null>(null);
   const [recoverableSessions, setRecoverableSessions] = useState<RecordingSession[]>([]);
   const [isRecovering, setIsRecovering] = useState(false);
+  const [lastEngineSegmentConfig, setLastEngineSegmentConfig] = useState<{
+    segmentCoreSeconds: number;
+    segmentOverlapSeconds: number;
+  } | null>(null);
 
   const mountedRef = useRef(true);
   const setupStreamRef = useRef<MediaStream | null>(null);
@@ -147,6 +178,19 @@ export function useLocalRecording(options: UseLocalRecordingOptions = {}) {
     }
   }, [language, isRecordingOpen, isSetupOpen]);
 
+  // Keep selectedProjectId synchronized with available workspace projects when not actively recording
+  useEffect(() => {
+    if (isRecordingOpen) return;
+    if (options.projects && options.projects.length > 0) {
+      const isCurrentValid = options.projects.some(p => p.id === selectedProjectId);
+      if (!isCurrentValid) {
+        setSelectedProjectId(resolveTargetProjectId(options.projects, options.activeProjectId));
+      }
+    } else if (options.projects && options.projects.length === 0 && selectedProjectId !== 'project-default') {
+      setSelectedProjectId('project-default');
+    }
+  }, [options.projects, options.activeProjectId, isRecordingOpen, selectedProjectId]);
+
   // Window beforeunload guard to protect active recording
   useEffect(() => {
     const isActivelyRecording = engineState.status === 'recording' || engineState.status === 'paused';
@@ -185,9 +229,9 @@ export function useLocalRecording(options: UseLocalRecordingOptions = {}) {
   const openConsent = useCallback(() => {
     setRecordingError(null);
     setRecordingTitle(getDefaultRecordingTitle(new Date(), language));
-    setSelectedProjectId(options.activeProjectId ?? 'project-default');
+    setSelectedProjectId(resolveTargetProjectId(options.projects, options.activeProjectId));
     setIsConsentOpen(true);
-  }, [language, options.activeProjectId]);
+  }, [language, options.activeProjectId, options.projects]);
 
   // 2. User confirms consent and proceeds to microphone setup
   const proceedToSetup = useCallback(async () => {
@@ -329,9 +373,15 @@ export function useLocalRecording(options: UseLocalRecordingOptions = {}) {
         ? (c: MediaStreamConstraints) => navigator.mediaDevices.getUserMedia(c)
         : null);
 
+    // Segment timing overrides are accepted only through explicit UseLocalRecordingOptions dependency injection.
+    const segmentCoreSeconds = options.segmentCoreSeconds;
+    const segmentOverlapSeconds = options.segmentOverlapSeconds;
+
     const engine = new RecordingEngine({
       store,
       capabilities,
+      segmentCoreSeconds,
+      segmentOverlapSeconds,
       saveToWorkspaceFn: options.saveToWorkspaceFn,
       getMediaStream: async () => {
         if (!getStreamFn) {
@@ -372,10 +422,24 @@ export function useLocalRecording(options: UseLocalRecordingOptions = {}) {
     });
 
     engineRef.current = engine;
+    setLastEngineSegmentConfig(engine.getSegmentConfig());
+
+    const effectiveProjectId =
+      options.projects && options.projects.length > 0
+        ? options.projects.some(p => p.id === selectedProjectId)
+          ? selectedProjectId
+          : resolveTargetProjectId(options.projects, options.activeProjectId)
+        : options.projects && options.projects.length === 0
+          ? 'project-default'
+          : selectedProjectId || options.activeProjectId || 'project-default';
+
+    if (effectiveProjectId !== selectedProjectId) {
+      setSelectedProjectId(effectiveProjectId);
+    }
 
     try {
       await engine.start({
-        targetProjectId: selectedProjectId || 'project-default',
+        targetProjectId: effectiveProjectId,
         title: recordingTitle.trim() || getDefaultRecordingTitle(new Date(), language),
       });
 
@@ -633,6 +697,8 @@ export function useLocalRecording(options: UseLocalRecordingOptions = {}) {
 
     // Engine & recording state
     engineState,
+    lastEngineSegmentConfig,
+    getEngineSegmentConfig: () => engineRef.current?.getSegmentConfig() ?? lastEngineSegmentConfig,
     activeDurationMs,
     isRequestingPermission,
     isStarting,

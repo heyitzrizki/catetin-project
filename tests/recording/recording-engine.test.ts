@@ -7,6 +7,10 @@ import { RecordingEngine } from '../../src/features/recording/recording-engine';
 import {
   assembleArchiveBlob,
   finalizeRecordingSession,
+  hasWebmEbmlHeader,
+  validateArchiveChunksStructure,
+  validateBlobPlayable,
+  WEBM_EBML_MAGIC_BYTES,
 } from '../../src/features/recording/recording-finalizer';
 import {
   deduplicateCrossSegmentBoundary,
@@ -107,7 +111,7 @@ class MockMediaRecorder {
       // Deliver final chunk asynchronously before onstop (mirroring real browser behavior)
       queueMicrotask(() => {
         if (this.autoEmitChunkOnStop && this.ondataavailable) {
-          const payload = this.customPayload || [this.instanceIndex, 250];
+          const payload = this.customPayload || [0x1a, 0x45, 0xdf, 0xa3, this.instanceIndex, 250];
           this.ondataavailable({
             data: new Blob([new Uint8Array(payload)], { type: this.mimeType }),
             timeStamp: Date.now(),
@@ -131,7 +135,7 @@ class MockMediaRecorder {
   requestData() {
     queueMicrotask(() => {
       if (this.autoEmitChunkOnRequestData && this.ondataavailable) {
-        const payload = this.customPayload || [this.instanceIndex, 100];
+        const payload = this.customPayload || [0x1a, 0x45, 0xdf, 0xa3, this.instanceIndex, 100];
         this.ondataavailable({
           data: new Blob([new Uint8Array(payload)], { type: this.mimeType }),
           timeStamp: Date.now(),
@@ -156,12 +160,81 @@ class MockMediaRecorder {
   }
 }
 
-// Ensure global MediaRecorder exists in Node test env
+class MockHtmlAudioElement {
+  static nextOutcome: 'playable' | 'media-error' | 'timeout' = 'playable';
+  static instances: MockHtmlAudioElement[] = [];
+
+  preload = 'auto';
+  src = '';
+  duration = 2.5;
+  error: { code: number; message: string } | null = null;
+  paused = true;
+  removedSrc = false;
+  loadCalls = 0;
+  listeners: Map<string, Set<(...args: any[]) => void>> = new Map();
+
+  constructor() {
+    MockHtmlAudioElement.instances.push(this);
+  }
+
+  addEventListener(type: string, cb: (...args: any[]) => void) {
+    if (!this.listeners.has(type)) {
+      this.listeners.set(type, new Set());
+    }
+    this.listeners.get(type)!.add(cb);
+  }
+
+  removeEventListener(type: string, cb: (...args: any[]) => void) {
+    this.listeners.get(type)?.delete(cb);
+  }
+
+  dispatchEvent(type: string) {
+    const set = this.listeners.get(type);
+    if (!set) return;
+    for (const fn of Array.from(set)) {
+      fn();
+    }
+  }
+
+  pause() {
+    this.paused = true;
+  }
+
+  removeAttribute(attr: string) {
+    if (attr === 'src') {
+      this.src = '';
+      this.removedSrc = true;
+    }
+  }
+
+  load() {
+    this.loadCalls += 1;
+    if (!this.src) return;
+    const outcome = MockHtmlAudioElement.nextOutcome;
+    queueMicrotask(() => {
+      if (!this.src) return;
+      if (outcome === 'playable') {
+        this.duration = 2.5;
+        this.dispatchEvent('loadedmetadata');
+        this.dispatchEvent('canplay');
+      } else if (outcome === 'media-error') {
+        this.error = { code: 4, message: 'MEDIA_ERR_SRC_NOT_SUPPORTED' };
+        this.dispatchEvent('error');
+      }
+      // 'timeout' intentionally emits nothing so timeout handler triggers
+    });
+  }
+}
+
+// Ensure global MediaRecorder and Audio exist in Node test env
 (globalThis as any).MediaRecorder = MockMediaRecorder;
+(globalThis as any).Audio = MockHtmlAudioElement;
 
 beforeEach(() => {
   MockMediaRecorder.instances = [];
   MockMediaRecorder.nextStartThrowsError = null;
+  MockHtmlAudioElement.instances = [];
+  MockHtmlAudioElement.nextOutcome = 'playable';
 });
 
 const createMockAudioContext = (overrides: Record<string, any> = {}) => ({
@@ -341,8 +414,8 @@ test('4. Finalization awaiting pending writes', async () => {
   const appendP = store.appendArchiveChunk({
     sessionId,
     chunkIndex: 0,
-    blob: new Blob([new Uint8Array([1, 2, 3])]),
-    sizeBytes: 3,
+    blob: new Blob([new Uint8Array([0x1a, 0x45, 0xdf, 0xa3])]),
+    sizeBytes: 4,
     timestampMs: 1000,
     activeDurationMs: 1000,
     createdAt: Date.now(),
@@ -359,8 +432,8 @@ test('4. Finalization awaiting pending writes', async () => {
     saveToWorkspaceFn: mockSave,
   });
 
-  assert.equal(result.audioBlob.size, 3);
-  assert.equal(savedBlobSize, 3);
+  assert.equal(result.audioBlob.size, 4);
+  assert.equal(savedBlobSize, 4);
   await appendP;
   assert.equal(store.getPendingWriteCount(), 0);
   store.close();
@@ -534,8 +607,8 @@ test('8. Archive save failure retaining draft chunks', async () => {
     lastUpdatedAt: Date.now(),
     activeDurationMs: 2000,
     mimeType: 'audio/webm;codecs=opus',
-    archiveChunkCount: 1,
-    archiveTotalBytes: 4,
+    archiveChunkCount: 0,
+    archiveTotalBytes: 0,
     segmentCount: 0,
     errorCode: null,
     errorMessage: null,
@@ -544,7 +617,7 @@ test('8. Archive save failure retaining draft chunks', async () => {
   await store.appendArchiveChunk({
     sessionId,
     chunkIndex: 0,
-    blob: new Blob([new Uint8Array([1, 2, 3, 4])]),
+    blob: new Blob([new Uint8Array([0x1a, 0x45, 0xdf, 0xa3])]),
     sizeBytes: 4,
     timestampMs: 1000,
     activeDurationMs: 1000,
@@ -584,8 +657,8 @@ test('9. Successful workspace save triggering draft cleanup', async () => {
     lastUpdatedAt: Date.now(),
     activeDurationMs: 2000,
     mimeType: 'audio/webm;codecs=opus',
-    archiveChunkCount: 2,
-    archiveTotalBytes: 6,
+    archiveChunkCount: 0,
+    archiveTotalBytes: 0,
     segmentCount: 1,
     errorCode: null,
     errorMessage: null,
@@ -594,8 +667,8 @@ test('9. Successful workspace save triggering draft cleanup', async () => {
   await store.appendArchiveChunk({
     sessionId,
     chunkIndex: 0,
-    blob: new Blob([new Uint8Array([1, 2, 3])]),
-    sizeBytes: 3,
+    blob: new Blob([new Uint8Array([0x1a, 0x45, 0xdf, 0xa3])]),
+    sizeBytes: 4,
     timestampMs: 1000,
     activeDurationMs: 1000,
     createdAt: Date.now(),
@@ -618,7 +691,7 @@ test('9. Successful workspace save triggering draft cleanup', async () => {
 
   const result = await finalizeRecordingSession(sessionId, store, { saveToWorkspaceFn: mockSave });
   assert.equal(workspaceSaved, true);
-  assert.equal(result.audioBlob.size, 6);
+  assert.equal(result.audioBlob.size, 7);
 
   const chunksAfter = await store.getOrderedArchiveChunks(sessionId);
   assert.equal(chunksAfter.length, 0);
@@ -1214,7 +1287,7 @@ test('24. Short recording flushes final asynchronous archive chunk without times
 
   // The archive recorder is instances[0]
   const archiveRec = MockMediaRecorder.instances[0];
-  archiveRec.customPayload = [42, 43, 44, 45];
+  archiveRec.customPayload = [0x1a, 0x45, 0xdf, 0xa3, 42, 43, 44, 45];
 
   // Stop recording immediately. The ONLY archive chunk is flushed asynchronously via requestData/stop
   const result = await engine.stop();
@@ -1224,7 +1297,7 @@ test('24. Short recording flushes final asynchronous archive chunk without times
   assert.ok(savedBlob !== null);
 
   const finalBytes = Array.from(new Uint8Array(await result.audioBlob.arrayBuffer()));
-  assert.deepEqual(finalBytes, [42, 43, 44, 45]);
+  assert.deepEqual(finalBytes, [0x1a, 0x45, 0xdf, 0xa3, 42, 43, 44, 45]);
 
   store.close();
 });
@@ -1496,16 +1569,9 @@ test('29. Checkpoint read failure preserves draft data and enables clean retry f
 
   const sessionId = await engine.start();
 
-  // Populate store with archive chunk and completed transcription segment checkpoint
-  await store.appendArchiveChunk({
-    sessionId,
-    chunkIndex: 0,
-    blob: new Blob([new Uint8Array([1, 2, 3, 4])]),
-    sizeBytes: 4,
-    timestampMs: 1000,
-    activeDurationMs: 1000,
-    createdAt: Date.now(),
-  });
+  // Emit archive chunk through the engine's archive recorder so chunkIndex and session count stay synchronized
+  MockMediaRecorder.instances[0].emitData([0x1a, 0x45, 0xdf, 0xa3, 1, 2, 3, 4]);
+  await store.waitForPendingWrites();
 
   await store.appendTranscriptionSegment({
     sessionId,
@@ -1678,6 +1744,394 @@ test('31. preserveForRecovery stops recorders and tracks while preserving sessio
   const recoverable = await store.listRecoverableSessions();
   assert.equal(recoverable.length, 1);
   assert.equal(recoverable[0].sessionId, sessionId);
+
+  store.close();
+});
+
+test('32. CRITICAL 2: Structural archive validation (missing middle index, duplicate index, missing index 0, invalid EBML, valid contiguous)', async () => {
+  const makeChunk = (
+    chunkIndex: number,
+    bytes: number[] = [0x1a, 0x45, 0xdf, 0xa3, chunkIndex]
+  ): ArchiveChunkRecord => ({
+    sessionId: 'sess-struct',
+    chunkIndex,
+    blob: new Blob([new Uint8Array(bytes)], { type: 'audio/webm;codecs=opus' }),
+    sizeBytes: bytes.length,
+    timestampMs: (chunkIndex + 1) * 1000,
+    activeDurationMs: (chunkIndex + 1) * 1000,
+    createdAt: Date.now(),
+  });
+
+  // 1. Missing middle index: 0, 1, 3, 4
+  const missingMiddle = await validateArchiveChunksStructure([
+    makeChunk(0),
+    makeChunk(1, [10, 11]),
+    makeChunk(3, [30, 31]),
+    makeChunk(4, [40, 41]),
+  ]);
+  assert.equal(missingMiddle.valid, false);
+  assert.match(missingMiddle.reason || '', /index 2/i);
+
+  // 2. Duplicate index: 0, 1, 1, 2
+  const duplicateIdx = await validateArchiveChunksStructure([
+    makeChunk(0),
+    makeChunk(1, [10, 11]),
+    makeChunk(1, [12, 13]),
+    makeChunk(2, [20, 21]),
+  ]);
+  assert.equal(duplicateIdx.valid, false);
+  assert.match(duplicateIdx.reason || '', /duplikasi.*index 1/i);
+
+  // 3. Missing index 0: 1, 2, 3
+  const missingZero = await validateArchiveChunksStructure([
+    makeChunk(1, [10, 11]),
+    makeChunk(2, [20, 21]),
+    makeChunk(3, [30, 31]),
+  ]);
+  assert.equal(missingZero.valid, false);
+  assert.match(missingZero.reason || '', /index 0/i);
+
+  // 4. Invalid EBML header on chunk 0
+  const invalidEbml = await validateArchiveChunksStructure([
+    makeChunk(0, [0x00, 0x01, 0x02, 0x03]),
+    makeChunk(1, [10, 11]),
+  ]);
+  assert.equal(invalidEbml.valid, false);
+  assert.match(invalidEbml.reason || '', /EBML/i);
+
+  // 5. Expected chunk count mismatch
+  const countMismatch = await validateArchiveChunksStructure(
+    [makeChunk(0), makeChunk(1, [10, 11])],
+    3
+  );
+  assert.equal(countMismatch.valid, false);
+  assert.match(countMismatch.reason || '', /tidak sesuai/i);
+
+  // 6. Valid contiguous sequence (even when passed out of order: 2, 0, 1)
+  const validSeq = await validateArchiveChunksStructure(
+    [makeChunk(2, [20, 21]), makeChunk(0), makeChunk(1, [10, 11])],
+    3
+  );
+  assert.equal(validSeq.valid, true);
+  assert.deepEqual(
+    validSeq.sortedChunks.map(c => c.chunkIndex),
+    [0, 1, 2]
+  );
+
+  // 7. End-to-end finalizeRecordingSession with missing middle chunk (0, 1, 3, 4)
+  const store = new RecordingStore(`test-gap-archive-${Date.now()}`);
+  const sessionId = 'rec-gap-session';
+  await store.saveSession({
+    sessionId,
+    targetProjectId: 'p1',
+    title: 'Gap Test',
+    status: 'recording',
+    startedAt: Date.now(),
+    lastUpdatedAt: Date.now(),
+    activeDurationMs: 5000,
+    mimeType: 'audio/webm;codecs=opus',
+    archiveChunkCount: 0,
+    archiveTotalBytes: 0,
+    segmentCount: 0,
+    errorCode: null,
+    errorMessage: null,
+  });
+
+  for (const idx of [0, 1, 3, 4]) {
+    await store.appendArchiveChunk({
+      ...makeChunk(idx, idx === 0 ? [0x1a, 0x45, 0xdf, 0xa3, 1] : [idx, idx + 1]),
+      sessionId,
+    });
+  }
+
+  let workspaceSaveCalled = false;
+  let deleteCalled = false;
+  const origDelete = store.deleteSessionData.bind(store);
+  store.deleteSessionData = async (id: string) => {
+    deleteCalled = true;
+    return origDelete(id);
+  };
+
+  await assert.rejects(
+    async () =>
+      finalizeRecordingSession(sessionId, store, {
+        saveToWorkspaceFn: async () => {
+          workspaceSaveCalled = true;
+        },
+      }),
+    (err: any) => {
+      assert.equal(err.code, 'archive-finalization-failed');
+      assert.equal(err.retryable, true);
+      return true;
+    }
+  );
+
+  assert.equal(workspaceSaveCalled, false);
+  assert.equal(deleteCalled, false);
+  const sessAfter = await store.getSession(sessionId);
+  assert.equal(sessAfter?.status, 'recoverable');
+  assert.equal(sessAfter?.errorCode, 'archive-finalization-failed');
+  const retainedChunks = await store.getOrderedArchiveChunks(sessionId);
+  assert.equal(retainedChunks.length, 4);
+
+  store.close();
+});
+
+test('33. CRITICAL 1: Multi-segment invalid archive never saves single segment and preserves all 3 segments', async () => {
+  const store = new RecordingStore(`test-crit1-multiseg-${Date.now()}`);
+  const sessionId = 'rec-multiseg-preserve';
+
+  await store.saveSession({
+    sessionId,
+    targetProjectId: 'proj-1',
+    title: 'Rapat 3 Segmen',
+    status: 'recording',
+    startedAt: Date.now(),
+    lastUpdatedAt: Date.now(),
+    activeDurationMs: 185000,
+    mimeType: 'audio/webm;codecs=opus',
+    archiveChunkCount: 0,
+    archiveTotalBytes: 0,
+    segmentCount: 3,
+    errorCode: null,
+    errorMessage: null,
+  });
+
+  // Append invalid archive (missing chunk 0, only chunk 2 present)
+  await store.appendArchiveChunk({
+    sessionId,
+    chunkIndex: 2,
+    blob: new Blob([new Uint8Array([9, 9, 9, 9])], { type: 'audio/webm;codecs=opus' }),
+    sizeBytes: 4,
+    timestampMs: 3000,
+    activeDurationMs: 185000,
+    createdAt: Date.now(),
+  });
+
+  // Append 3 finalized playable transcription segments
+  for (let segIdx = 0; segIdx < 3; segIdx++) {
+    const segBytes = [0x1a, 0x45, 0xdf, 0xa3, 100 + segIdx];
+    await store.appendTranscriptionSegment({
+      sessionId,
+      segmentIndex: segIdx,
+      blob: new Blob([new Uint8Array(segBytes)], { type: 'audio/webm;codecs=opus' }),
+      sizeBytes: segBytes.length,
+      durationSec: 65,
+      plannedStartSec: segIdx * 60,
+      plannedEndSec: segIdx * 60 + 65,
+      overlapStartSec: segIdx * 60,
+      overlapEndSec: segIdx === 0 ? 0 : segIdx * 60 + 5,
+      transcribed: true,
+      transcriptDialogs: [
+        {
+          id: segIdx + 1,
+          speaker: 'Pembicara 1',
+          text: `Kalimat segmen ${segIdx}`,
+          seconds: segIdx * 60 + 5,
+          time: `0${segIdx}:05`,
+        },
+      ],
+      createdAt: Date.now(),
+    });
+  }
+
+  let workspaceSaveCalls = 0;
+  let deleteSessionCalls = 0;
+  const origDelete = store.deleteSessionData.bind(store);
+  store.deleteSessionData = async (id: string) => {
+    deleteSessionCalls += 1;
+    return origDelete(id);
+  };
+
+  await assert.rejects(
+    async () =>
+      finalizeRecordingSession(sessionId, store, {
+        saveToWorkspaceFn: async () => {
+          workspaceSaveCalls += 1;
+        },
+      }),
+    (err: any) => {
+      assert.equal(err.code, 'archive-finalization-failed');
+      assert.equal(err.retryable, true);
+      return true;
+    }
+  );
+
+  // 1. Workspace save MUST NOT be called (no single segment saved as full recording)
+  assert.equal(workspaceSaveCalls, 0);
+
+  // 2. Draft deletion MUST NOT be called
+  assert.equal(deleteSessionCalls, 0);
+
+  // 3. All 3 finalized segments MUST remain intact in store
+  const preservedSegments = await store.getTranscriptionSegments(sessionId);
+  assert.equal(preservedSegments.length, 3);
+  assert.deepEqual(
+    preservedSegments.map(s => s.segmentIndex),
+    [0, 1, 2]
+  );
+
+  // 4. Session status MUST be recoverable
+  const sessionAfter = await store.getSession(sessionId);
+  assert.equal(sessionAfter?.status, 'recoverable');
+  assert.equal(sessionAfter?.errorCode, 'archive-finalization-failed');
+
+  store.close();
+});
+
+test('34. IMPORTANT 4: Honest playback validation (validator injection & browser Audio probe lifecycle)', async () => {
+  // Part A: Arbitrary 4-byte non-EBML Blob is rejected as unplayable
+  const arbitraryBlob = new Blob([new Uint8Array([1, 2, 3, 4])], { type: 'audio/webm;codecs=opus' });
+  const arbitraryCheck = await validateBlobPlayable(arbitraryBlob);
+  assert.equal(arbitraryCheck.playable, false);
+  assert.equal(arbitraryCheck.outcome, 'media-error');
+
+  // Part B: Browser Audio probe lifecycle (loadedmetadata/canplay, error, timeout, cleanup)
+  const validWebmBlob = new Blob([new Uint8Array([0x1a, 0x45, 0xdf, 0xa3, 1, 2, 3, 4])], {
+    type: 'audio/webm;codecs=opus',
+  });
+
+  const createdUrls: string[] = [];
+  const revokedUrls: string[] = [];
+  const origCreateObjUrl = URL.createObjectURL;
+  const origRevokeObjUrl = URL.revokeObjectURL;
+
+  URL.createObjectURL = ((_b: Blob) => {
+    const u = `blob:mock-url-${createdUrls.length + 1}`;
+    createdUrls.push(u);
+    return u;
+  }) as any;
+  URL.revokeObjectURL = ((u: string) => {
+    revokedUrls.push(u);
+  }) as any;
+
+  try {
+    // 1. Playable outcome
+    MockHtmlAudioElement.instances = [];
+    MockHtmlAudioElement.nextOutcome = 'playable';
+    const resPlayable = await validateBlobPlayable(validWebmBlob, 200);
+    assert.equal(resPlayable.playable, true);
+    assert.equal(resPlayable.outcome, 'playable');
+    assert.equal(MockHtmlAudioElement.instances.length, 1);
+    const audio1 = MockHtmlAudioElement.instances[0];
+    assert.equal(audio1.paused, true);
+    assert.equal(audio1.removedSrc, true);
+    assert.equal(audio1.src, '');
+    for (const evt of ['canplay', 'loadedmetadata', 'error', 'stalled', 'abort']) {
+      assert.equal(audio1.listeners.get(evt)?.size ?? 0, 0, `Listener ${evt} wajib dibersihkan`);
+    }
+    assert.equal(revokedUrls.length, 1);
+    assert.equal(revokedUrls[0], createdUrls[0]);
+
+    // 2. Media-error outcome
+    MockHtmlAudioElement.instances = [];
+    MockHtmlAudioElement.nextOutcome = 'media-error';
+    const resErr = await validateBlobPlayable(validWebmBlob, 200);
+    assert.equal(resErr.playable, false);
+    assert.equal(resErr.outcome, 'media-error');
+    const audio2 = MockHtmlAudioElement.instances[0];
+    assert.equal(audio2.removedSrc, true);
+    for (const evt of ['canplay', 'loadedmetadata', 'error', 'stalled', 'abort']) {
+      assert.equal(audio2.listeners.get(evt)?.size ?? 0, 0, `Listener ${evt} wajib dibersihkan pada error`);
+    }
+    assert.equal(revokedUrls.length, 2);
+
+    // 3. Timeout outcome
+    MockHtmlAudioElement.instances = [];
+    MockHtmlAudioElement.nextOutcome = 'timeout';
+    const resTimeout = await validateBlobPlayable(validWebmBlob, 35);
+    assert.equal(resTimeout.playable, false);
+    assert.equal(resTimeout.outcome, 'timeout-unplayable');
+    const audio3 = MockHtmlAudioElement.instances[0];
+    assert.equal(audio3.removedSrc, true);
+    for (const evt of ['canplay', 'loadedmetadata', 'error', 'stalled', 'abort']) {
+      assert.equal(audio3.listeners.get(evt)?.size ?? 0, 0, `Listener ${evt} wajib dibersihkan pada timeout`);
+    }
+    assert.equal(revokedUrls.length, 3);
+  } finally {
+    URL.createObjectURL = origCreateObjUrl;
+    URL.revokeObjectURL = origRevokeObjUrl;
+    MockHtmlAudioElement.nextOutcome = 'playable';
+  }
+
+  // Part C: Validator injection in finalizeRecordingSession controls save/retain behavior
+  const store = new RecordingStore(`test-validator-inj-${Date.now()}`);
+  const sessionId = 'rec-val-inj';
+  await store.saveSession({
+    sessionId,
+    targetProjectId: 'p1',
+    title: 'Validator Injection',
+    status: 'recording',
+    startedAt: Date.now(),
+    lastUpdatedAt: Date.now(),
+    activeDurationMs: 10000,
+    mimeType: 'audio/webm;codecs=opus',
+    archiveChunkCount: 0,
+    archiveTotalBytes: 0,
+    segmentCount: 0,
+    errorCode: null,
+    errorMessage: null,
+  });
+  await store.appendArchiveChunk({
+    sessionId,
+    chunkIndex: 0,
+    blob: validWebmBlob,
+    sizeBytes: validWebmBlob.size,
+    timestampMs: 1000,
+    activeDurationMs: 10000,
+    createdAt: Date.now(),
+  });
+
+  let savedCount = 0;
+  // Inject false (media-error)
+  await assert.rejects(
+    async () =>
+      finalizeRecordingSession(sessionId, store, {
+        validateBlobPlayableFn: async () => ({
+          playable: false,
+          outcome: 'media-error',
+          reason: 'Simulasi decode gagal',
+        }),
+        saveToWorkspaceFn: async () => {
+          savedCount += 1;
+        },
+      }),
+    /media-error/
+  );
+  assert.equal(savedCount, 0);
+  assert.equal((await store.getOrderedArchiveChunks(sessionId)).length, 1);
+
+  // Inject timeout-unplayable
+  await assert.rejects(
+    async () =>
+      finalizeRecordingSession(sessionId, store, {
+        validateBlobPlayableFn: async () => ({
+          playable: false,
+          outcome: 'timeout-unplayable',
+          reason: 'Simulasi timeout',
+        }),
+        saveToWorkspaceFn: async () => {
+          savedCount += 1;
+        },
+      }),
+    /timeout-unplayable/
+  );
+  assert.equal(savedCount, 0);
+  assert.equal((await store.getOrderedArchiveChunks(sessionId)).length, 1);
+
+  // Inject playable: true -> saves to workspace and deletes draft
+  const finalRes = await finalizeRecordingSession(sessionId, store, {
+    validateBlobPlayableFn: async () => ({
+      playable: true,
+      outcome: 'playable',
+    }),
+    saveToWorkspaceFn: async () => {
+      savedCount += 1;
+    },
+  });
+  assert.ok(finalRes.recordingId);
+  assert.equal(savedCount, 1);
+  assert.equal((await store.getOrderedArchiveChunks(sessionId)).length, 0);
 
   store.close();
 });
