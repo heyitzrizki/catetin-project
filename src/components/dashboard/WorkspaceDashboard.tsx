@@ -8,6 +8,7 @@ import {
   Folder,
   FolderPlus,
   HardDrive,
+  Mic,
   MoreVertical,
   Plus,
   Search,
@@ -28,6 +29,8 @@ import type {
 } from '@/features/workspace/workspace-store';
 import { searchLocalWorkspace } from '@/features/workspace/workspace-store';
 import type { Recording } from '@/lib/transcript';
+import { RecordingRecoveryPanel } from '../recording/RecordingRecoveryPanel';
+import type { RecordingSession } from '@/features/recording/recording-types';
 
 export interface WorkspaceDashboardProps {
   projects: ProjectSummary[];
@@ -49,6 +52,11 @@ export interface WorkspaceDashboardProps {
   onMoveFolderClick: (recording: Recording) => void;
   onExportClick?: (scope: 'project' | 'workspace', projectId?: string) => void;
   onImportClick?: () => void;
+  onStartRecordingClick?: () => void;
+  recoverableSessions?: RecordingSession[];
+  onRecoverSession?: (session: RecordingSession) => void;
+  onDiscardSession?: (session: RecordingSession) => void;
+  isRecoveringSession?: boolean;
 }
 
 function formatDurationHuman(seconds: number, lang: 'id' | 'en'): string {
@@ -100,6 +108,11 @@ export function WorkspaceDashboard({
   onMoveFolderClick,
   onExportClick,
   onImportClick,
+  onStartRecordingClick,
+  recoverableSessions = [],
+  onRecoverSession,
+  onDiscardSession,
+  isRecoveringSession = false,
 }: WorkspaceDashboardProps) {
   const language = useLanguage() as 'id' | 'en';
   const hasProjects = projects.length > 0;
@@ -196,12 +209,31 @@ export function WorkspaceDashboard({
             <FolderPlus className="size-4" aria-hidden="true" />
             {t('Project baru')}
           </Button>
-          <Button onClick={() => onOpenRecordingClick()} className="gap-2 min-h-[44px]">
+          <Button variant="outline" onClick={() => onOpenRecordingClick()} className="gap-2 min-h-[44px]">
             <Upload className="size-4" aria-hidden="true" />
             {t('Buka rekaman')}
           </Button>
+          {onStartRecordingClick && (
+            <Button onClick={onStartRecordingClick} className="gap-2 min-h-[44px]">
+              <Mic className="size-4 text-red-500 fill-current" aria-hidden="true" />
+              <span>{t('Rekam pertemuan')}</span>
+              <span className="text-[11px] font-normal opacity-85 hidden sm:inline ml-0.5">
+                ({t('Lokal di perangkat')})
+              </span>
+            </Button>
+          )}
         </div>
       </header>
+
+      {/* Recovery Banner for unfinished local recording sessions */}
+      {recoverableSessions.length > 0 && onRecoverSession && onDiscardSession && (
+        <RecordingRecoveryPanel
+          sessions={recoverableSessions}
+          onRecover={onRecoverSession}
+          onDiscard={onDiscardSession}
+          isRecovering={isRecoveringSession}
+        />
+      )}
 
       {/* Global Search Bar */}
       <section aria-label={t('Pencarian')} className="my-5">

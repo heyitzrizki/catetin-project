@@ -1621,3 +1621,63 @@ test('30. Terminal cleanup concurrency guarantees single execution and identical
 
   store.close();
 });
+
+test('31. preserveForRecovery stops recorders and tracks while preserving session, archive chunks, and checkpoints', async () => {
+  const store = new RecordingStore(`test-preserve-recovery-${Date.now()}`);
+  const track = new MockMediaStreamTrack();
+  const stream = new MockMediaStream([track]);
+
+  const engine = new RecordingEngine({
+    store,
+    capabilities: supportedCapabilities,
+    getMediaStream: async () => stream as any,
+  });
+
+  const sessionId = await engine.start();
+
+  await store.appendArchiveChunk({
+    sessionId,
+    chunkIndex: 0,
+    blob: new Blob([new Uint8Array([1, 2, 3])]),
+    sizeBytes: 3,
+    timestampMs: 500,
+    activeDurationMs: 500,
+    createdAt: Date.now(),
+  });
+
+  await store.appendTranscriptionSegment({
+    sessionId,
+    segmentIndex: 0,
+    blob: new Blob([new Uint8Array([4, 5])]),
+    sizeBytes: 2,
+    durationSec: 60,
+    plannedStartSec: 0,
+    plannedEndSec: 65,
+    overlapStartSec: 0,
+    overlapEndSec: 5,
+    transcribed: true,
+    transcriptDialogs: [{ id: 1, speaker: 'Pembicara 1', text: 'Tersimpan utuh', seconds: 1, time: '00:01' }],
+    createdAt: Date.now(),
+  });
+
+  await engine.preserveForRecovery();
+
+  assert.equal(track.stopped, true);
+  assert.equal(engine.getState().status, 'recoverable');
+
+  const session = await store.getSession(sessionId);
+  assert.ok(session);
+  assert.equal(session.status, 'recoverable');
+
+  const chunks = await store.getOrderedArchiveChunks(sessionId);
+  assert.ok(chunks.length >= 1);
+
+  const segments = await store.getTranscriptionSegments(sessionId);
+  assert.ok(segments.some(s => s.transcribed && s.transcriptDialogs?.[0]?.text === 'Tersimpan utuh'));
+
+  const recoverable = await store.listRecoverableSessions();
+  assert.equal(recoverable.length, 1);
+  assert.equal(recoverable[0].sessionId, sessionId);
+
+  store.close();
+});

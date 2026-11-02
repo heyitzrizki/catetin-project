@@ -163,6 +163,7 @@ export class RecordingEngine {
     if (this.stream) {
       this.stream.getTracks().forEach(track => {
         try {
+          track.onended = null;
           track.stop();
         } catch {
           // ignore
@@ -760,47 +761,22 @@ export class RecordingEngine {
   }
 
   private async executeFinalization(sessionId: string): Promise<FinalizeRecordingResult> {
-    // 6. Load all completed durable transcription segments to reconstruct global transcript
-    let finalSegments: DialogSegment[];
-    try {
-      finalSegments = await this.loadCompletedTranscriptSegments(sessionId);
-    } catch (segLoadErr: any) {
-      const errPayload: RecordingError = {
-        code: 'checkpoint-read-failed',
-        message: `Gagal memuat checkpoint transkripsi: ${segLoadErr?.message || 'Penyimpanan lokal tidak dapat dibaca.'}`,
-        retryable: true,
-      };
-      this.transition('recoverable', errPayload);
-      try {
-        await this.store.updateSession(sessionId, {
-          status: 'recoverable',
-          errorCode: 'checkpoint-read-failed',
-          errorMessage: errPayload.message,
-        });
-      } catch {
-        // ignore background update error
-      }
-      const err = new Error(errPayload.message);
-      (err as any).code = errPayload.code;
-      (err as any).retryable = true;
-      throw err;
-    }
-
     this.transition('finalizing');
 
-    // 7. Finalize archive Blob and save to workspace with reconstructed transcript
     try {
       const result = await finalizeRecordingSession(sessionId, this.store, {
         projectId: this.targetProjectId,
         title: this.sessionTitle,
-        segments: finalSegments,
         saveToWorkspaceFn: this.saveToWorkspaceFn,
       });
 
       this.transition('completed');
       return result;
     } catch (finalErr: any) {
-      const isRecoverable = finalErr?.code === 'workspace-save-failed';
+      const isRecoverable =
+        finalErr?.retryable === true ||
+        finalErr?.code === 'checkpoint-read-failed' ||
+        finalErr?.code === 'workspace-save-failed';
       const code: RecordingErrorCode = finalErr?.code || 'archive-finalization-failed';
       const message: string = finalErr?.message || 'Gagal merakit arsip rekaman akhir.';
       this.transition(isRecoverable ? 'recoverable' : 'failed', {
@@ -812,19 +788,96 @@ export class RecordingEngine {
     }
   }
 
-  private async loadCompletedTranscriptSegments(sessionId: string): Promise<DialogSegment[]> {
-    const storedSegs = await this.store.getTranscriptionSegments(sessionId);
-    const completedSegs = storedSegs
-      .filter(s => s.transcribed && s.transcriptDialogs && s.transcriptDialogs.length > 0)
-      .sort((a, b) => a.segmentIndex - b.segmentIndex);
+  /**
+   * Narrow non-destructive lifecycle for interruption or component unmount.
+   * Blocks new rotations, flushes and stops active recorders, stops all MediaStreamTracks,
+   * awaits pending writes where possible, and marks the session as recoverable
+   * without deleting archive chunks, transcription segments, or checkpoints.
+   */
+  async preserveForRecovery(): Promise<void> {
+    if (this.status === 'idle' || this.status === 'completed' || this.status === 'cancelled') {
+      this.clearAllPendingTimers();
+      this.stopAllTracks();
+      return;
+    }
 
-    const finalSegments: DialogSegment[] = [];
-    for (const seg of completedSegs) {
-      if (seg.transcriptDialogs) {
-        finalSegments.push(...seg.transcriptDialogs);
+    const currentSessionId = this.sessionId;
+
+    // 1. Synchronously block any new rotations or timers
+    this.clearAllPendingTimers();
+
+    // 2. Allow final flushed chunks while stopping recorders
+    if (this.status === 'recording' || this.status === 'paused') {
+      this.status = 'stopping';
+    }
+
+    const stopPromises: Promise<void>[] = [];
+
+    for (const runtime of Array.from(this.activeRecorders.values())) {
+      if (runtime.recorder.state !== 'inactive') {
+        runtime.status = 'stopping';
+        try {
+          runtime.recorder.stop();
+        } catch {
+          runtime.resolveStop();
+        }
+        stopPromises.push(
+          runtime.stopPromise.then(() => {
+            this.finalizeSegmentData(runtime);
+          })
+        );
+      } else {
+        runtime.resolveStop();
       }
     }
-    return finalSegments;
+
+    if (this.archiveRecorder && this.archiveRecorder.state !== 'inactive') {
+      const archiveRec = this.archiveRecorder;
+      const archiveStopP = new Promise<void>(resolve => {
+        archiveRec.onstop = () => resolve();
+        try {
+          archiveRec.requestData();
+        } catch {
+          // ignore
+        }
+        try {
+          archiveRec.stop();
+        } catch {
+          resolve();
+        }
+      });
+      stopPromises.push(archiveStopP);
+    }
+
+    // 3. Synchronously release all physical microphone tracks immediately
+    this.stopAllTracks();
+
+    // 4. Immediately enqueue durable session update so data stays recoverable even if unmount is not awaited
+    const earlyUpdatePromise = currentSessionId
+      ? this.store.updateSession(currentSessionId, {
+          status: 'recoverable',
+          activeDurationMs: this.getActiveDurationMs(),
+          archiveTotalBytes: this.archiveTotalBytes,
+          segmentCount: this.activeSegmentIndex,
+        }).catch(() => null)
+      : Promise.resolve(null);
+
+    await Promise.all(stopPromises);
+    this.sessionGeneration += 1;
+    this.activeRecorders.clear();
+    this.archiveRecorder = null;
+
+    this.transition('recoverable');
+    await Promise.all([this.store.waitForPendingWrites(), earlyUpdatePromise]);
+
+    if (currentSessionId) {
+      await this.store.updateSession(currentSessionId, {
+        status: 'recoverable',
+        activeDurationMs: this.getActiveDurationMs(),
+        archiveTotalBytes: this.archiveTotalBytes,
+        segmentCount: this.activeSegmentIndex,
+      }).catch(() => null);
+    }
   }
 
   /**

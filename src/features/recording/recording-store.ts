@@ -138,9 +138,15 @@ export class RecordingStore {
       const req = store.getAll();
       req.onsuccess = () => {
         const all = (req.result as RecordingSession[]) ?? [];
-        // Active, paused, stopping, or finalizing sessions that crashed or were interrupted
+        // Active, paused, stopping, finalizing, failed, or recoverable sessions that crashed or were interrupted
         const recoverable = all.filter(
-          s => s.status === 'recording' || s.status === 'paused' || s.status === 'stopping' || s.status === 'finalizing' || s.status === 'recoverable'
+          s =>
+            s.status === 'recording' ||
+            s.status === 'paused' ||
+            s.status === 'stopping' ||
+            s.status === 'finalizing' ||
+            s.status === 'failed' ||
+            s.status === 'recoverable'
         );
         resolve(recoverable);
       };

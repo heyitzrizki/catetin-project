@@ -20,6 +20,11 @@ import { ManageTagsDialog } from '@/components/dashboard/ManageTagsDialog';
 import { MoveFolderDialog } from '@/components/dashboard/MoveFolderDialog';
 import { ExportDialog } from '@/components/dashboard/ExportDialog';
 import { ImportDialog } from '@/components/dashboard/ImportDialog';
+import { useLocalRecording } from '@/features/recording/use-local-recording';
+import { RecordingConsentDialog } from '@/components/recording/RecordingConsentDialog';
+import { RecordingSetupDialog } from '@/components/recording/RecordingSetupDialog';
+import { ActiveRecordingDialog } from '@/components/recording/ActiveRecordingDialog';
+import { DiscardRecordingDialog } from '@/components/recording/DiscardRecordingDialog';
 import { CatetinBrand } from '@/components/brand/CatetinBrand';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -516,6 +521,18 @@ export default function App() {
     notify(t('Data arsip berhasil dipulihkan'));
   };
 
+  const recording = useLocalRecording({
+    activeProjectId: activeProjectId ?? undefined,
+    onSaveSuccess: async (result) => {
+      await reloadWorkspaceState();
+      setStudioView('editor');
+      if (result.recordingId) {
+        setActiveId(result.recordingId);
+      }
+    },
+    notify,
+  });
+
   const copyAll = async () => {
     try { await navigator.clipboard.writeText(transcriptText(segments, speakerNames)); notify(t("Naskah berhasil disalin.")); }
     catch { notify(t("Peramban tidak mengizinkan akses clipboard. Gunakan Ekspor teks polos untuk menyimpan naskah.")); }
@@ -794,6 +811,11 @@ export default function App() {
           onImportClick={() => {
             setImportDialogOpen(true);
           }}
+          onStartRecordingClick={recording.openConsent}
+          recoverableSessions={recording.recoverableSessions}
+          onRecoverSession={recording.recoverDraftSession}
+          onDiscardSession={recording.requestDiscardDraft}
+          isRecoveringSession={recording.isRecovering}
         />
       </main>
     ) : (
@@ -1071,6 +1093,58 @@ export default function App() {
       isOpen={importDialogOpen}
       onClose={() => setImportDialogOpen(false)}
       onImportSuccess={handleImportSuccess}
+    />
+
+    <RecordingConsentDialog
+      open={recording.isConsentOpen}
+      capabilities={recording.capabilities}
+      isRequestingPermission={recording.isRequestingPermission}
+      onOpenChange={recording.setConsentOpen}
+      onProceed={recording.proceedToSetup}
+    />
+
+    <RecordingSetupDialog
+      open={recording.isSetupOpen}
+      projects={dashboardProjects}
+      selectedProjectId={recording.selectedProjectId}
+      onSelectProjectId={recording.setSelectedProjectId}
+      title={recording.recordingTitle}
+      onChangeTitle={recording.setRecordingTitle}
+      devices={recording.audioDevices}
+      selectedDeviceId={recording.selectedDeviceId}
+      onSelectDeviceId={recording.setSelectedDeviceId}
+      stream={recording.setupStream}
+      isStarting={recording.isStarting}
+      onBack={recording.backToConsent}
+      onStart={recording.startRecording}
+    />
+
+    <ActiveRecordingDialog
+      open={recording.isRecordingOpen}
+      engineState={recording.engineState}
+      title={recording.recordingTitle}
+      selectedDeviceName={recording.selectedDeviceName}
+      activeDurationMs={recording.activeDurationMs}
+      stream={recording.activeStream}
+      isFinalizing={recording.isFinalizing}
+      finalizingPhase={recording.finalizingPhase}
+      error={recording.recordingError}
+      onPause={recording.pauseRecording}
+      onResume={recording.resumeRecording}
+      onStop={recording.stopRecording}
+      onRetryFinalize={recording.retryFinalization}
+      onRequestCancel={recording.requestCancel}
+      onCloseAfterError={recording.closeAfterError}
+    />
+
+    <DiscardRecordingDialog
+      open={recording.isDiscardOpen}
+      onOpenChange={recording.setDiscardOpen}
+      title={recording.discardDialogTitle}
+      description={recording.discardDialogDescription}
+      cancelLabel={recording.discardCancelLabel}
+      confirmLabel={recording.discardConfirmLabel}
+      onConfirm={recording.confirmDiscard}
     />
 
     <Dialog open={toolsOpen} onOpenChange={setToolsOpen}><DialogContent className="tools-dialog"><DialogHeader><DialogTitle>{t("Alat naskah")}</DialogTitle><DialogDescription>{t("Atur tampilan, pilih pembicara, dan ekspor naskah.")}</DialogDescription></DialogHeader><ContextualUtilityPanel {...utilityProps} /></DialogContent></Dialog>
