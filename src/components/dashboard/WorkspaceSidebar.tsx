@@ -1,15 +1,11 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
-  AudioLines,
   Check,
-  Database,
   Download,
-  Folder,
   HardDrive,
   Home,
   PanelLeftClose,
   PanelLeftOpen,
-  Tags,
   UploadCloud,
   UserRound,
   X,
@@ -20,8 +16,8 @@ import type { StorageEstimateInfo, StoragePersistenceStatus } from '@/features/w
 export type WorkspaceSectionId = 'workspace' | 'projects' | 'recordings' | 'folders-tags' | 'storage';
 
 export interface WorkspaceSidebarProps {
-  activeSection: WorkspaceSectionId;
-  onSelectSection: (section: WorkspaceSectionId) => void;
+  activeSection?: WorkspaceSectionId;
+  onSelectSection?: (section: WorkspaceSectionId) => void;
   collapsed?: boolean;
   onToggleCollapse?: () => void;
   mobileOpen?: boolean;
@@ -29,12 +25,13 @@ export interface WorkspaceSidebarProps {
   storageEstimate?: StorageEstimateInfo;
   persistenceStatus?: StoragePersistenceStatus;
   onOpenAccount?: () => void;
+  onOpenStorage?: () => void;
   onExportWorkspace?: () => void;
   onImportBackup?: () => void;
 }
 
 export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
-  activeSection,
+  activeSection = 'workspace',
   onSelectSection,
   collapsed = false,
   onToggleCollapse,
@@ -42,23 +39,43 @@ export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
   onMobileClose,
   storageEstimate,
   onOpenAccount,
+  onOpenStorage,
   onExportWorkspace,
   onImportBackup,
 }) => {
-  const navItems: Array<{
-    id: WorkspaceSectionId;
-    label: string;
-    icon: React.ComponentType<{ className?: string; 'aria-hidden'?: boolean | 'true' | 'false' }>;
-  }> = [
-    { id: 'workspace', label: t('Workspace'), icon: Home },
-    { id: 'projects', label: t('Projects'), icon: Folder },
-    { id: 'recordings', label: t('Rekaman'), icon: AudioLines },
-    { id: 'folders-tags', label: t('Folder & tag'), icon: Tags },
-    { id: 'storage', label: t('Penyimpanan'), icon: Database },
-  ];
+  const closeBtnRef = useRef<HTMLButtonElement>(null);
+  const previousActiveElementRef = useRef<HTMLElement | null>(null);
 
-  const handleSelect = (id: WorkspaceSectionId) => {
-    onSelectSection(id);
+  // Focus management & Escape key handler for mobile drawer
+  useEffect(() => {
+    if (!mobileOpen) return;
+
+    previousActiveElementRef.current =
+      typeof document !== 'undefined' ? (document.activeElement as HTMLElement | null) : null;
+
+    const timer = setTimeout(() => {
+      closeBtnRef.current?.focus();
+    }, 50);
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        onMobileClose?.();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('keydown', handleKeyDown);
+      if (previousActiveElementRef.current && typeof previousActiveElementRef.current.focus === 'function') {
+        previousActiveElementRef.current.focus();
+      }
+    };
+  }, [mobileOpen, onMobileClose]);
+
+  const handleSelectWorkspace = () => {
+    onSelectSection?.('workspace');
     if (mobileOpen && onMobileClose) {
       onMobileClose();
     }
@@ -75,15 +92,31 @@ export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
     }
   };
 
-  const usagePercent =
-    storageEstimate?.supported && typeof storageEstimate.usagePercent === 'number'
-      ? Math.max(4, Math.min(100, storageEstimate.usagePercent))
-      : 16;
+  const handleStorageClick = () => {
+    if (onOpenStorage) {
+      onOpenStorage();
+    } else if (onSelectSection) {
+      onSelectSection('storage');
+    }
+    if (mobileOpen && onMobileClose) {
+      onMobileClose();
+    }
+  };
 
-  const usageSubtext =
-    storageEstimate?.supported && storageEstimate.usageFormatted !== '-' && storageEstimate.quotaFormatted !== '-'
-      ? `${storageEstimate.usageFormatted} ${t('dari')} ${storageEstimate.quotaFormatted}`
-      : t('Tersimpan di browser perangkat ini');
+  // Only compute real metrics; no fabricated percentages or numbers
+  const hasRealStorageMetrics =
+    Boolean(storageEstimate?.supported) &&
+    typeof storageEstimate?.usagePercent === 'number' &&
+    storageEstimate.usageFormatted !== '-' &&
+    storageEstimate.quotaFormatted !== '-';
+
+  const usagePercent = hasRealStorageMetrics
+    ? Math.max(2, Math.min(100, storageEstimate!.usagePercent!))
+    : null;
+
+  const usageSubtext = hasRealStorageMetrics
+    ? `${storageEstimate!.usageFormatted} ${t('dari')} ${storageEstimate!.quotaFormatted}`
+    : t('Tersimpan di browser perangkat ini');
 
   const renderSidebarContent = (isDrawer = false) => {
     const isCompact = !isDrawer && collapsed;
@@ -116,6 +149,7 @@ export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
 
             {isDrawer && onMobileClose ? (
               <button
+                ref={closeBtnRef}
                 type="button"
                 data-testid="workspace-drawer-close"
                 onClick={onMobileClose}
@@ -142,39 +176,25 @@ export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
             ) : null}
           </div>
 
-          {/* Primary Navigation */}
+          {/* Primary Navigation: Workspace as the sole primary navigation item */}
           <nav aria-label={t('Navigasi workspace')} className="px-2.5 space-y-1">
-            {navItems.map(item => {
-              const Icon = item.icon;
-              const isActive = activeSection === item.id;
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  data-nav-id={item.id}
-                  aria-current={isActive ? 'page' : undefined}
-                  onClick={() => handleSelect(item.id)}
-                  title={isCompact ? item.label : undefined}
-                  className={`w-full min-h-[44px] flex items-center ${
-                    isCompact ? 'justify-center px-2' : 'justify-start px-3.5 gap-3'
-                  } rounded-xl text-[13px] font-medium transition-colors focus-visible:outline-2 focus-visible:outline-[#CFE2F1] ${
-                    isActive
-                      ? 'bg-[#D7E6F5] text-[#172F49] font-semibold shadow-xs'
-                      : 'text-[#E3ECF5] hover:bg-[#213D5B] hover:text-white'
-                  }`}
-                >
-                  <Icon
-                    className={`size-4 shrink-0 ${isActive ? 'text-[#172F49]' : 'text-[#CFE2F1]'}`}
-                    aria-hidden="true"
-                  />
-                  {!isCompact && <span className="truncate">{item.label}</span>}
-                </button>
-              );
-            })}
+            <button
+              type="button"
+              data-nav-id="workspace"
+              aria-current={activeSection === 'workspace' ? 'page' : undefined}
+              onClick={handleSelectWorkspace}
+              title={isCompact ? t('Workspace') : undefined}
+              className={`w-full min-h-[44px] flex items-center ${
+                isCompact ? 'justify-center px-2' : 'justify-start px-3.5 gap-3'
+              } rounded-xl text-[13px] font-semibold bg-[#D7E6F5] text-[#172F49] shadow-xs transition-colors focus-visible:outline-2 focus-visible:outline-[#CFE2F1]`}
+            >
+              <Home className="size-4 shrink-0 text-[#172F49]" aria-hidden="true" />
+              {!isCompact && <span className="truncate">{t('Workspace')}</span>}
+            </button>
           </nav>
         </div>
 
-        {/* Bottom Utility: Account, Storage, Backup */}
+        {/* Bottom Utility: Account, Local Storage Status, Backup */}
         <div className="px-2.5 pb-4 pt-4 space-y-2 border-t border-[#264566]">
           <button
             type="button"
@@ -189,10 +209,11 @@ export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
             {!isCompact && <span className="truncate">{t('Account')}</span>}
           </button>
 
-          {/* Local Storage Status */}
+          {/* Local Storage Utility Card */}
           <button
             type="button"
-            onClick={() => handleSelect('storage')}
+            data-testid="sidebar-storage-status"
+            onClick={handleStorageClick}
             className={`w-full text-left rounded-xl p-3 bg-[#12263C] hover:bg-[#1D3652] border border-[#274666] transition-colors min-h-[44px] focus-visible:outline-2 focus-visible:outline-[#CFE2F1] ${
               isCompact ? 'flex items-center justify-center' : 'block'
             }`}
@@ -213,12 +234,14 @@ export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
                     </span>
                   </div>
                 </div>
-                <div className="w-full h-1.5 rounded-full bg-[#24415E] overflow-hidden">
-                  <div
-                    className="h-full rounded-full bg-[#5D9CE6]"
-                    style={{ width: `${usagePercent}%` }}
-                  />
-                </div>
+                {usagePercent !== null && (
+                  <div className="w-full h-1.5 rounded-full bg-[#24415E] overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-[#5D9CE6]"
+                      style={{ width: `${usagePercent}%` }}
+                    />
+                  </div>
+                )}
               </div>
             )}
           </button>
@@ -277,13 +300,13 @@ export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
 
   return (
     <>
-      {/* Desktop / Tablet Persistent Rail */}
+      {/* Desktop / Tablet Persistent Rail: 192px desktop, 72px collapsed */}
       <aside
         data-testid="workspace-sidebar"
         data-sidebar-collapsed={collapsed ? 'true' : 'false'}
         aria-label={t('Sidebar workspace')}
         className={`workspace-sidebar-rail hidden md:block shrink-0 bg-[#172F49] border-r border-[#12263C] transition-[width] duration-200 ${
-          collapsed ? 'w-[72px]' : 'w-[220px]'
+          collapsed ? 'w-[72px]' : 'w-[192px]'
         }`}
       >
         {renderSidebarContent(false)}
@@ -302,7 +325,7 @@ export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
             onClick={onMobileClose}
             aria-hidden="true"
           />
-          <div className="relative z-10 w-[264px] max-w-[82vw] h-full bg-[#172F49] shadow-xl">
+          <div className="relative z-10 w-[240px] max-w-[82vw] h-full bg-[#172F49] shadow-xl">
             {renderSidebarContent(true)}
           </div>
         </div>

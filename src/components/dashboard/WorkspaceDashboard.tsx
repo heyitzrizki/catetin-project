@@ -3,7 +3,6 @@ import {
   ArrowRight,
   AudioLines,
   CalendarDays,
-  Cpu,
   FileAudio,
   Folder,
   FolderPlus,
@@ -12,7 +11,6 @@ import {
   Mic,
   Plus,
   Search,
-  ShieldCheck,
   SlidersHorizontal,
   Tag,
   Upload,
@@ -194,15 +192,12 @@ export function WorkspaceDashboard({
     };
   }, [debouncedQuery]);
 
+  const [showStorageSection, setShowStorageSection] = useState(false);
+
   const handleSelectSidebarSection = (section: WorkspaceSectionId) => {
     setActiveSection(section);
-    if (section === 'projects') {
-      setLibraryViewMode('projects');
-    } else if (section === 'recordings') {
-      setLibraryViewMode('recordings');
-    } else if (section === 'folders-tags') {
-      setAdvancedFiltersOpen(true);
-    } else if (section === 'storage') {
+    if (section === 'storage') {
+      setShowStorageSection(true);
       requestAnimationFrame(() => {
         storageSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       });
@@ -319,6 +314,12 @@ export function WorkspaceDashboard({
         onMobileClose={() => setMobileDrawerOpen(false)}
         storageEstimate={storageEstimate}
         persistenceStatus={persistenceStatus}
+        onOpenStorage={() => {
+          setShowStorageSection(true);
+          requestAnimationFrame(() => {
+            storageSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          });
+        }}
         onExportWorkspace={() => onExportClick?.('workspace')}
         onImportBackup={() => onImportClick?.()}
       />
@@ -349,26 +350,28 @@ export function WorkspaceDashboard({
             </div>
           </div>
 
-          <div className="dashboard-actions flex items-center flex-wrap gap-2.5 shrink-0">
-            {onStartRecordingClick && (
+          {hasProjects && (
+            <div className="dashboard-actions flex items-center flex-wrap gap-2.5 shrink-0">
+              {onStartRecordingClick && (
+                <Button
+                  onClick={onStartRecordingClick}
+                  className="min-h-[44px] px-4 rounded-xl bg-[#172F49] hover:bg-[#1E3B5B] text-white font-semibold gap-2.5 shadow-xs"
+                >
+                  <Mic className="size-4 text-[#CFE2F1] shrink-0" aria-hidden="true" />
+                  <span>{t('Rekam pertemuan')}</span>
+                  <span className="sr-only">({t('Lokal di perangkat')})</span>
+                </Button>
+              )}
               <Button
-                onClick={onStartRecordingClick}
-                className="min-h-[44px] px-4 rounded-xl bg-[#172F49] hover:bg-[#1E3B5B] text-white font-semibold gap-2.5 shadow-xs"
+                variant="outline"
+                onClick={() => onOpenRecordingClick()}
+                className="min-h-[44px] px-4 rounded-xl bg-white hover:bg-[var(--accent)] border-[var(--border)] text-[#152B41] font-semibold gap-2"
               >
-                <Mic className="size-4 text-[#CFE2F1] shrink-0" aria-hidden="true" />
-                <span>{t('Rekam pertemuan')}</span>
-                <span className="sr-only">({t('Lokal di perangkat')})</span>
+                <Upload className="size-4 text-[#172F49] shrink-0" aria-hidden="true" />
+                <span>{t('Buka rekaman')}</span>
               </Button>
-            )}
-            <Button
-              variant="outline"
-              onClick={() => onOpenRecordingClick()}
-              className="min-h-[44px] px-4 rounded-xl bg-white hover:bg-[var(--accent)] border-[var(--border)] text-[#152B41] font-semibold gap-2"
-            >
-              <Upload className="size-4 text-[#172F49] shrink-0" aria-hidden="true" />
-              <span>{t('Buka rekaman')}</span>
-            </Button>
-          </div>
+            </div>
+          )}
         </header>
 
         {/* Recovery Banner for Unfinished Local Recording Sessions */}
@@ -722,80 +725,64 @@ export function WorkspaceDashboard({
             )}
           </section>
         ) : !hasProjects ? (
-          /* EMPTY STATE A: WORKSPACE BELUM ADA PROJECT (Honest Empty Workspace) */
-          <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_310px] gap-8 my-6 items-start">
+          /* EMPTY STATE A: WORKSPACE BELUM ADA PROJECT (Simple Honest Onboarding) */
+          <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_300px] xl:grid-cols-[minmax(0,1fr)_320px] gap-8 my-6 items-start">
             <section
-              aria-label={t('Belum ada project lokal')}
+              aria-label={t('Mulai workspace pertama Anda')}
               className="dashboard-empty-state bg-white border border-[var(--border)] rounded-2xl p-6 md:p-8 shadow-2xs"
             >
-              <div className="max-w-2xl">
+              <div className="max-w-xl">
                 <span className="eyebrow block text-xs tracking-wider uppercase text-[#172F49] font-semibold mb-2">
                   {t('STUDIO CATETIN')}
                 </span>
-                <h2 className="text-xl md:text-2xl font-bold text-[#152B41] tracking-tight">
-                  {t('Belum ada project lokal')}
+                <h2
+                  className="text-2xl sm:text-3xl font-normal text-[#152B41] tracking-tight leading-tight"
+                  style={{ fontFamily: 'var(--lp-serif)' }}
+                >
+                  {t('Mulai workspace pertama Anda')}
                 </h2>
-                <p className="text-sm text-[#526171] mt-2 leading-relaxed">
+                <p className="text-sm text-[#526171] mt-2.5 leading-relaxed">
                   {t(
                     'Semua rekaman dan naskah tersimpan sepenuhnya di perangkat ini tanpa akun atau koneksi server.'
                   )}
                 </p>
               </div>
 
-              <div className="onboarding-grid grid grid-cols-1 md:grid-cols-3 gap-4 my-6">
-                <article className="onboarding-card bg-[#F8FAFC] border border-[var(--border)] rounded-xl p-4">
-                  <div className="icon-wrap w-9 h-9 rounded-lg bg-[#E8F1F8] text-[#172F49] grid place-items-center mb-3">
-                    <ShieldCheck className="size-4" aria-hidden="true" />
-                  </div>
-                  <h3 className="font-semibold text-xs sm:text-sm text-[#152B41]">
-                    {t('Privasi penuh di perangkat')}
-                  </h3>
-                  <p className="text-xs text-[#526171] mt-1.5 leading-relaxed">
-                    {t(
-                      'Audio dan transkrip Anda diproses langsung di peramban dan tidak pernah diunggah ke server mana pun.'
-                    )}
-                  </p>
-                </article>
-
-                <article className="onboarding-card bg-[#F8FAFC] border border-[var(--border)] rounded-xl p-4">
-                  <div className="icon-wrap w-9 h-9 rounded-lg bg-[#E8F1F8] text-[#172F49] grid place-items-center mb-3">
-                    <Cpu className="size-4" aria-hidden="true" />
-                  </div>
-                  <h3 className="font-semibold text-xs sm:text-sm text-[#152B41]">
-                    {t('Transkripsi lokal Whisper')}
-                  </h3>
-                  <p className="text-xs text-[#526171] mt-1.5 leading-relaxed">
-                    {t(
-                      'Model dijalankan di perangkat Anda melalui WebGPU atau WebAssembly tanpa batas kuota cloud.'
-                    )}
-                  </p>
-                </article>
-
-                <article className="onboarding-card bg-[#F8FAFC] border border-[var(--border)] rounded-xl p-4">
-                  <div className="icon-wrap w-9 h-9 rounded-lg bg-[#E8F1F8] text-[#172F49] grid place-items-center mb-3">
-                    <HardDrive className="size-4" aria-hidden="true" />
-                  </div>
-                  <h3 className="font-semibold text-xs sm:text-sm text-[#152B41]">
-                    {t('Penyimpanan browser mandiri')}
-                  </h3>
-                  <p className="text-xs text-[#526171] mt-1.5 leading-relaxed">
-                    {t(
-                      'Draf naskah tersimpan di IndexedDB browser Anda dan dapat diekspor kapan saja sebagai TXT, SRT, atau Word.'
-                    )}
-                  </p>
-                </article>
-              </div>
-
-              <div className="empty-actions flex flex-wrap items-center gap-3 pt-1">
-                <Button onClick={onCreateProjectClick} className="min-h-[44px]">
-                  {t('Buat project pertama')}
+              {/* 4 Clear Starting Actions: Primary Rekam pertemuan, Secondary Buka rekaman, Tertiary Buat project, Link Coba contoh */}
+              <div className="empty-actions flex flex-wrap items-center gap-3 pt-6 mt-6 border-t border-[var(--border)]/70">
+                {onStartRecordingClick && (
+                  <Button
+                    onClick={onStartRecordingClick}
+                    className="min-h-[44px] px-4 rounded-xl bg-[#172F49] hover:bg-[#1E3B5B] text-white font-semibold gap-2.5 shadow-xs"
+                  >
+                    <Mic className="size-4 text-[#CFE2F1] shrink-0" aria-hidden="true" />
+                    <span>{t('Rekam pertemuan')}</span>
+                    <span className="sr-only">({t('Lokal di perangkat')})</span>
+                  </Button>
+                )}
+                <Button
+                  variant="outline"
+                  onClick={() => onOpenRecordingClick()}
+                  className="min-h-[44px] px-4 rounded-xl bg-white hover:bg-[var(--accent)] border-[var(--border)] text-[#152B41] font-semibold gap-2"
+                >
+                  <Upload className="size-4 text-[#172F49] shrink-0" aria-hidden="true" />
+                  <span>{t('Buka rekaman')}</span>
                 </Button>
-                <Button variant="outline" onClick={() => onOpenRecordingClick()} className="min-h-[44px]">
-                  {t('Buka rekaman')}
+                <Button
+                  variant="outline"
+                  onClick={onCreateProjectClick}
+                  className="min-h-[44px] px-4 rounded-xl bg-white hover:bg-[var(--accent)] border-[var(--border)] text-[#152B41] font-semibold gap-2"
+                >
+                  <FolderPlus className="size-4 text-[#172F49] shrink-0" aria-hidden="true" />
+                  <span>{t('Buat project')}</span>
                 </Button>
-                <Button variant="ghost" onClick={onTryDemo} className="min-h-[44px] gap-2">
-                  {t('Coba contoh')}
-                  <ArrowRight className="size-4" aria-hidden="true" />
+                <Button
+                  variant="ghost"
+                  onClick={onTryDemo}
+                  className="min-h-[44px] px-3 text-xs font-semibold text-[#172F49] hover:bg-[var(--accent)] gap-1.5"
+                >
+                  <span>{t('Coba contoh')}</span>
+                  <ArrowRight className="size-3.5" aria-hidden="true" />
                 </Button>
               </div>
             </section>
@@ -919,8 +906,8 @@ export function WorkspaceDashboard({
           </div>
         )}
 
-        {/* Detailed Storage & Backup Section (Shown when Storage nav item is selected) */}
-        {activeSection === 'storage' && (
+        {/* Detailed Storage & Backup Section (Shown when Storage utility is selected) */}
+        {(showStorageSection || activeSection === 'storage') && (
           <div ref={storageSectionRef} className="mt-8 pt-6 border-t border-[var(--border)]">
             <StorageSection
               onExportWorkspace={() => onExportClick?.('workspace')}

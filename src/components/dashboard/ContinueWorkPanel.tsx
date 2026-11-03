@@ -79,18 +79,22 @@ export const ContinueWorkPanel: React.FC<ContinueWorkPanelProps> = ({
                   {t('Transkrip lokal')} • {latestRecording.projectTitle}
                 </span>
                 <div className="flex items-center justify-between gap-2 mt-2.5 text-[11px] text-[var(--muted-foreground)]">
-                  <span>
-                    {hasTranscriptSegments ? t('Selesai') : t('Siap ditranskripsi')}
+                  <span className="inline-flex items-center gap-1.5 font-medium">
+                    {hasTranscriptSegments ? (
+                      <>
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block shrink-0" aria-hidden="true" />
+                        <span className="text-emerald-700 font-semibold">{t('Selesai')}</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="w-2 h-2 rounded-full bg-[#1D4E89] inline-block shrink-0" aria-hidden="true" />
+                        <span className="text-[#1D4E89] font-medium">{t('Siap ditranskripsi')}</span>
+                      </>
+                    )}
                   </span>
                   <span className="font-mono text-[#172F49] font-medium">
                     {formatDurationShort(latestRecording.durationSec)}
                   </span>
-                </div>
-                <div className="w-full h-1.5 rounded-full bg-[#E3ECF5] overflow-hidden mt-1.5">
-                  <div
-                    className="h-full rounded-full bg-[#172F49]"
-                    style={{ width: hasTranscriptSegments ? '100%' : '35%' }}
-                  />
                 </div>
               </div>
             </div>

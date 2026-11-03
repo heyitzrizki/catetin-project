@@ -199,25 +199,27 @@ test('Task 1: WorkspaceSidebar merender reversed brand lockup/mark, navigasi den
   assert.ok(lockupImg, 'Sidebar harus memuat catetin-lockup-reversed.svg');
   assert.ok(markImg, 'Sidebar harus memuat catetin-mark-reversed.svg untuk mode kompak/sempit');
 
-  // Active section check
+  // Active section check: Workspace as sole primary nav
   const workspaceNavBtn = sidebar.querySelector('button[data-nav-id="workspace"]') as HTMLButtonElement | null;
   assert.ok(workspaceNavBtn, 'Tombol navigasi Workspace harus ada');
   assert.equal(workspaceNavBtn.getAttribute('aria-current'), 'page');
   assert.ok(workspaceNavBtn.className.includes('min-h-[44px]'), 'Target sentuh navigasi minimal 44px');
 
-  // Click Projects nav item
-  const projectsNavBtn = sidebar.querySelector('button[data-nav-id="projects"]') as HTMLButtonElement | null;
-  assert.ok(projectsNavBtn, 'Tombol navigasi Projects harus ada');
-  await act(async () => {
-    projectsNavBtn.click();
-  });
-  assert.equal(selectedSection, 'projects');
+  // Must NOT contain removed duplicate nav items
+  assert.equal(sidebar.querySelector('button[data-nav-id="projects"]'), null, 'Nav Projects tidak boleh ada di sidebar');
+  assert.equal(sidebar.querySelector('button[data-nav-id="recordings"]'), null, 'Nav Rekaman tidak boleh ada di sidebar');
+  assert.equal(sidebar.querySelector('button[data-nav-id="folders-tags"]'), null, 'Nav Folder & tag tidak boleh ada di sidebar');
+  assert.equal(sidebar.querySelector('button[data-nav-id="storage"]'), null, 'Nav Penyimpanan tidak boleh menjadi menu terpisah di atas');
+
+  // Account button in utility footer
+  const accountBtn = sidebar.querySelector('button[data-nav-id="account"]') as HTMLButtonElement | null;
+  assert.ok(accountBtn, 'Tombol Account harus ada di bagian bawah utility sidebar');
 
   // Storage & backup footer summary in sidebar
   assert.ok(sidebar.textContent?.includes('Penyimpanan lokal'), 'Sidebar harus menampilkan status Penyimpanan lokal');
   assert.ok(sidebar.textContent?.includes('Backup siap'), 'Sidebar harus menampilkan status Backup siap');
 
-  // Mobile drawer close button
+  // Mobile drawer close button & Escape handling
   const closeDrawerBtn = win.document.querySelector('[data-testid="workspace-drawer-close"]') as HTMLButtonElement | null;
   assert.ok(closeDrawerBtn, 'Tombol tutup drawer mobile harus ada saat mobileOpen=true');
   await act(async () => {
@@ -396,17 +398,36 @@ test('Task 3: Empty workspace, filter kosong, pencarian, recoverable session, da
   });
   assert.equal(recoverCalled, true);
 
-  // Starting paths in empty workspace: Buat project pertama & Coba contoh
-  const createFirstBtn = Array.from(win.document.querySelectorAll('button')).find(b =>
-    b.textContent?.includes('Buat project pertama')
+  // Empty state title & absence of old 3 educational cards
+  assert.ok(win.document.body.textContent?.includes('Mulai workspace pertama Anda'), 'Harus menampilkan judul Mulai workspace pertama Anda');
+  assert.ok(!win.document.body.textContent?.includes('Privasi penuh di perangkat'), 'Kartu edukasi Privasi penuh harus dihapus');
+  assert.ok(!win.document.body.textContent?.includes('Transkripsi lokal Whisper'), 'Kartu edukasi Whisper harus dihapus');
+  assert.ok(!win.document.body.textContent?.includes('Penyimpanan browser mandiri'), 'Kartu edukasi Penyimpanan browser mandiri harus dihapus');
+
+  // Starting paths in empty workspace: 4 jalur mulai
+  const emptySection = win.document.querySelector('.dashboard-empty-state') as HTMLElement | null;
+  assert.ok(emptySection, 'Section empty state onboarding harus ada');
+
+  const emptyRecBtn = Array.from(emptySection.querySelectorAll('button')).find(b =>
+    b.textContent?.includes('Rekam pertemuan')
   );
-  assert.ok(createFirstBtn, 'Tombol Buat project pertama harus ada pada empty workspace');
+  assert.ok(emptyRecBtn, 'Empty state harus memiliki tombol Rekam pertemuan');
+
+  const emptyUploadBtn = Array.from(emptySection.querySelectorAll('button')).find(b =>
+    b.textContent?.includes('Buka rekaman')
+  );
+  assert.ok(emptyUploadBtn, 'Empty state harus memiliki tombol Buka rekaman');
+
+  const createProjBtn = Array.from(emptySection.querySelectorAll('button')).find(b =>
+    b.textContent?.includes('Buat project')
+  );
+  assert.ok(createProjBtn, 'Tombol Buat project harus ada pada empty workspace');
   await act(async () => {
-    createFirstBtn!.click();
+    createProjBtn!.click();
   });
   assert.equal(createProjCalled, true);
 
-  const demoBtn = Array.from(win.document.querySelectorAll('button')).find(b =>
+  const demoBtn = Array.from(emptySection.querySelectorAll('button')).find(b =>
     b.textContent?.includes('Coba contoh')
   );
   assert.ok(demoBtn, 'Tombol Coba contoh harus ada pada empty workspace');
@@ -579,11 +600,11 @@ test('Task 3b: View switch Project/Rekaman, filter folder/tag, menu aksi baris, 
   });
   assert.equal(exportedProject, 'proj-product');
 
-  // 6. Click Storage nav item in sidebar reveals StorageSection
-  const storageNavBtn = win.document.querySelector('button[data-nav-id="storage"]') as HTMLButtonElement | null;
-  assert.ok(storageNavBtn);
+  // 6. Click Storage utility card in sidebar reveals StorageSection
+  const storageUtilityBtn = win.document.querySelector('[data-testid="sidebar-storage-status"]') as HTMLButtonElement | null;
+  assert.ok(storageUtilityBtn, 'Tombol status penyimpanan di utility sidebar harus ada');
   await act(async () => {
-    storageNavBtn.click();
+    storageUtilityBtn.click();
   });
   await flushAsync();
   assert.ok(
