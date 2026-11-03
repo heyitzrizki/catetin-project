@@ -2135,6 +2135,56 @@ mark { color: var(--primary); background: #e5ecfa; padding: 1px 3px; border-radi
   animation: pageViewFadeIn var(--motion-duration-fast) var(--motion-ease-out-expressive);
 }
 
+/* Workspace Dashboard Shell overrides: full-bleed sidebar + scrollable main canvas */
+.studio-shell .workspace-main:has(.workspace-dashboard-shell) {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+}
+
+@media (min-width: 768px) {
+  .studio-shell:has(.workspace-dashboard-shell) .site-header .brand {
+    display: none;
+  }
+  .studio-shell:has(.workspace-dashboard-shell) .site-header .header-inner {
+    margin-left: 220px;
+    width: calc(100% - 220px);
+    max-width: none;
+    padding-inline: 28px;
+  }
+  .studio-shell:has(.workspace-dashboard-shell [data-sidebar-collapsed="true"]) .site-header .header-inner {
+    margin-left: 72px;
+    width: calc(100% - 72px);
+  }
+  .studio-shell:has(.workspace-dashboard-shell) .site-header .studio-nav {
+    margin-left: 0;
+  }
+  .workspace-dashboard-shell .workspace-sidebar-rail {
+    margin-top: -63px;
+    height: calc(100% + 63px);
+    position: relative;
+    z-index: 35;
+  }
+}
+
+@media (min-width: 1001px) {
+  .studio-shell .workspace-main:has(.workspace-dashboard-shell) {
+    overflow: visible;
+  }
+  .workspace-dashboard-shell {
+    flex: 1 1 auto;
+    min-height: 0;
+    height: 100%;
+    overflow: visible;
+  }
+  .workspace-dashboard-main {
+    height: 100%;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+}
+
 /* Interaction States */
 @media (hover: hover) and (prefers-reduced-motion: no-preference) {
   button[data-primary-cta="true"]:hover {
