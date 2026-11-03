@@ -1,11 +1,15 @@
 import React, { useEffect, useRef } from 'react';
 import {
+  AudioLines,
   Check,
+  Database,
   Download,
+  Folder,
   HardDrive,
   Home,
   PanelLeftClose,
   PanelLeftOpen,
+  Tags,
   UploadCloud,
   UserRound,
   X,
@@ -44,9 +48,22 @@ export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
   onImportBackup,
 }) => {
   const closeBtnRef = useRef<HTMLButtonElement>(null);
+  const drawerRef = useRef<HTMLDivElement>(null);
   const previousActiveElementRef = useRef<HTMLElement | null>(null);
 
-  // Focus management & Escape key handler for mobile drawer
+  const navItems: Array<{
+    id: WorkspaceSectionId;
+    label: string;
+    icon: React.ComponentType<{ className?: string; 'aria-hidden'?: boolean | 'true' | 'false' }>;
+  }> = [
+    { id: 'workspace', label: t('Workspace'), icon: Home },
+    { id: 'projects', label: t('Projects'), icon: Folder },
+    { id: 'recordings', label: t('Rekaman'), icon: AudioLines },
+    { id: 'folders-tags', label: t('Folder & tag'), icon: Tags },
+    { id: 'storage', label: t('Penyimpanan'), icon: Database },
+  ];
+
+  // Focus management, focus trap & Escape key handler for mobile drawer
   useEffect(() => {
     if (!mobileOpen) return;
 
@@ -61,6 +78,23 @@ export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
       if (e.key === 'Escape') {
         e.preventDefault();
         onMobileClose?.();
+        return;
+      }
+
+      if (e.key === 'Tab' && drawerRef.current) {
+        const focusable = drawerRef.current.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+        if (focusable.length === 0) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
       }
     };
 
@@ -74,8 +108,8 @@ export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
     };
   }, [mobileOpen, onMobileClose]);
 
-  const handleSelectWorkspace = () => {
-    onSelectSection?.('workspace');
+  const handleSelect = (id: WorkspaceSectionId) => {
+    onSelectSection?.(id);
     if (mobileOpen && onMobileClose) {
       onMobileClose();
     }
@@ -176,21 +210,35 @@ export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
             ) : null}
           </div>
 
-          {/* Primary Navigation: Workspace as the sole primary navigation item */}
+          {/* Primary Navigation: Workspace, Projects, Rekaman, Folder & tag, Penyimpanan */}
           <nav aria-label={t('Navigasi workspace')} className="px-2.5 space-y-1">
-            <button
-              type="button"
-              data-nav-id="workspace"
-              aria-current={activeSection === 'workspace' ? 'page' : undefined}
-              onClick={handleSelectWorkspace}
-              title={isCompact ? t('Workspace') : undefined}
-              className={`w-full min-h-[44px] flex items-center ${
-                isCompact ? 'justify-center px-2' : 'justify-start px-3.5 gap-3'
-              } rounded-xl text-[13px] font-semibold bg-[#D7E6F5] text-[#172F49] shadow-xs transition-colors focus-visible:outline-2 focus-visible:outline-[#CFE2F1]`}
-            >
-              <Home className="size-4 shrink-0 text-[#172F49]" aria-hidden="true" />
-              {!isCompact && <span className="truncate">{t('Workspace')}</span>}
-            </button>
+            {navItems.map(item => {
+              const Icon = item.icon;
+              const isActive = activeSection === item.id;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  data-nav-id={item.id}
+                  aria-current={isActive ? 'page' : undefined}
+                  onClick={() => handleSelect(item.id)}
+                  title={isCompact ? item.label : undefined}
+                  className={`w-full min-h-[44px] flex items-center ${
+                    isCompact ? 'justify-center px-2' : 'justify-start px-3.5 gap-3'
+                  } rounded-xl text-[13px] font-medium transition-colors focus-visible:outline-2 focus-visible:outline-[#CFE2F1] ${
+                    isActive
+                      ? 'bg-[#D7E6F5] text-[#172F49] font-semibold shadow-xs'
+                      : 'text-[#E3ECF5] hover:bg-[#213D5B] hover:text-white'
+                  }`}
+                >
+                  <Icon
+                    className={`size-4 shrink-0 ${isActive ? 'text-[#172F49]' : 'text-[#CFE2F1]'}`}
+                    aria-hidden="true"
+                  />
+                  {!isCompact && <span className="truncate">{item.label}</span>}
+                </button>
+              );
+            })}
           </nav>
         </div>
 
@@ -300,13 +348,13 @@ export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
 
   return (
     <>
-      {/* Desktop / Tablet Persistent Rail: 192px desktop, 72px collapsed */}
+      {/* Desktop / Tablet Persistent Rail: 200px desktop, 72px collapsed */}
       <aside
         data-testid="workspace-sidebar"
         data-sidebar-collapsed={collapsed ? 'true' : 'false'}
         aria-label={t('Sidebar workspace')}
         className={`workspace-sidebar-rail hidden md:block shrink-0 bg-[#172F49] border-r border-[#12263C] transition-[width] duration-200 ${
-          collapsed ? 'w-[72px]' : 'w-[192px]'
+          collapsed ? 'w-[72px]' : 'w-[200px]'
         }`}
       >
         {renderSidebarContent(false)}
@@ -325,7 +373,7 @@ export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
             onClick={onMobileClose}
             aria-hidden="true"
           />
-          <div className="relative z-10 w-[240px] max-w-[82vw] h-full bg-[#172F49] shadow-xl">
+          <div ref={drawerRef} className="relative z-10 w-[240px] max-w-[82vw] h-full bg-[#172F49] shadow-xl">
             {renderSidebarContent(true)}
           </div>
         </div>

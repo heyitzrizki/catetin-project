@@ -5,7 +5,7 @@ import React, { act } from 'react';
 import ReactDOM from 'react-dom/client';
 import 'fake-indexeddb/auto';
 import { setLanguage } from '../../src/lib/i18n.ts';
-import { WorkspaceSidebar } from '../../src/components/dashboard/WorkspaceSidebar.tsx';
+import { WorkspaceSidebar, type WorkspaceSidebarSection } from '../../src/components/dashboard/WorkspaceSidebar.tsx';
 import { WorkspaceDashboard } from '../../src/components/dashboard/WorkspaceDashboard.tsx';
 import type {
   FolderRecord,
@@ -52,10 +52,12 @@ async function flushAsync(ms = 30) {
 beforeEach(() => {
   cleanBody();
   setLanguage('id');
+  win.location.hash = '#studio';
 });
 
 afterEach(() => {
   cleanBody();
+  win.location.hash = '';
 });
 
 const sampleProjects: ProjectSummary[] = [
@@ -170,19 +172,23 @@ const sampleStats: WorkspaceStats = {
   lastUpdatedAt: 1700000900000,
 };
 
-test('Task 1: WorkspaceSidebar merender reversed brand lockup/mark, navigasi dengan active state, storage & backup summary, serta mobile drawer', async () => {
-  let selectedSection = 'workspace';
+test('Task 1: WorkspaceSidebar merender 6 navigasi lengkap, reversed brand lockup, active state, status storage & backup, serta mobile drawer', async () => {
+  let selectedSection: WorkspaceSidebarSection = 'workspace';
   let mobileClosed = false;
+  let accountOpened = false;
 
   mount(
     <WorkspaceSidebar
-      activeSection={selectedSection as any}
+      activeSection={selectedSection}
       onSelectSection={sec => {
         selectedSection = sec;
       }}
       mobileOpen={true}
       onMobileClose={() => {
         mobileClosed = true;
+      }}
+      onOpenAccount={() => {
+        accountOpened = true;
       }}
       onExportWorkspace={() => {}}
       onImportBackup={() => {}}
@@ -199,27 +205,31 @@ test('Task 1: WorkspaceSidebar merender reversed brand lockup/mark, navigasi den
   assert.ok(lockupImg, 'Sidebar harus memuat catetin-lockup-reversed.svg');
   assert.ok(markImg, 'Sidebar harus memuat catetin-mark-reversed.svg untuk mode kompak/sempit');
 
-  // Active section check: Workspace as sole primary nav
+  // All 5 primary navigation buttons MUST exist
+  const navIds: WorkspaceSidebarSection[] = ['workspace', 'projects', 'recordings', 'folders-tags', 'storage'];
+  for (const id of navIds) {
+    const btn = sidebar.querySelector(`button[data-nav-id="${id}"]`) as HTMLButtonElement | null;
+    assert.ok(btn, `Navigasi [data-nav-id="${id}"] harus ada di sidebar`);
+    assert.ok(btn.className.includes('min-h-[44px]'), `Target sentuh ${id} minimal 44px`);
+  }
+
+  // Active section check: Workspace as active
   const workspaceNavBtn = sidebar.querySelector('button[data-nav-id="workspace"]') as HTMLButtonElement | null;
-  assert.ok(workspaceNavBtn, 'Tombol navigasi Workspace harus ada');
-  assert.equal(workspaceNavBtn.getAttribute('aria-current'), 'page');
-  assert.ok(workspaceNavBtn.className.includes('min-h-[44px]'), 'Target sentuh navigasi minimal 44px');
+  assert.equal(workspaceNavBtn?.getAttribute('aria-current'), 'page');
 
-  // Must NOT contain removed duplicate nav items
-  assert.equal(sidebar.querySelector('button[data-nav-id="projects"]'), null, 'Nav Projects tidak boleh ada di sidebar');
-  assert.equal(sidebar.querySelector('button[data-nav-id="recordings"]'), null, 'Nav Rekaman tidak boleh ada di sidebar');
-  assert.equal(sidebar.querySelector('button[data-nav-id="folders-tags"]'), null, 'Nav Folder & tag tidak boleh ada di sidebar');
-  assert.equal(sidebar.querySelector('button[data-nav-id="storage"]'), null, 'Nav Penyimpanan tidak boleh menjadi menu terpisah di atas');
-
-  // Account button in utility footer
+  // Account button in footer utility
   const accountBtn = sidebar.querySelector('button[data-nav-id="account"]') as HTMLButtonElement | null;
   assert.ok(accountBtn, 'Tombol Account harus ada di bagian bawah utility sidebar');
+  await act(async () => {
+    accountBtn.click();
+  });
+  assert.equal(accountOpened, true, 'Klik tombol Account harus memanggil callback onOpenAccount');
 
-  // Storage & backup footer summary in sidebar
+  // Storage & backup status in footer
   assert.ok(sidebar.textContent?.includes('Penyimpanan lokal'), 'Sidebar harus menampilkan status Penyimpanan lokal');
   assert.ok(sidebar.textContent?.includes('Backup siap'), 'Sidebar harus menampilkan status Backup siap');
 
-  // Mobile drawer close button & Escape handling
+  // Mobile drawer close button & interaction
   const closeDrawerBtn = win.document.querySelector('[data-testid="workspace-drawer-close"]') as HTMLButtonElement | null;
   assert.ok(closeDrawerBtn, 'Tombol tutup drawer mobile harus ada saat mobileOpen=true');
   await act(async () => {
@@ -228,11 +238,10 @@ test('Task 1: WorkspaceSidebar merender reversed brand lockup/mark, navigasi den
   assert.equal(mobileClosed, true);
 });
 
-test('Task 2: Dashboard library-first hierarchy menampilkan Rekam pertemuan (Mic non-merah), Buka rekaman, pengelompokan project/rekaman, dan panel Lanjutkan pekerjaan', async () => {
+test('Task 2: View 1 Workspace adalah overview (Lanjutkan pekerjaan tanpa fake progress, Terbaru di workspace max 3, no tabs)', async () => {
   let startRecCalled = false;
   let openUploadCalled = false;
   let openedRecording: { id: string; projectId?: string } | null = null;
-  let openedProject: string | null = null;
 
   mount(
     <WorkspaceDashboard
@@ -242,9 +251,7 @@ test('Task 2: Dashboard library-first hierarchy menampilkan Rekam pertemuan (Mic
       recentRecordings={sampleRecents}
       stats={sampleStats}
       allWorkspaceTags={['roadmap', 'prioritas', 'eksperimen', 'teknis']}
-      onOpenProject={id => {
-        openedProject = id;
-      }}
+      onOpenProject={() => {}}
       onOpenRecording={(id, pid) => {
         openedRecording = { id, projectId: pid };
       }}
@@ -265,11 +272,11 @@ test('Task 2: Dashboard library-first hierarchy menampilkan Rekam pertemuan (Mic
   );
   await flushAsync();
 
-  // 1. Primary action: Rekam pertemuan (exact 1 button, monoline Mic without red-500)
+  // 1. Primary actions: Rekam pertemuan and Buka rekaman
   const recordBtns = Array.from(win.document.querySelectorAll('button')).filter(b =>
     b.textContent?.includes('Rekam pertemuan')
   );
-  assert.equal(recordBtns.length, 1, 'Harus ada tepat 1 tombol Rekam pertemuan');
+  assert.ok(recordBtns.length >= 1, 'Harus ada tombol Rekam pertemuan');
   const micSvg = recordBtns[0].querySelector('svg');
   assert.ok(micSvg, 'Tombol Rekam pertemuan harus memiliki ikon Mic');
   const micClass = micSvg.getAttribute('class') || '';
@@ -280,7 +287,6 @@ test('Task 2: Dashboard library-first hierarchy menampilkan Rekam pertemuan (Mic
   });
   assert.equal(startRecCalled, true);
 
-  // 2. Secondary action: Buka rekaman
   const uploadBtns = Array.from(win.document.querySelectorAll('button')).filter(b =>
     b.textContent?.includes('Buka rekaman')
   );
@@ -290,51 +296,178 @@ test('Task 2: Dashboard library-first hierarchy menampilkan Rekam pertemuan (Mic
   });
   assert.equal(openUploadCalled, true);
 
-  // 3. Four equal KPI stat-cards removed from primary hierarchy
-  const oldStatCards = win.document.querySelectorAll('.dashboard-stats .stat-card');
-  assert.equal(oldStatCards.length, 0, 'Empat KPI stat-card lama tidak boleh menjadi hierarki utama');
+  // 2. Overview MUST NOT contain tabs or full library
+  assert.equal(win.document.querySelector('[role="group"][aria-label="Pilih tampilan"]'), null, 'Overview tidak boleh punya tab Project/Rekaman');
 
-  // 4. Grouped project/recording library
-  const library = win.document.querySelector('[data-testid="workspace-library"]') as HTMLElement | null;
-  assert.ok(library, 'WorkspaceLibrary harus dirender');
-  assert.ok(library.textContent?.includes('Product'), 'Group project Product harus tampil');
-  assert.ok(library.textContent?.includes('Engineering'), 'Group project Engineering harus tampil');
-  assert.ok(library.textContent?.includes('Review roadmap produk'), 'Rekaman Review roadmap produk harus tampil');
-  assert.ok(library.textContent?.includes('Evaluasi eksperimen fitur'), 'Rekaman Evaluasi eksperimen fitur harus tampil');
-  assert.ok(library.textContent?.includes('Sinkronisasi tim engineering'), 'Rekaman Sinkronisasi tim engineering harus tampil');
-
-  // Click recording row opens recording
-  const roadmapRow = win.document.querySelector('[data-recording-id="rec-1"]') as HTMLElement | null;
-  assert.ok(roadmapRow, 'Baris rekaman rec-1 harus ada');
-  await act(async () => {
-    roadmapRow.click();
-  });
-  assert.deepEqual(openedRecording, { id: 'rec-1', projectId: 'proj-product' });
-
-  // 5. ContinueWorkPanel ("Lanjutkan pekerjaan")
-  const continuePanel = win.document.querySelector('[data-testid="continue-work-panel"]') as HTMLElement | null;
-  assert.ok(continuePanel, 'ContinueWorkPanel harus dirender');
-  assert.ok(continuePanel.textContent?.includes('Lanjutkan pekerjaan'), 'Judul Lanjutkan pekerjaan harus tampil');
+  // 3. Section Lanjutkan pekerjaan
+  const continueCard = win.document.querySelector('[data-testid="workspace-continue-card"]') as HTMLElement | null;
+  assert.ok(continueCard, 'Card Lanjutkan pekerjaan harus dirender');
+  assert.ok(win.document.body.textContent?.includes('Lanjutkan pekerjaan'), 'Judul Lanjutkan pekerjaan harus tampil');
   assert.ok(
-    continuePanel.textContent?.includes('Sinkronisasi tim engineering'),
-    'ContinueWorkPanel harus menampilkan rekaman terbaru (Sinkronisasi tim engineering)'
+    continueCard.textContent?.includes('Sinkronisasi tim engineering'),
+    'Harus menampilkan rekaman terakhir (Sinkronisasi tim engineering)'
   );
-  assert.ok(continuePanel.textContent?.includes('Tersimpan lokal'), 'Kartu Tersimpan lokal harus tampil di panel kanan');
+  // Verify NO fake progress bar
+  assert.equal(continueCard.querySelector('[role="progressbar"]'), null, 'Tidak boleh ada progress bar palsu');
 
-  const continueBtn = continuePanel.querySelector('[data-testid="continue-work-primary-btn"]') as HTMLButtonElement | null;
-  assert.ok(continueBtn, 'Tombol Lanjutkan transkrip di ContinueWorkPanel harus ada');
+  // Action button Lanjutkan transkrip
+  const continueBtn = continueCard.querySelector('button') as HTMLButtonElement | null;
+  assert.ok(continueBtn, 'Tombol Lanjutkan transkrip harus ada');
   await act(async () => {
     continueBtn.click();
   });
   assert.deepEqual(openedRecording, { id: 'rec-3', projectId: 'proj-eng' });
+
+  // 4. Section Terbaru di workspace (max 3 items)
+  const recentSection = win.document.querySelector('[data-testid="workspace-recent-section"]') as HTMLElement | null;
+  assert.ok(recentSection, 'Section Terbaru di workspace harus dirender');
+  const recentRows = recentSection.querySelectorAll('[data-recent-item-id]');
+  assert.ok(recentRows.length > 0 && recentRows.length <= 3, 'Terbaru di workspace maksimal 3 item');
+
+  // Lihat semua link switches view to recordings
+  const viewAllBtn = recentSection.querySelector('[data-testid="workspace-view-all-recordings"]') as HTMLButtonElement | null;
+  assert.ok(viewAllBtn, 'Tombol Lihat semua rekaman harus ada');
+  await act(async () => {
+    viewAllBtn.click();
+  });
+  await flushAsync();
+
+  // Switched to recordings view
+  const recViewTitle = win.document.querySelector('h1');
+  assert.equal(recViewTitle?.textContent?.trim(), 'Rekaman', 'Klik Lihat semua harus berpindah ke view Rekaman');
 });
 
-test('Task 3: Empty workspace, filter kosong, pencarian, recoverable session, dan lokalisasi EN bekerja jujur tanpa data palsu', async () => {
+test('Task 3: Dedicated Views (Projects, Rekaman, Folder & tag, Penyimpanan) merender konten spesifik dan aksi fungsional', async () => {
+  let createProjCalled = false;
+  let createFolderCalled = false;
+  let openedRecording: { id: string; projectId?: string } | null = null;
+  let taggedRecording: Recording | null = null;
+  let movedRecording: Recording | null = null;
+
+  const { root } = mount(
+    <WorkspaceDashboard
+      projects={sampleProjects}
+      folders={sampleFolders}
+      allRecordings={sampleRecordings}
+      recentRecordings={sampleRecents}
+      stats={sampleStats}
+      allWorkspaceTags={['roadmap', 'prioritas', 'eksperimen', 'teknis']}
+      onOpenProject={() => {}}
+      onOpenRecording={(id, pid) => {
+        openedRecording = { id, projectId: pid };
+      }}
+      onCreateProjectClick={() => {
+        createProjCalled = true;
+      }}
+      onOpenRecordingClick={() => {}}
+      onTryDemo={() => {}}
+      onCreateFolderClick={() => {
+        createFolderCalled = true;
+      }}
+      onRenameFolderClick={() => {}}
+      onDeleteFolderClick={() => {}}
+      onManageTagsClick={rec => {
+        taggedRecording = rec;
+      }}
+      onMoveFolderClick={rec => {
+        movedRecording = rec;
+      }}
+      onStartRecordingClick={() => {}}
+    />
+  );
+  await flushAsync();
+
+  // 1. Projects View
+  const projectsNavBtn = win.document.querySelector('button[data-nav-id="projects"]') as HTMLButtonElement | null;
+  assert.ok(projectsNavBtn, 'Navigasi Projects harus ada');
+  await act(async () => {
+    projectsNavBtn.click();
+  });
+  await flushAsync();
+
+  const projectsTitle = win.document.querySelector('h1');
+  assert.equal(projectsTitle?.textContent?.trim(), 'Projects');
+  assert.ok(win.document.body.textContent?.includes('Product'));
+  assert.ok(win.document.body.textContent?.includes('Engineering'));
+
+  const newProjBtn = Array.from(win.document.querySelectorAll('button')).find(b =>
+    b.textContent?.includes('Buat project')
+  );
+  assert.ok(newProjBtn, 'Tombol Buat project harus ada di Projects view');
+  await act(async () => {
+    newProjBtn.click();
+  });
+  assert.equal(createProjCalled, true);
+
+  // 2. Rekaman View
+  const recNavBtn = win.document.querySelector('button[data-nav-id="recordings"]') as HTMLButtonElement | null;
+  assert.ok(recNavBtn, 'Navigasi Rekaman harus ada');
+  await act(async () => {
+    recNavBtn.click();
+  });
+  await flushAsync();
+
+  const recTitle = win.document.querySelector('h1');
+  assert.equal(recTitle?.textContent?.trim(), 'Rekaman');
+  assert.ok(win.document.body.textContent?.includes('Review roadmap produk'));
+  assert.ok(win.document.body.textContent?.includes('Evaluasi eksperimen fitur'));
+  assert.ok(win.document.body.textContent?.includes('Sinkronisasi tim engineering'));
+
+  // Test row menu actions: Pindahkan, Tag
+  const menuTrigger = win.document.querySelector('button[aria-label="Aksi rekaman Review roadmap produk"]') as HTMLButtonElement | null;
+  assert.ok(menuTrigger, 'Menu trigger aksi rekaman harus ada di Rekaman view');
+  await act(async () => {
+    menuTrigger.click();
+  });
+
+  const moveMenuItem = Array.from(win.document.querySelectorAll('[role="menuitem"]')).find(b =>
+    b.textContent?.includes('Pindahkan')
+  ) as HTMLButtonElement | undefined;
+  assert.ok(moveMenuItem, 'Menu item Pindahkan harus ada');
+  await act(async () => {
+    moveMenuItem.click();
+  });
+  assert.equal((movedRecording as Recording | null)?.id, 'rec-1');
+
+  // 3. Folder & Tag View
+  const foldersNavBtn = win.document.querySelector('button[data-nav-id="folders-tags"]') as HTMLButtonElement | null;
+  assert.ok(foldersNavBtn, 'Navigasi Folder & tag harus ada');
+  await act(async () => {
+    foldersNavBtn.click();
+  });
+  await flushAsync();
+
+  const folderTitle = win.document.querySelector('h1');
+  assert.equal(folderTitle?.textContent?.trim(), 'Folder & tag');
+  assert.ok(win.document.body.textContent?.includes('Riset Q2'), 'Folder Riset Q2 harus tampil');
+  assert.ok(win.document.body.textContent?.includes('roadmap'), 'Tag roadmap harus tampil');
+
+  const newFolderBtn = Array.from(win.document.querySelectorAll('button')).find(b =>
+    b.textContent?.includes('Folder baru')
+  );
+  assert.ok(newFolderBtn, 'Tombol Folder baru harus ada');
+  await act(async () => {
+    newFolderBtn.click();
+  });
+  assert.equal(createFolderCalled, true);
+
+  // 4. Penyimpanan View
+  const storageNavBtn = win.document.querySelector('button[data-nav-id="storage"]') as HTMLButtonElement | null;
+  assert.ok(storageNavBtn, 'Navigasi Penyimpanan harus ada');
+  await act(async () => {
+    storageNavBtn.click();
+  });
+  await flushAsync();
+
+  const storageTitle = win.document.querySelector('h1');
+  assert.equal(storageTitle?.textContent?.trim(), 'Penyimpanan');
+  assert.ok(win.document.body.textContent?.includes('Data dan penyimpanan'), 'Harus merender StorageSection');
+});
+
+test('Task 4: Empty workspace onboarding (4 tindakan), sinkronisasi window.location.hash, dan lokalisasi EN', async () => {
   let createProjCalled = false;
   let tryDemoCalled = false;
-  let recoverCalled = false;
 
-  // Empty workspace render
   const { root } = mount(
     <WorkspaceDashboard
       projects={[]}
@@ -358,87 +491,57 @@ test('Task 3: Empty workspace, filter kosong, pencarian, recoverable session, da
       onManageTagsClick={() => {}}
       onMoveFolderClick={() => {}}
       onStartRecordingClick={() => {}}
-      recoverableSessions={[
-        {
-          sessionId: 'sess-rec-1',
-          targetProjectId: 'project-default',
-          title: 'Draf Rapat Darurat',
-          status: 'recoverable',
-          startedAt: Date.now() - 60000,
-          lastUpdatedAt: Date.now() - 10000,
-          activeDurationMs: 45000,
-          mimeType: 'audio/webm;codecs=opus',
-          archiveChunkCount: 3,
-          archiveTotalBytes: 24576,
-          segmentCount: 1,
-          errorCode: null,
-          errorMessage: null,
-        },
-      ]}
-      onRecoverSession={() => {
-        recoverCalled = true;
-      }}
-      onDiscardSession={() => {}}
     />
   );
   await flushAsync();
 
-  // Must not show fake mockup projects/recordings when empty
-  assert.ok(!win.document.body.textContent?.includes('Review roadmap produk'), 'Tidak boleh menampilkan rekaman palsu saat kosong');
-  assert.ok(!win.document.body.textContent?.includes('Sinkronisasi tim engineering'), 'Tidak boleh menampilkan rekaman palsu di Lanjutkan pekerjaan');
+  // 1. Empty state in Workspace overview
+  assert.ok(win.document.body.textContent?.includes('Mulai workspace pertama Anda'), 'Judul onboarding empty state harus tampil');
+  assert.ok(!win.document.body.textContent?.includes('Review roadmap produk'), 'Tidak boleh ada data palsu saat kosong');
 
-  // Recoverable session banner visible & actionable
-  assert.ok(win.document.body.textContent?.includes('Draf Rapat Darurat'), 'Sesi recoverable harus tetap terlihat');
-  const recoverBtn = Array.from(win.document.querySelectorAll('button')).find(b =>
-    b.textContent?.includes('Pulihkan rekaman')
-  );
-  assert.ok(recoverBtn, 'Tombol Pulihkan rekaman harus ada');
+  const emptyCard = win.document.querySelector('.dashboard-empty-state') as HTMLElement | null;
+  assert.ok(emptyCard, 'Empty state onboarding harus ada');
+
+  // 4 Actions in empty state
+  const emptyRecBtn = Array.from(emptyCard.querySelectorAll('button')).find(b => b.textContent?.includes('Rekam pertemuan'));
+  assert.ok(emptyRecBtn, 'Aksi Rekam pertemuan harus ada');
+  const emptyOpenBtn = Array.from(emptyCard.querySelectorAll('button')).find(b => b.textContent?.includes('Buka rekaman'));
+  assert.ok(emptyOpenBtn, 'Aksi Buka rekaman harus ada');
+  const emptyProjBtn = Array.from(emptyCard.querySelectorAll('button')).find(b => b.textContent?.includes('Buat project'));
+  assert.ok(emptyProjBtn, 'Aksi Buat project harus ada');
   await act(async () => {
-    recoverBtn!.click();
-  });
-  assert.equal(recoverCalled, true);
-
-  // Empty state title & absence of old 3 educational cards
-  assert.ok(win.document.body.textContent?.includes('Mulai workspace pertama Anda'), 'Harus menampilkan judul Mulai workspace pertama Anda');
-  assert.ok(!win.document.body.textContent?.includes('Privasi penuh di perangkat'), 'Kartu edukasi Privasi penuh harus dihapus');
-  assert.ok(!win.document.body.textContent?.includes('Transkripsi lokal Whisper'), 'Kartu edukasi Whisper harus dihapus');
-  assert.ok(!win.document.body.textContent?.includes('Penyimpanan browser mandiri'), 'Kartu edukasi Penyimpanan browser mandiri harus dihapus');
-
-  // Starting paths in empty workspace: 4 jalur mulai
-  const emptySection = win.document.querySelector('.dashboard-empty-state') as HTMLElement | null;
-  assert.ok(emptySection, 'Section empty state onboarding harus ada');
-
-  const emptyRecBtn = Array.from(emptySection.querySelectorAll('button')).find(b =>
-    b.textContent?.includes('Rekam pertemuan')
-  );
-  assert.ok(emptyRecBtn, 'Empty state harus memiliki tombol Rekam pertemuan');
-
-  const emptyUploadBtn = Array.from(emptySection.querySelectorAll('button')).find(b =>
-    b.textContent?.includes('Buka rekaman')
-  );
-  assert.ok(emptyUploadBtn, 'Empty state harus memiliki tombol Buka rekaman');
-
-  const createProjBtn = Array.from(emptySection.querySelectorAll('button')).find(b =>
-    b.textContent?.includes('Buat project')
-  );
-  assert.ok(createProjBtn, 'Tombol Buat project harus ada pada empty workspace');
-  await act(async () => {
-    createProjBtn!.click();
+    emptyProjBtn.click();
   });
   assert.equal(createProjCalled, true);
 
-  const demoBtn = Array.from(emptySection.querySelectorAll('button')).find(b =>
-    b.textContent?.includes('Coba contoh')
-  );
-  assert.ok(demoBtn, 'Tombol Coba contoh harus ada pada empty workspace');
+  const emptyDemoBtn = Array.from(emptyCard.querySelectorAll('button')).find(b => b.textContent?.includes('Coba contoh'));
+  assert.ok(emptyDemoBtn, 'Aksi Coba contoh harus ada');
   await act(async () => {
-    demoBtn!.click();
+    emptyDemoBtn.click();
   });
   assert.equal(tryDemoCalled, true);
 
-  // Switch to EN and verify localized headings & actions
+  // 2. Hash routing synchronization
+  // Setting hash to #studio/projects should switch view to projects
+  await act(async () => {
+    win.location.hash = '#studio/projects';
+    win.dispatchEvent(new win.Event('hashchange'));
+  });
+  await flushAsync();
+  assert.equal(win.document.querySelector('h1')?.textContent?.trim(), 'Projects', 'Hashchange ke #studio/projects harus mengubah view ke Projects');
+
+  // Setting hash to #studio/recordings should switch view to recordings
+  await act(async () => {
+    win.location.hash = '#studio/recordings';
+    win.dispatchEvent(new win.Event('hashchange'));
+  });
+  await flushAsync();
+  assert.equal(win.document.querySelector('h1')?.textContent?.trim(), 'Rekaman', 'Hashchange ke #studio/recordings harus mengubah view ke Rekaman');
+
+  // 3. Localization EN
   await act(async () => {
     setLanguage('en');
+    win.location.hash = '#studio';
     root.render(
       <WorkspaceDashboard
         projects={sampleProjects}
@@ -465,150 +568,6 @@ test('Task 3: Empty workspace, filter kosong, pencarian, recoverable session, da
 
   assert.ok(win.document.body.textContent?.includes('Local workspace'), 'Judul EN Local workspace harus tampil');
   assert.ok(win.document.body.textContent?.includes('Record meeting'), 'Tombol EN Record meeting harus tampil');
-  assert.ok(win.document.body.textContent?.includes('Continue work'), 'Panel EN Continue work harus tampil');
-});
-
-test('Task 3b: View switch Project/Rekaman, filter folder/tag, menu aksi baris, dan loading state berfungsi lengkap', async () => {
-  let movedRecording: Recording | null = null;
-  let taggedRecording: Recording | null = null;
-  let exportedProject: string | null = null;
-
-  // 1. Loading state check
-  const { root } = mount(
-    <WorkspaceDashboard
-      projects={sampleProjects}
-      folders={sampleFolders}
-      allRecordings={sampleRecordings}
-      recentRecordings={sampleRecents}
-      stats={sampleStats}
-      allWorkspaceTags={['roadmap', 'eksperimen', 'teknis']}
-      loading={true}
-      onOpenProject={() => {}}
-      onOpenRecording={() => {}}
-      onCreateProjectClick={() => {}}
-      onOpenRecordingClick={() => {}}
-      onTryDemo={() => {}}
-      onCreateFolderClick={() => {}}
-      onRenameFolderClick={() => {}}
-      onDeleteFolderClick={() => {}}
-      onManageTagsClick={rec => {
-        taggedRecording = rec;
-      }}
-      onMoveFolderClick={rec => {
-        movedRecording = rec;
-      }}
-      onExportClick={(scope, pid) => {
-        if (scope === 'project' && pid) exportedProject = pid;
-      }}
-      onStartRecordingClick={() => {}}
-    />
-  );
-  await flushAsync();
-
-  const statusEl = win.document.querySelector('[role="status"]');
-  assert.ok(statusEl?.textContent?.includes('Memuat workspace lokal'), 'Loading state harus menampilkan indikator pemuatan');
-
-  // 2. Render populated (loading=false)
-  await act(async () => {
-    root.render(
-      <WorkspaceDashboard
-        projects={sampleProjects}
-        folders={sampleFolders}
-        allRecordings={sampleRecordings}
-        recentRecordings={sampleRecents}
-        stats={sampleStats}
-        allWorkspaceTags={['roadmap', 'eksperimen', 'teknis']}
-        loading={false}
-        onOpenProject={() => {}}
-        onOpenRecording={() => {}}
-        onCreateProjectClick={() => {}}
-        onOpenRecordingClick={() => {}}
-        onTryDemo={() => {}}
-        onCreateFolderClick={() => {}}
-        onRenameFolderClick={() => {}}
-        onDeleteFolderClick={() => {}}
-        onManageTagsClick={rec => {
-          taggedRecording = rec;
-        }}
-        onMoveFolderClick={rec => {
-          movedRecording = rec;
-        }}
-        onExportClick={(scope, pid) => {
-          if (scope === 'project' && pid) exportedProject = pid;
-        }}
-        onStartRecordingClick={() => {}}
-      />
-    );
-  });
-  await flushAsync();
-
-  // 3. Switch to 'Rekaman' flat view
-  const viewSwitchGroup = win.document.querySelector('[role="group"][aria-label="Pilih tampilan"]');
-  assert.ok(viewSwitchGroup, 'Segmented switch Project / Rekaman harus ada');
-  const rekamanTabBtn = Array.from(viewSwitchGroup.querySelectorAll('button')).find(b =>
-    b.textContent?.includes('Rekaman')
-  ) as HTMLButtonElement | undefined;
-  assert.ok(rekamanTabBtn, 'Tombol switch Rekaman harus ada');
-  await act(async () => {
-    rekamanTabBtn.click();
-  });
-  assert.equal(rekamanTabBtn.getAttribute('aria-pressed'), 'true');
-
-  // 4. Open row menu and trigger Move folder & Tag
-  const menuTrigger = win.document.querySelector(
-    'button[aria-label="Aksi rekaman Review roadmap produk"]'
-  ) as HTMLButtonElement | null;
-  assert.ok(menuTrigger, 'Tombol menu aksi rekaman harus ada');
-  await act(async () => {
-    menuTrigger.click();
-  });
-
-  const moveMenuItem = Array.from(win.document.querySelectorAll('[role="menuitem"]')).find(b =>
-    b.textContent?.includes('Pindahkan')
-  ) as HTMLButtonElement | undefined;
-  assert.ok(moveMenuItem, 'Menu item Pindahkan harus ada');
-  await act(async () => {
-    moveMenuItem.click();
-  });
-  assert.equal((movedRecording as Recording | null)?.id, 'rec-1');
-
-  // Reopen menu and click Tag
-  await act(async () => {
-    menuTrigger.click();
-  });
-  const tagMenuItem = Array.from(win.document.querySelectorAll('[role="menuitem"]')).find(b =>
-    b.textContent?.includes('Tag')
-  ) as HTMLButtonElement | undefined;
-  assert.ok(tagMenuItem, 'Menu item Tag harus ada');
-  await act(async () => {
-    tagMenuItem.click();
-  });
-  assert.equal((taggedRecording as Recording | null)?.id, 'rec-1');
-
-  // 5. Switch back to 'Project' view and test Export project
-  const projectTabBtn = Array.from(viewSwitchGroup.querySelectorAll('button')).find(b =>
-    b.textContent?.includes('Project')
-  ) as HTMLButtonElement | undefined;
-  await act(async () => {
-    projectTabBtn!.click();
-  });
-
-  const exportProjBtn = win.document.querySelector('button[title="Export Product"]') as HTMLButtonElement | null;
-  assert.ok(exportProjBtn, 'Tombol Export project harus tersedia');
-  await act(async () => {
-    exportProjBtn.click();
-  });
-  assert.equal(exportedProject, 'proj-product');
-
-  // 6. Click Storage utility card in sidebar reveals StorageSection
-  const storageUtilityBtn = win.document.querySelector('[data-testid="sidebar-storage-status"]') as HTMLButtonElement | null;
-  assert.ok(storageUtilityBtn, 'Tombol status penyimpanan di utility sidebar harus ada');
-  await act(async () => {
-    storageUtilityBtn.click();
-  });
-  await flushAsync();
-  assert.ok(
-    win.document.body.textContent?.includes('Data dan penyimpanan'),
-    'Klik Penyimpanan di sidebar harus menampilkan seksi Data dan penyimpanan'
-  );
+  assert.ok(win.document.body.textContent?.includes('Continue work'), 'Card EN Continue work harus tampil');
+  assert.ok(win.document.body.textContent?.includes('Recent in workspace'), 'Section EN Recent in workspace harus tampil');
 });

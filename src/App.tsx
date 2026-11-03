@@ -61,7 +61,7 @@ export default function App() {
   const session = useAccountSession();
   const [page, setPage] = useState<'landing' | 'studio' | 'account' | 'pricing'>(() => {
     if (location.hash === '#account') return 'account';
-    if (location.hash === '#studio') return 'studio';
+    if (location.hash === '#studio' || location.hash.startsWith('#studio/')) return 'studio';
     if (location.hash === '#pricing') return 'pricing';
     return 'landing';
   });
@@ -235,7 +235,7 @@ export default function App() {
     const syncPage = () => {
       if (location.hash === '#account') {
         setPage('account');
-      } else if (location.hash === '#studio') {
+      } else if (location.hash === '#studio' || location.hash.startsWith('#studio/')) {
         setPage('studio');
       } else if (location.hash === '#pricing') {
         setPage('pricing');

@@ -437,5 +437,69 @@
   "Import": { "id": "Import", "en": "Import" },
   "Hari ini": { "id": "Hari ini", "en": "Today" },
   "Kemarin": { "id": "Kemarin", "en": "Yesterday" },
-  "Memuat workspace lokal...": { "id": "Memuat workspace lokal...", "en": "Loading local workspace..." }
+  "Memuat workspace lokal...": { "id": "Memuat workspace lokal...", "en": "Loading local workspace..." },
+  "Kelola pekerjaan transkrip Anda secara lokal di perangkat ini.": {
+    "id": "Kelola pekerjaan transkrip Anda secara lokal di perangkat ini.",
+    "en": "Manage your transcript work locally on this device."
+  },
+  "Lanjutkan dari pekerjaan terakhir yang belum selesai.": {
+    "id": "Lanjutkan dari pekerjaan terakhir yang belum selesai.",
+    "en": "Pick up from your latest unfinished work."
+  },
+  "Transkrip belum selesai": {
+    "id": "Transkrip belum selesai",
+    "en": "Transcript unfinished"
+  },
+  "Terbaru di workspace": {
+    "id": "Terbaru di workspace",
+    "en": "Recent in workspace"
+  },
+  "pekerjaan terakhir di workspace Anda.": {
+    "id": "pekerjaan terakhir di workspace Anda.",
+    "en": "recent items in your workspace."
+  },
+  "Lihat semua": {
+    "id": "Lihat semua",
+    "en": "View all"
+  },
+  "Transkrip": {
+    "id": "Transkrip",
+    "en": "Transcript"
+  },
+  "Kelola seluruh project lokal Anda.": {
+    "id": "Kelola seluruh project lokal Anda.",
+    "en": "Manage all your local projects."
+  },
+  "Semua rekaman dan naskah percakapan di workspace lokal Anda.": {
+    "id": "Semua rekaman dan naskah percakapan di workspace lokal Anda.",
+    "en": "All recordings and conversation transcripts in your local workspace."
+  },
+  "Atur struktur dan pengelompokan rekaman dengan folder per project dan tag.": {
+    "id": "Atur struktur dan pengelompokan rekaman dengan folder per project dan tag.",
+    "en": "Organize recordings with per-project folders and tags."
+  },
+  "Kelola penyimpanan peramban lokal dan buat cadangan data workspace Anda.": {
+    "id": "Kelola penyimpanan peramban lokal dan buat cadangan data workspace Anda.",
+    "en": "Manage local browser storage and back up your workspace data."
+  },
+  "Folder per project": {
+    "id": "Folder per project",
+    "en": "Folders per project"
+  },
+  "Tag workspace": {
+    "id": "Tag workspace",
+    "en": "Workspace tags"
+  },
+  "Belum ada folder di project ini.": {
+    "id": "Belum ada folder di project ini.",
+    "en": "No folders in this project yet."
+  },
+  "Belum ada tag yang dibuat.": {
+    "id": "Belum ada tag yang dibuat.",
+    "en": "No tags created yet."
+  },
+  "Belum ada rekaman di workspace.": {
+    "id": "Belum ada rekaman di workspace.",
+    "en": "No recordings in the workspace yet."
+  }
 }
