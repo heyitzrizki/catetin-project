@@ -550,9 +550,13 @@
     "id": "Kelola rekaman dan folder dalam ruang kerja terstruktur di perangkat ini.",
     "en": "Manage recordings and folders in structured local workspaces on this device."
   },
-  "Catatan penting: Penyimpanan peramban mandiri. Rekaman dapat terhapus jika riwayat situs dibersihkan secara manual. Gunakan tombol Export untuk membuat cadangan rutin.": {
-    "id": "Catatan penting: Penyimpanan peramban mandiri. Rekaman dapat terhapus jika riwayat situs dibersihkan secara manual. Gunakan tombol Export untuk membuat cadangan rutin.",
-    "en": "Important note: Browser storage is self-contained. Recordings can be deleted if site history is cleared manually. Use the Export button for regular backups."
+  "Catatan penting:": {
+    "id": "Catatan penting:",
+    "en": "Important:"
+  },
+  "Rekaman dapat terhapus jika data situs atau riwayat browser dibersihkan. Ekspor workspace secara rutin untuk menyimpan cadangan di komputer Anda.": {
+    "id": "Rekaman dapat terhapus jika data situs atau riwayat browser dibersihkan. Ekspor workspace secara rutin untuk menyimpan cadangan di komputer Anda.",
+    "en": "Recordings may be deleted if site data or browser history is cleared. Export your workspace regularly to keep a backup on your computer."
   },
   "Buat project pertama": {
     "id": "Buat project pertama",

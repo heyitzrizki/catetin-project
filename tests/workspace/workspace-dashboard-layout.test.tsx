@@ -475,6 +475,42 @@ test('Task 3: Dedicated Views (Projects, Rekaman, Folder & tag, Penyimpanan) mer
       win.document.body.textContent?.includes('Tidak didukung'),
     'StorageSection harus menampilkan status badge perlindungan penyimpanan'
   );
+
+  // Verifikasi container fluid shared pada seluruh dedicated views
+  const fluidContainer = win.document.querySelector('.workspace-content-container') as HTMLElement | null;
+  assert.ok(fluidContainer, 'Semua view harus berada di dalam shared fluid container .workspace-content-container');
+  assert.ok(
+    fluidContainer.className.includes('w-full') &&
+      fluidContainer.className.includes('max-w-[1600px]') &&
+      fluidContainer.className.includes('mx-auto'),
+    'Container fluid harus menggunakan w-full max-w-[1600px] mx-auto untuk desktop dan ultrawide'
+  );
+  assert.ok(
+    fluidContainer.querySelector('.workspace-storage-view'),
+    'Penyimpanan view harus dirender di dalam .workspace-content-container'
+  );
+
+  // Verifikasi perbaikan copy Catatan penting: tidak ada duplikasi dan teks jujur bebas bahasa kaku
+  assert.equal(
+    win.document.body.textContent?.includes('Catatan penting: Catatan penting:'),
+    false,
+    'Tidak boleh ada pengulangan label Catatan penting: Catatan penting:'
+  );
+  assert.ok(
+    win.document.body.textContent?.includes('Catatan penting:'),
+    'Label Catatan penting: harus ada'
+  );
+  assert.ok(
+    win.document.body.textContent?.includes(
+      'Rekaman dapat terhapus jika data situs atau riwayat browser dibersihkan. Ekspor workspace secara rutin untuk menyimpan cadangan di komputer Anda.'
+    ),
+    'Copy Indonesia catatan penting harus sesuai teks final yang ditentukan'
+  );
+  assert.equal(
+    win.document.body.textContent?.includes('penyimpanan peramban mandiri'),
+    false,
+    'Tidak boleh menggunakan bahasa teknis kaku seperti penyimpanan peramban mandiri'
+  );
 });
 
 test('Task 4: Empty workspace onboarding (4 tindakan), sinkronisasi window.location.hash, dan lokalisasi EN', async () => {
@@ -658,5 +694,32 @@ test('Task 4: Empty workspace onboarding (4 tindakan), sinkronisasi window.locat
   assert.ok(
     win.document.body.textContent?.includes("Recordings and transcripts stay in this device's browser, not in your Catetin account or the cloud."),
     'Deskripsi EN Workspace empty state harus sesuai terjemahan yang ditentukan'
+  );
+
+  // Verify EN Storage Note callout
+  await act(async () => {
+    win.location.hash = '#studio/storage';
+    win.dispatchEvent(new win.Event('hashchange'));
+  });
+  await flushAsync();
+  assert.equal(
+    win.document.body.textContent?.includes('Important: Important:'),
+    false,
+    'Tidak boleh ada pengulangan label Important: Important: pada EN'
+  );
+  assert.equal(
+    win.document.body.textContent?.includes('Catatan penting:'),
+    false,
+    'Teks ID Catatan penting: tidak boleh bocor ke mode EN'
+  );
+  assert.ok(
+    win.document.body.textContent?.includes('Important:'),
+    'Label EN Important: harus tampil'
+  );
+  assert.ok(
+    win.document.body.textContent?.includes(
+      'Recordings may be deleted if site data or browser history is cleared. Export your workspace regularly to keep a backup on your computer.'
+    ),
+    'Copy EN catatan penting harus sesuai teks final yang ditentukan'
   );
 });

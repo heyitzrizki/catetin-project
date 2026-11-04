@@ -194,8 +194,8 @@ export const StorageSection: React.FC<StorageSectionProps> = ({
 
       {/* Summary Note callout */}
       <div className="bg-[#FFFBEB] border border-[#FDE68A] rounded-xl p-4 text-xs sm:text-sm text-[#92400E] leading-relaxed">
-        <strong className="font-semibold text-[#78350F]">{t('Catatan penting')}:</strong>{' '}
-        {t('Catatan penting: Penyimpanan peramban mandiri. Rekaman dapat terhapus jika riwayat situs dibersihkan secara manual. Gunakan tombol Export untuk membuat cadangan rutin.')}
+        <strong className="font-semibold text-[#78350F]">{t('Catatan penting:')}</strong>{' '}
+        {t('Rekaman dapat terhapus jika data situs atau riwayat browser dibersihkan. Ekspor workspace secara rutin untuk menyimpan cadangan di komputer Anda.')}
       </div>
     </section>
   );

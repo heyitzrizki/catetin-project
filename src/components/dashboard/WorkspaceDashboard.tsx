@@ -374,9 +374,10 @@ export function WorkspaceDashboard({
         onImportBackup={() => onImportClick?.()}
       />
 
-      {/* Main Workspace Canvas with Unified Alignment & Spacing */}
-      <div className="workspace-dashboard-main flex-1 min-w-0 px-4 sm:px-8 lg:px-12 py-6 md:py-10 max-w-[1360px]">
-        {/* Mobile Navigation Header Trigger */}
+      {/* Main Workspace Canvas with Fluid Layout & Ultrawide Centering */}
+      <main className="workspace-dashboard-main flex-1 min-w-0 w-full px-4 sm:px-8 lg:px-12 py-6 md:py-10">
+        <div className="workspace-content-container w-full max-w-[1600px] mx-auto">
+          {/* Mobile Navigation Header Trigger */}
         <div className="md:hidden flex items-center justify-between pb-4 border-b border-[var(--border)] mb-6">
           <button
             type="button"
@@ -1327,7 +1328,8 @@ export function WorkspaceDashboard({
             )}
           </>
         )}
-      </div>
+        </div>
+      </main>
     </div>
   );
 }
