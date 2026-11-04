@@ -374,8 +374,8 @@ export function WorkspaceDashboard({
         onImportBackup={() => onImportClick?.()}
       />
 
-      {/* Main Workspace Canvas */}
-      <div className="workspace-dashboard-main flex-1 min-w-0 px-4 sm:px-6 lg:px-10 py-6 md:py-8 max-w-[1440px]">
+      {/* Main Workspace Canvas with Unified Alignment & Spacing */}
+      <div className="workspace-dashboard-main flex-1 min-w-0 px-4 sm:px-8 lg:px-12 py-6 md:py-10 max-w-[1360px]">
         {/* Mobile Navigation Header Trigger */}
         <div className="md:hidden flex items-center justify-between pb-4 border-b border-[var(--border)] mb-6">
           <button
@@ -395,24 +395,26 @@ export function WorkspaceDashboard({
         {debouncedQuery ? (
           <section aria-label={t('Hasil pencarian')} className="my-4">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-base font-bold text-[#152B41]">
+              <h2 className="text-lg font-bold text-[#152B41]">
                 {t('Hasil pencarian untuk')} "{debouncedQuery}" ({searchResults.length})
               </h2>
-              <Button variant="ghost" size="sm" onClick={() => setSearchQuery('')}>
+              <Button variant="ghost" size="sm" onClick={() => setSearchQuery('')} className="min-h-[44px]">
                 {t('Hapus semua filter')}
               </Button>
             </div>
 
             {searchResults.length === 0 ? (
-              <div className="bg-white border border-[var(--border)] rounded-xl p-8 text-center max-w-lg mx-auto shadow-2xs my-6">
-                <Search className="size-10 mx-auto text-[#526171] mb-3" aria-hidden="true" />
-                <h3 className="font-semibold text-base text-[#152B41]">
+              <div className="w-full bg-white border border-[var(--border)] rounded-2xl p-8 sm:p-12 text-center shadow-2xs my-6 flex flex-col items-center">
+                <div className="w-14 h-14 rounded-2xl bg-[#E8F1F8] text-[#172F49] flex items-center justify-center mb-4 shrink-0 shadow-2xs">
+                  <Search className="size-7 text-[#526171]" aria-hidden="true" />
+                </div>
+                <h3 className="font-bold text-lg text-[#152B41]">
                   {t('Tidak ada rekaman yang cocok')}
                 </h3>
-                <p className="text-sm text-[#526171] mt-2 mb-4 leading-relaxed">
+                <p className="text-sm sm:text-base text-[#526171] mt-2 mb-6 max-w-md leading-relaxed">
                   {t('Tidak ada hasil yang sesuai dengan kata kunci atau filter saat ini.')}
                 </p>
-                <Button onClick={clearAllFilters} className="min-h-[44px]">
+                <Button onClick={clearAllFilters} className="min-h-[44px] px-5 rounded-xl font-semibold">
                   {t('Hapus semua filter')}
                 </Button>
               </div>
@@ -423,22 +425,22 @@ export function WorkspaceDashboard({
                     key={result.recordingId}
                     type="button"
                     onClick={() => onOpenRecording(result.recordingId, result.projectId)}
-                    className="search-result-card text-left bg-white hover:bg-[var(--accent)] border border-[var(--border)] rounded-xl p-4 transition-colors group flex flex-col gap-2 min-h-[64px]"
+                    className="search-result-card text-left bg-white hover:bg-[var(--accent)] border border-[var(--border)] rounded-2xl p-4 sm:p-5 transition-colors group flex flex-col gap-2 min-h-[64px] shadow-2xs"
                   >
                     <div className="flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <FileAudio className="size-4 text-[#172F49] shrink-0" aria-hidden="true" />
-                        <strong className="text-sm font-semibold text-[#152B41] truncate group-hover:text-[var(--primary)]">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <FileAudio className="size-5 text-[#172F49] shrink-0" aria-hidden="true" />
+                        <strong className="text-sm sm:text-base font-semibold text-[#152B41] truncate group-hover:text-[var(--primary)]">
                           {result.recordingTitle}
                         </strong>
                       </div>
-                      <span className="text-xs text-[#526171] shrink-0">
+                      <span className="text-xs sm:text-sm text-[#526171] shrink-0">
                         {formatDurationHuman(result.durationSec, language)}
                       </span>
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2 text-xs text-[#526171]">
-                      <span>{result.projectTitle}</span>
+                      <span className="font-medium text-[#152B41]">{result.projectTitle}</span>
                       {result.folderName && (
                         <span className="inline-flex items-center gap-1 bg-[#EEF2F6] px-2 py-0.5 rounded text-[11px]">
                           <Folder className="size-3" aria-hidden="true" />
@@ -448,7 +450,7 @@ export function WorkspaceDashboard({
                       {result.tags.map(tag => (
                         <span
                           key={tag}
-                          className="bg-[#E8F1F8] text-[#172F49] px-2 py-0.5 rounded-full text-[10px] font-medium"
+                          className="bg-[#E8F1F8] text-[#172F49] px-2 py-0.5 rounded-full text-[11px] font-medium"
                         >
                           #{tag}
                         </span>
@@ -460,7 +462,7 @@ export function WorkspaceDashboard({
             )}
           </section>
         ) : loading ? (
-          <div className="text-center py-16 text-sm text-[var(--muted-foreground)]">
+          <div className="text-center py-20 text-base text-[var(--muted-foreground)]">
             {t('Memuat workspace lokal...')}
           </div>
         ) : (
@@ -475,22 +477,22 @@ export function WorkspaceDashboard({
                 <header className="dashboard-header flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2">
                   <div>
                     <h1
-                      className="text-2xl sm:text-3xl md:text-[34px] font-normal tracking-tight text-[#152B41] leading-tight"
+                      className="text-2xl sm:text-3xl lg:text-[36px] font-normal tracking-tight text-[#152B41] leading-tight"
                       style={{ fontFamily: 'var(--lp-serif)' }}
                     >
                       {t('Workspace lokal')}
                     </h1>
-                    <p className="text-xs sm:text-sm text-[#526171] mt-1 leading-relaxed">
+                    <p className="text-sm sm:text-base text-[#526171] mt-1.5 leading-relaxed">
                       {t('Kelola pekerjaan transkrip Anda secara lokal di perangkat ini.')}
                     </p>
                   </div>
 
                   {!isWorkspaceCompletelyEmpty && (
-                    <div className="dashboard-actions flex items-center flex-wrap gap-2.5 shrink-0">
+                    <div className="dashboard-actions flex items-center flex-wrap gap-3 shrink-0">
                       {onStartRecordingClick && (
                         <Button
                           onClick={onStartRecordingClick}
-                          className="min-h-[44px] px-4 rounded-xl bg-[#172F49] hover:bg-[#1E3B5B] text-white font-semibold gap-2.5 shadow-xs"
+                          className="min-h-[44px] px-5 rounded-xl bg-[#172F49] hover:bg-[#1E3B5B] text-white text-sm font-semibold gap-2.5 shadow-xs"
                         >
                           <Mic className="size-4 text-[#CFE2F1] shrink-0" aria-hidden="true" />
                           <span>{t('Rekam pertemuan')}</span>
@@ -500,7 +502,7 @@ export function WorkspaceDashboard({
                       <Button
                         variant="outline"
                         onClick={() => onOpenRecordingClick()}
-                        className="min-h-[44px] px-4 rounded-xl bg-white hover:bg-[var(--accent)] border-[var(--border)] text-[#152B41] font-semibold gap-2 shadow-2xs"
+                        className="min-h-[44px] px-4 rounded-xl bg-white hover:bg-[var(--accent)] border-[var(--border)] text-[#152B41] text-sm font-semibold gap-2 shadow-2xs"
                       >
                         <Upload className="size-4 text-[#172F49] shrink-0" aria-hidden="true" />
                         <span>{t('Buka rekaman')}</span>
@@ -520,23 +522,23 @@ export function WorkspaceDashboard({
                 )}
 
                 {isWorkspaceCompletelyEmpty ? (
-                  /* EMPTY WORKSPACE ONBOARDING */
+                  /* EMPTY WORKSPACE ONBOARDING: Horizontal Balanced Card */
                   <section
                     aria-label={t('Mulai workspace pertama Anda')}
-                    className="dashboard-empty-state bg-white border border-[var(--border)] rounded-2xl p-6 sm:p-8 shadow-2xs max-w-2xl"
+                    className="dashboard-empty-state w-full bg-white border border-[var(--border)] rounded-2xl p-6 sm:p-10 shadow-2xs"
                   >
                     <span className="eyebrow block text-xs tracking-wider uppercase text-[#172F49] font-semibold mb-2">
                       {t('STUDIO CATETIN')}
                     </span>
                     <h2
-                      className="text-2xl sm:text-3xl font-normal text-[#152B41] tracking-tight leading-tight"
+                      className="text-2xl sm:text-3xl lg:text-[32px] font-normal text-[#152B41] tracking-tight leading-tight"
                       style={{ fontFamily: 'var(--lp-serif)' }}
                     >
                       {t('Mulai workspace pertama Anda')}
                     </h2>
-                    <p className="text-sm text-[#526171] mt-2.5 leading-relaxed">
+                    <p className="text-sm sm:text-base text-[#526171] mt-2 max-w-2xl leading-relaxed">
                       {t(
-                        'Semua rekaman dan naskah tersimpan sepenuhnya di perangkat ini tanpa akun atau koneksi server.'
+                        'Rekaman dan naskah tetap tersimpan di browser perangkat ini, bukan di akun Catetin atau cloud.'
                       )}
                     </p>
 
@@ -544,7 +546,7 @@ export function WorkspaceDashboard({
                       {onStartRecordingClick && (
                         <Button
                           onClick={onStartRecordingClick}
-                          className="min-h-[44px] px-4 rounded-xl bg-[#172F49] hover:bg-[#1E3B5B] text-white font-semibold gap-2.5 shadow-xs"
+                          className="min-h-[44px] px-5 rounded-xl bg-[#172F49] hover:bg-[#1E3B5B] text-white text-sm font-semibold gap-2.5 shadow-xs"
                         >
                           <Mic className="size-4 text-[#CFE2F1] shrink-0" aria-hidden="true" />
                           <span>{t('Rekam pertemuan')}</span>
@@ -554,7 +556,7 @@ export function WorkspaceDashboard({
                       <Button
                         variant="outline"
                         onClick={() => onOpenRecordingClick()}
-                        className="min-h-[44px] px-4 rounded-xl bg-white hover:bg-[var(--accent)] border-[var(--border)] text-[#152B41] font-semibold gap-2"
+                        className="min-h-[44px] px-4 rounded-xl bg-white hover:bg-[var(--accent)] border-[var(--border)] text-[#152B41] text-sm font-semibold gap-2 shadow-2xs"
                       >
                         <Upload className="size-4 text-[#172F49] shrink-0" aria-hidden="true" />
                         <span>{t('Buka rekaman')}</span>
@@ -562,7 +564,7 @@ export function WorkspaceDashboard({
                       <Button
                         variant="outline"
                         onClick={onCreateProjectClick}
-                        className="min-h-[44px] px-4 rounded-xl bg-white hover:bg-[var(--accent)] border-[var(--border)] text-[#152B41] font-semibold gap-2"
+                        className="min-h-[44px] px-4 rounded-xl bg-white hover:bg-[var(--accent)] border-[var(--border)] text-[#152B41] text-sm font-semibold gap-2 shadow-2xs"
                       >
                         <FolderPlus className="size-4 text-[#172F49] shrink-0" aria-hidden="true" />
                         <span>{t('Buat project')}</span>
@@ -570,10 +572,10 @@ export function WorkspaceDashboard({
                       <Button
                         variant="ghost"
                         onClick={onTryDemo}
-                        className="min-h-[44px] px-3 text-xs font-semibold text-[#172F49] hover:bg-[var(--accent)] gap-1.5"
+                        className="min-h-[44px] px-3.5 text-sm font-semibold text-[#172F49] hover:bg-[var(--accent)] gap-1.5"
                       >
                         <span>{t('Coba contoh')}</span>
-                        <ArrowRight className="size-3.5" aria-hidden="true" />
+                        <ArrowRight className="size-4" aria-hidden="true" />
                       </Button>
                     </div>
                   </section>
@@ -594,16 +596,19 @@ export function WorkspaceDashboard({
                       </div>
 
                       {latestRecording ? (
-                        <div className="bg-white border border-[var(--border)] rounded-2xl p-4 sm:p-5 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                          <div className="flex items-center gap-3.5 min-w-0">
-                            <div className="w-11 h-11 rounded-xl bg-[#E8F1F8] text-[#172F49] grid place-items-center shrink-0">
-                              <AudioLines className="size-5" aria-hidden="true" />
+                        <div
+                          data-testid="workspace-continue-card"
+                          className="bg-white border border-[var(--border)] rounded-2xl p-5 sm:p-6 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                        >
+                          <div className="flex items-center gap-4 min-w-0">
+                            <div className="w-12 h-12 rounded-xl bg-[#E8F1F8] text-[#172F49] grid place-items-center shrink-0">
+                              <AudioLines className="size-6" aria-hidden="true" />
                             </div>
                             <div className="min-w-0">
-                              <strong className="block text-sm sm:text-base font-semibold text-[#152B41] truncate">
+                              <strong className="block text-base sm:text-lg font-semibold text-[#152B41] truncate">
                                 {latestRecording.title}
                               </strong>
-                              <span className="block text-xs text-[#526171] truncate mt-0.5">
+                              <span className="block text-xs sm:text-sm text-[#526171] truncate mt-1">
                                 {t('Transkrip')} • {formatItemDate(latestRecording.updatedAt, language)} • {formatDurationHuman(latestRecording.durationSec, language)}
                               </span>
                             </div>
@@ -622,21 +627,24 @@ export function WorkspaceDashboard({
                             <Button
                               variant="outline"
                               onClick={() => onOpenRecording(latestRecording.id, latestRecording.projectId)}
-                              className="min-h-[40px] px-3.5 rounded-xl border-[var(--border)] text-xs font-semibold text-[#152B41] hover:bg-[var(--accent)] gap-1.5 shadow-2xs"
+                              className="min-h-[44px] px-4 rounded-xl border-[var(--border)] text-sm font-semibold text-[#152B41] hover:bg-[var(--accent)] gap-1.5 shadow-2xs"
                             >
                               <span>{t('Lanjutkan transkrip')}</span>
-                              <ChevronRight className="size-3.5" aria-hidden="true" />
+                              <ChevronRight className="size-4" aria-hidden="true" />
                             </Button>
                           </div>
                         </div>
                       ) : (
-                        <div className="rounded-xl border border-dashed border-[var(--border)] bg-white p-6 text-center">
-                          <p className="text-xs text-[#526171]">{t('Belum ada transkrip terakhir')}</p>
+                        <div
+                          data-testid="workspace-continue-card"
+                          className="rounded-2xl border border-dashed border-[var(--border)] bg-white p-6 text-center"
+                        >
+                          <p className="text-sm text-[#526171]">{t('Belum ada transkrip terakhir')}</p>
                           <Button
                             variant="outline"
                             size="sm"
                             onClick={() => onOpenRecordingClick()}
-                            className="mt-3 text-xs"
+                            className="mt-3 text-xs min-h-[44px]"
                           >
                             {t('Buka rekaman')}
                           </Button>
@@ -645,7 +653,11 @@ export function WorkspaceDashboard({
                     </section>
 
                     {/* SECTION 2: Terbaru di workspace (Max 3 items) */}
-                    <section aria-label={t('Terbaru di workspace')} className="space-y-3 pt-2">
+                    <section
+                      aria-label={t('Terbaru di workspace')}
+                      data-testid="workspace-recent-section"
+                      className="space-y-3 pt-2"
+                    >
                       <div className="flex items-center justify-between gap-3">
                         <div>
                           <h2
@@ -660,11 +672,12 @@ export function WorkspaceDashboard({
                         </div>
                         <button
                           type="button"
+                          data-testid="workspace-view-all-recordings"
                           onClick={() => handleSelectSidebarSection('recordings')}
-                          className="inline-flex items-center gap-1 text-xs font-semibold text-[#172F49] hover:underline min-h-[44px] px-2"
+                          className="inline-flex items-center gap-1 text-sm font-semibold text-[#172F49] hover:underline min-h-[44px] px-2"
                         >
                           <span>{t('Lihat semua')}</span>
-                          <ArrowRight className="size-3.5" aria-hidden="true" />
+                          <ArrowRight className="size-4" aria-hidden="true" />
                         </button>
                       </div>
 
@@ -675,7 +688,8 @@ export function WorkspaceDashboard({
                           return (
                             <div
                               key={`${item.type}-${item.id}`}
-                              className="group flex items-center justify-between gap-3 p-3.5 sm:p-4 hover:bg-[#F8FAFC] transition-colors"
+                              data-recent-item-id={`${item.type}-${item.id}`}
+                              className="group flex items-center justify-between gap-3 p-4 sm:p-5 hover:bg-[#F8FAFC] transition-colors"
                             >
                               <button
                                 type="button"
@@ -686,9 +700,9 @@ export function WorkspaceDashboard({
                                     onOpenProject(item.id);
                                   }
                                 }}
-                                className="flex items-center gap-3.5 min-w-0 text-left min-h-[44px] flex-1 focus-visible:outline-2 focus-visible:outline-[var(--primary)] rounded-lg"
+                                className="flex items-center gap-4 min-w-0 text-left min-h-[44px] flex-1 focus-visible:outline-2 focus-visible:outline-[var(--primary)] rounded-lg"
                               >
-                                <div className="w-10 h-10 rounded-xl bg-[#E8F1F8] text-[#172F49] grid place-items-center shrink-0">
+                                <div className="w-11 h-11 rounded-xl bg-[#E8F1F8] text-[#172F49] grid place-items-center shrink-0">
                                   {isRec ? (
                                     <AudioLines className="size-5" aria-hidden="true" />
                                   ) : (
@@ -696,10 +710,10 @@ export function WorkspaceDashboard({
                                   )}
                                 </div>
                                 <div className="min-w-0 flex-1">
-                                  <strong className="block text-sm font-semibold text-[#152B41] truncate group-hover:text-[var(--primary)]">
+                                  <strong className="block text-sm sm:text-base font-semibold text-[#152B41] truncate group-hover:text-[var(--primary)]">
                                     {item.title}
                                   </strong>
-                                  <span className="block text-xs text-[#526171] truncate mt-0.5">
+                                  <span className="block text-xs sm:text-sm text-[#526171] truncate mt-1">
                                     {isRec
                                       ? `${t('Transkrip')} • ${formatItemDate(item.timestamp, language)} • ${formatDurationHuman(item.durationSec, language)}`
                                       : `${t('Project')} • ${formatItemDate(item.timestamp, language)} • ${item.recordingCount} ${t('rekaman')}`}
@@ -726,7 +740,7 @@ export function WorkspaceDashboard({
                                 {isMenuOpen && (
                                   <div
                                     role="menu"
-                                    className="absolute right-0 top-11 z-20 w-40 rounded-xl bg-white border border-[var(--border)] shadow-lg p-1.5 space-y-0.5"
+                                    className="absolute right-0 top-12 z-20 w-44 rounded-xl bg-white border border-[var(--border)] shadow-lg p-1.5 space-y-1"
                                   >
                                     <button
                                       type="button"
@@ -739,7 +753,7 @@ export function WorkspaceDashboard({
                                           onOpenProject(item.id);
                                         }
                                       }}
-                                      className="w-full min-h-[38px] px-3 py-1.5 rounded-lg text-left text-xs font-medium text-[#152B41] hover:bg-[var(--accent)] flex items-center gap-2"
+                                      className="w-full min-h-[40px] px-3 py-2 rounded-lg text-left text-xs sm:text-sm font-medium text-[#152B41] hover:bg-[var(--accent)] flex items-center gap-2"
                                     >
                                       <span>{t('Buka')}</span>
                                     </button>
@@ -751,7 +765,7 @@ export function WorkspaceDashboard({
                                           setOpenMenuId(null);
                                           onExportClick('project', item.id);
                                         }}
-                                        className="w-full min-h-[38px] px-3 py-1.5 rounded-lg text-left text-xs font-medium text-[#152B41] hover:bg-[var(--accent)] flex items-center gap-2"
+                                        className="w-full min-h-[40px] px-3 py-2 rounded-lg text-left text-xs sm:text-sm font-medium text-[#152B41] hover:bg-[var(--accent)] flex items-center gap-2"
                                       >
                                         <span>{t('Export')}</span>
                                       </button>
@@ -777,18 +791,18 @@ export function WorkspaceDashboard({
                 <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-[var(--border)]">
                   <div>
                     <h1
-                      className="text-2xl sm:text-3xl font-normal tracking-tight text-[#152B41]"
+                      className="text-2xl sm:text-3xl lg:text-[36px] font-normal tracking-tight text-[#152B41] leading-tight"
                       style={{ fontFamily: 'var(--lp-serif)' }}
                     >
                       {t('Projects')}
                     </h1>
-                    <p className="text-xs sm:text-sm text-[#526171] mt-1">
+                    <p className="text-sm sm:text-base text-[#526171] mt-1.5 leading-relaxed">
                       {t('Kelola seluruh project lokal Anda.')}
                     </p>
                   </div>
                   <Button
                     onClick={onCreateProjectClick}
-                    className="min-h-[44px] px-4 rounded-xl bg-[#172F49] hover:bg-[#1E3B5B] text-white font-semibold gap-2 shadow-xs shrink-0 self-start sm:self-auto"
+                    className="min-h-[44px] px-5 rounded-xl bg-[#172F49] hover:bg-[#1E3B5B] text-white text-sm font-semibold gap-2 shadow-xs shrink-0 self-start sm:self-auto"
                   >
                     <FolderPlus className="size-4 text-[#CFE2F1]" aria-hidden="true" />
                     <span>{t('Buat project')}</span>
@@ -803,64 +817,80 @@ export function WorkspaceDashboard({
                     value={projectSearchQuery}
                     onChange={e => setProjectSearchQuery(e.target.value)}
                     placeholder={t('Cari project...')}
-                    className="w-full min-h-[44px] pl-10 pr-4 rounded-xl border border-[var(--border)] bg-white text-xs text-[#152B41] placeholder:text-[#526171] shadow-2xs"
+                    className="w-full min-h-[44px] pl-10 pr-4 rounded-xl border border-[var(--border)] bg-white text-sm text-[#152B41] placeholder:text-[#526171] shadow-2xs"
                   />
                 </div>
 
                 {filteredProjects.length === 0 ? (
-                  <div className="bg-white border border-[var(--border)] rounded-2xl p-8 text-center max-w-lg mx-auto shadow-2xs my-6">
-                    <Folder className="size-10 mx-auto text-[#526171] mb-3" aria-hidden="true" />
-                    <h3 className="font-semibold text-base text-[#152B41]">
+                  <div className="w-full bg-white border border-[var(--border)] rounded-2xl p-8 sm:p-12 text-center shadow-2xs my-4 flex flex-col items-center">
+                    <div className="w-14 h-14 rounded-2xl bg-[#E8F1F8] text-[#172F49] flex items-center justify-center mb-4 shrink-0 shadow-2xs">
+                      <Folder className="size-7" aria-hidden="true" />
+                    </div>
+                    <h3 className="font-bold text-lg sm:text-xl text-[#152B41]">
                       {t('Belum ada project lokal')}
                     </h3>
-                    <p className="text-sm text-[#526171] mt-1.5 mb-5 leading-relaxed">
+                    <p className="text-sm sm:text-base text-[#526171] mt-2 mb-6 max-w-md leading-relaxed">
                       {t('Mulai dengan membuat project baru atau mencoba contoh naskah.')}
                     </p>
-                    <Button onClick={onCreateProjectClick} className="min-h-[44px]">
-                      {t('Buat project pertama')}
-                    </Button>
+                    <div className="flex flex-wrap items-center justify-center gap-3">
+                      <Button
+                        onClick={onCreateProjectClick}
+                        className="min-h-[44px] px-5 rounded-xl bg-[#172F49] hover:bg-[#1E3B5B] text-white text-sm font-semibold gap-2 shadow-xs"
+                      >
+                        <FolderPlus className="size-4 text-[#CFE2F1]" aria-hidden="true" />
+                        <span>{t('Buat project pertama')}</span>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        onClick={onTryDemo}
+                        className="min-h-[44px] px-4 text-sm font-semibold text-[#172F49] hover:bg-[var(--accent)] gap-1.5"
+                      >
+                        <span>{t('Coba contoh')}</span>
+                        <ArrowRight className="size-4" aria-hidden="true" />
+                      </Button>
+                    </div>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                     {filteredProjects.map(proj => (
                       <div
                         key={proj.id}
-                        className="bg-white border border-[var(--border)] rounded-2xl p-5 shadow-2xs hover:shadow-sm transition-shadow flex flex-col justify-between gap-4 group"
+                        className="bg-white border border-[var(--border)] rounded-2xl p-5 sm:p-6 shadow-2xs hover:shadow-sm transition-shadow flex flex-col justify-between gap-5 group"
                       >
                         <div>
-                          <div className="w-10 h-10 rounded-xl bg-[#E8F1F8] text-[#172F49] grid place-items-center mb-3">
-                            <Folder className="size-5" aria-hidden="true" />
+                          <div className="w-12 h-12 rounded-xl bg-[#E8F1F8] text-[#172F49] grid place-items-center mb-3.5">
+                            <Folder className="size-6" aria-hidden="true" />
                           </div>
-                          <h3 className="font-bold text-base text-[#152B41] truncate group-hover:text-[var(--primary)]">
+                          <h3 className="font-bold text-base sm:text-lg text-[#152B41] truncate group-hover:text-[var(--primary)]">
                             {proj.title}
                           </h3>
-                          <div className="text-xs text-[#526171] mt-1 space-y-0.5">
+                          <div className="text-xs sm:text-sm text-[#526171] mt-1 space-y-1">
                             <div>
                               {proj.recordingCount} {t('rekaman')} • {formatDurationHuman(proj.totalDurationSec, language)}
                             </div>
                             {proj.updatedAt > 0 && (
-                              <div className="text-[11px] text-[var(--muted-foreground)]">
+                              <div className="text-[12px] text-[var(--muted-foreground)]">
                                 {t('Terakhir diperbarui')}: {formatItemDate(proj.updatedAt, language)}
                               </div>
                             )}
                           </div>
                         </div>
 
-                        <div className="flex items-center justify-between gap-2 pt-3 border-t border-[var(--border)]/70">
+                        <div className="flex items-center justify-between gap-2 pt-4 border-t border-[var(--border)]/70">
                           <button
                             type="button"
                             onClick={() => onCreateFolderClick(proj.id)}
-                            className="min-h-[40px] px-2.5 rounded-lg text-xs font-medium text-[#526171] hover:text-[#152B41] hover:bg-[var(--accent)] inline-flex items-center gap-1.5 transition-colors"
+                            className="min-h-[44px] px-3 rounded-xl text-xs sm:text-sm font-medium text-[#526171] hover:text-[#152B41] hover:bg-[var(--accent)] inline-flex items-center gap-1.5 transition-colors"
                           >
-                            <Plus className="size-3.5" aria-hidden="true" />
+                            <Plus className="size-4" aria-hidden="true" />
                             <span>{t('Folder baru')}</span>
                           </button>
-                          <div className="flex items-center gap-1.5">
+                          <div className="flex items-center gap-2">
                             {onExportClick && (
                               <button
                                 type="button"
                                 onClick={() => onExportClick('project', proj.id)}
-                                className="min-h-[40px] px-2.5 rounded-lg text-xs font-medium text-[#526171] hover:text-[#152B41] hover:bg-[var(--accent)] transition-colors"
+                                className="min-h-[44px] px-3 rounded-xl text-xs sm:text-sm font-medium text-[#526171] hover:text-[#152B41] hover:bg-[var(--accent)] transition-colors"
                               >
                                 {t('Export')}
                               </button>
@@ -868,7 +898,7 @@ export function WorkspaceDashboard({
                             <Button
                               size="sm"
                               onClick={() => onOpenProject(proj.id)}
-                              className="min-h-[40px] px-3 text-xs"
+                              className="min-h-[44px] px-4 rounded-xl text-xs sm:text-sm font-semibold"
                             >
                               {t('Buka')}
                             </Button>
@@ -889,20 +919,21 @@ export function WorkspaceDashboard({
                 <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-[var(--border)]">
                   <div>
                     <h1
-                      className="text-2xl sm:text-3xl font-normal tracking-tight text-[#152B41]"
+                      className="text-2xl sm:text-3xl lg:text-[36px] font-normal tracking-tight text-[#152B41] leading-tight"
                       style={{ fontFamily: 'var(--lp-serif)' }}
                     >
                       {t('Rekaman')}
                     </h1>
-                    <p className="text-xs sm:text-sm text-[#526171] mt-1">
+                    <p className="text-sm sm:text-base text-[#526171] mt-1.5 leading-relaxed">
                       {t('Semua rekaman dan naskah percakapan di workspace lokal Anda.')}
                     </p>
                   </div>
-                  <div className="flex items-center flex-wrap gap-2.5 shrink-0 self-start sm:self-auto">
+
+                  <div className="flex items-center flex-wrap gap-3 shrink-0 self-start sm:self-auto">
                     {onStartRecordingClick && (
                       <Button
                         onClick={onStartRecordingClick}
-                        className="min-h-[44px] px-4 rounded-xl bg-[#172F49] hover:bg-[#1E3B5B] text-white font-semibold gap-2 shadow-xs"
+                        className="min-h-[44px] px-5 rounded-xl bg-[#172F49] hover:bg-[#1E3B5B] text-white text-sm font-semibold gap-2 shadow-xs"
                       >
                         <Mic className="size-4 text-[#CFE2F1]" aria-hidden="true" />
                         <span>{t('Rekam pertemuan')}</span>
@@ -911,7 +942,7 @@ export function WorkspaceDashboard({
                     <Button
                       variant="outline"
                       onClick={() => onOpenRecordingClick()}
-                      className="min-h-[44px] px-4 rounded-xl bg-white hover:bg-[var(--accent)] border-[var(--border)] text-[#152B41] font-semibold gap-2 shadow-2xs"
+                      className="min-h-[44px] px-4 rounded-xl bg-white hover:bg-[var(--accent)] border-[var(--border)] text-[#152B41] text-sm font-semibold gap-2 shadow-2xs"
                     >
                       <Upload className="size-4 text-[#172F49]" aria-hidden="true" />
                       <span>{t('Buka rekaman')}</span>
@@ -920,17 +951,17 @@ export function WorkspaceDashboard({
                 </header>
 
                 {/* Filter & Search Toolbar */}
-                <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-3.5 rounded-2xl border border-[var(--border)] shadow-2xs">
-                  <div className="flex flex-wrap items-center gap-2.5 flex-1 min-w-[240px]">
+                <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-[var(--border)] shadow-2xs">
+                  <div className="flex flex-wrap items-center gap-3 flex-1 min-w-[240px]">
                     {/* Search */}
-                    <div className="relative min-w-[180px] flex-1 max-w-sm">
-                      <Search className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#526171]" aria-hidden="true" />
+                    <div className="relative min-w-[200px] flex-1 max-w-sm">
+                      <Search className="size-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[#526171]" aria-hidden="true" />
                       <input
                         type="search"
                         value={searchQuery}
                         onChange={e => setSearchQuery(e.target.value)}
                         placeholder={t('Cari workspace')}
-                        className="w-full min-h-[38px] pl-9 pr-3 rounded-lg border border-[var(--border)] text-xs text-[#152B41] placeholder:text-[#526171]"
+                        className="w-full min-h-[44px] pl-10 pr-3 rounded-xl border border-[var(--border)] text-sm text-[#152B41] placeholder:text-[#526171]"
                       />
                     </div>
 
@@ -942,7 +973,7 @@ export function WorkspaceDashboard({
                         setSelectedFolderId('all');
                       }}
                       aria-label={t('Project')}
-                      className="min-h-[38px] text-xs px-2.5 py-1.5 rounded-lg border border-[var(--border)] bg-white text-[#152B41]"
+                      className="min-h-[44px] text-sm px-3 py-2 rounded-xl border border-[var(--border)] bg-white text-[#152B41]"
                     >
                       <option value="all">{t('Semua project')}</option>
                       {projects.map(p => (
@@ -957,7 +988,7 @@ export function WorkspaceDashboard({
                       value={selectedFolderId}
                       onChange={e => setSelectedFolderId(e.target.value as any)}
                       aria-label={t('Folder')}
-                      className="min-h-[38px] text-xs px-2.5 py-1.5 rounded-lg border border-[var(--border)] bg-white text-[#152B41]"
+                      className="min-h-[44px] text-sm px-3 py-2 rounded-xl border border-[var(--border)] bg-white text-[#152B41]"
                     >
                       <option value="all">{t('Semua folder')}</option>
                       <option value="none">{t('Tanpa folder')}</option>
@@ -976,7 +1007,7 @@ export function WorkspaceDashboard({
                         value={selectedTag ?? ''}
                         onChange={e => setSelectedTag(e.target.value ? e.target.value : null)}
                         aria-label={t('Tag')}
-                        className="min-h-[38px] text-xs px-2.5 py-1.5 rounded-lg border border-[var(--border)] bg-white text-[#152B41]"
+                        className="min-h-[44px] text-sm px-3 py-2 rounded-xl border border-[var(--border)] bg-white text-[#152B41]"
                       >
                         <option value="">{t('Semua tag')}</option>
                         {allWorkspaceTags.map(tag => (
@@ -990,12 +1021,12 @@ export function WorkspaceDashboard({
 
                   {/* Sort */}
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-medium text-[#526171]">{t('Urutkan')}:</span>
+                    <span className="text-xs sm:text-sm font-medium text-[#526171]">{t('Urutkan')}:</span>
                     <select
                       value={sortBy}
                       onChange={e => setSortBy(e.target.value as any)}
                       aria-label={t('Urutkan')}
-                      className="min-h-[38px] text-xs px-2.5 py-1.5 rounded-lg border border-[var(--border)] bg-white text-[#152B41]"
+                      className="min-h-[44px] text-sm px-3 py-2 rounded-xl border border-[var(--border)] bg-white text-[#152B41]"
                     >
                       <option value="recent">{t('Terakhir dibuka')}</option>
                       <option value="title">{t('Judul A-Z')}</option>
@@ -1005,23 +1036,42 @@ export function WorkspaceDashboard({
                 </div>
 
                 {filteredRecordings.length === 0 ? (
-                  <div className="bg-white border border-[var(--border)] rounded-2xl p-8 text-center max-w-lg mx-auto shadow-2xs my-6">
-                    <AudioLines className="size-10 mx-auto text-[#526171] mb-3" aria-hidden="true" />
-                    <h3 className="font-semibold text-base text-[#152B41]">
+                  <div className="w-full bg-white border border-[var(--border)] rounded-2xl p-8 sm:p-12 text-center shadow-2xs my-4 flex flex-col items-center">
+                    <div className="w-14 h-14 rounded-2xl bg-[#E8F1F8] text-[#172F49] flex items-center justify-center mb-4 shrink-0 shadow-2xs">
+                      <AudioLines className="size-7" aria-hidden="true" />
+                    </div>
+                    <h3 className="font-bold text-lg sm:text-xl text-[#152B41]">
                       {t('Belum ada rekaman di workspace.')}
                     </h3>
-                    <p className="text-sm text-[#526171] mt-1.5 mb-5 leading-relaxed">
-                      {t('Buka rekaman untuk mulai mentranskripsi atau menyunting naskah.')}
+                    <p className="text-sm sm:text-base text-[#526171] mt-2 mb-6 max-w-md leading-relaxed">
+                      {t('Rekam langsung atau buka audio yang sudah ada untuk mulai membuat naskah.')}
                     </p>
-                    <div className="flex items-center justify-center gap-2.5 flex-wrap">
-                      <Button onClick={() => onOpenRecordingClick()} className="min-h-[44px]">
-                        {t('Buka rekaman')}
-                      </Button>
+                    <div className="flex flex-wrap items-center justify-center gap-3">
                       {onStartRecordingClick && (
-                        <Button variant="outline" onClick={onStartRecordingClick} className="min-h-[44px]">
-                          {t('Rekam pertemuan')}
+                        <Button
+                          onClick={onStartRecordingClick}
+                          className="min-h-[44px] px-5 rounded-xl bg-[#172F49] hover:bg-[#1E3B5B] text-white text-sm font-semibold gap-2 shadow-xs"
+                        >
+                          <Mic className="size-4 text-[#CFE2F1]" aria-hidden="true" />
+                          <span>{t('Rekam pertemuan')}</span>
                         </Button>
                       )}
+                      <Button
+                        variant="outline"
+                        onClick={() => onOpenRecordingClick()}
+                        className="min-h-[44px] px-4 rounded-xl bg-white hover:bg-[var(--accent)] border-[var(--border)] text-[#152B41] text-sm font-semibold gap-2 shadow-2xs"
+                      >
+                        <Upload className="size-4 text-[#172F49]" aria-hidden="true" />
+                        <span>{t('Buka rekaman')}</span>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        onClick={onTryDemo}
+                        className="min-h-[44px] px-4 text-sm font-semibold text-[#172F49] hover:bg-[var(--accent)] gap-1.5"
+                      >
+                        <span>{t('Coba contoh')}</span>
+                        <ArrowRight className="size-4" aria-hidden="true" />
+                      </Button>
                     </div>
                   </div>
                 ) : (
@@ -1052,18 +1102,24 @@ export function WorkspaceDashboard({
                 <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-[var(--border)]">
                   <div>
                     <h1
-                      className="text-2xl sm:text-3xl font-normal tracking-tight text-[#152B41]"
+                      className="text-2xl sm:text-3xl lg:text-[36px] font-normal tracking-tight text-[#152B41] leading-tight"
                       style={{ fontFamily: 'var(--lp-serif)' }}
                     >
                       {t('Folder & tag')}
                     </h1>
-                    <p className="text-xs sm:text-sm text-[#526171] mt-1">
+                    <p className="text-sm sm:text-base text-[#526171] mt-1.5 leading-relaxed">
                       {t('Atur struktur dan pengelompokan rekaman dengan folder per project dan tag.')}
                     </p>
                   </div>
                   <Button
-                    onClick={() => onCreateFolderClick()}
-                    className="min-h-[44px] px-4 rounded-xl bg-[#172F49] hover:bg-[#1E3B5B] text-white font-semibold gap-2 shadow-xs shrink-0 self-start sm:self-auto"
+                    onClick={() => {
+                      if (projects.length === 0) {
+                        onCreateProjectClick();
+                      } else {
+                        onCreateFolderClick();
+                      }
+                    }}
+                    className="min-h-[44px] px-5 rounded-xl bg-[#172F49] hover:bg-[#1E3B5B] text-white text-sm font-semibold gap-2 shadow-xs shrink-0 self-start sm:self-auto"
                   >
                     <Plus className="size-4 text-[#CFE2F1]" aria-hidden="true" />
                     <span>{t('Folder baru')}</span>
@@ -1073,81 +1129,96 @@ export function WorkspaceDashboard({
                 {/* Section A: Folders per Project */}
                 <section aria-label={t('Folder per project')} className="space-y-4">
                   <h2
-                    className="text-xl font-normal tracking-tight text-[#152B41]"
+                    className="text-xl sm:text-2xl font-normal tracking-tight text-[#152B41]"
                     style={{ fontFamily: 'var(--lp-serif)' }}
                   >
                     {t('Folder per project')}
                   </h2>
 
                   {projects.length === 0 ? (
-                    <div className="bg-white border border-[var(--border)] rounded-xl p-6 text-center text-xs text-[#526171]">
-                      {t('Belum ada project lokal')}
+                    <div className="w-full bg-white border border-[var(--border)] rounded-2xl p-8 sm:p-10 text-center shadow-2xs flex flex-col items-center">
+                      <div className="w-14 h-14 rounded-2xl bg-[#E8F1F8] text-[#172F49] flex items-center justify-center mb-4 shrink-0 shadow-2xs">
+                        <Folder className="size-7" aria-hidden="true" />
+                      </div>
+                      <h3 className="font-bold text-base sm:text-lg text-[#152B41]">
+                        {t('Belum ada project untuk membuat folder')}
+                      </h3>
+                      <p className="text-sm sm:text-base text-[#526171] mt-2 mb-6 max-w-md leading-relaxed">
+                        {t('Folder dibuat di dalam project. Buat project pertama Anda untuk mulai mengelompokkan rekaman.')}
+                      </p>
+                      <Button
+                        onClick={onCreateProjectClick}
+                        className="min-h-[44px] px-5 rounded-xl bg-[#172F49] hover:bg-[#1E3B5B] text-white text-sm font-semibold gap-2 shadow-xs"
+                      >
+                        <FolderPlus className="size-4 text-[#CFE2F1]" aria-hidden="true" />
+                        <span>{t('Buat project dahulu')}</span>
+                      </Button>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                       {projects.map(proj => {
                         const projectFolders = folders.filter(f => f.projectId === proj.id);
                         return (
                           <div
                             key={proj.id}
-                            className="bg-white border border-[var(--border)] rounded-2xl p-5 shadow-2xs space-y-3"
+                            className="bg-white border border-[var(--border)] rounded-2xl p-5 sm:p-6 shadow-2xs space-y-4"
                           >
-                            <div className="flex items-center justify-between gap-2 pb-2 border-b border-[var(--border)]/70">
-                              <div className="flex items-center gap-2 min-w-0">
-                                <Folder className="size-4 text-[#172F49] shrink-0" aria-hidden="true" />
-                                <strong className="text-sm font-bold text-[#152B41] truncate">
+                            <div className="flex items-center justify-between gap-2 pb-3 border-b border-[var(--border)]/70">
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                <Folder className="size-5 text-[#172F49] shrink-0" aria-hidden="true" />
+                                <strong className="text-base font-bold text-[#152B41] truncate">
                                   {proj.title}
                                 </strong>
                               </div>
                               <button
                                 type="button"
                                 onClick={() => onCreateFolderClick(proj.id)}
-                                className="text-xs font-semibold text-[#172F49] hover:underline inline-flex items-center gap-1 min-h-[36px] px-2"
+                                className="text-xs sm:text-sm font-semibold text-[#172F49] hover:underline inline-flex items-center gap-1 min-h-[44px] px-2.5"
                               >
-                                <Plus className="size-3" aria-hidden="true" />
+                                <Plus className="size-3.5" aria-hidden="true" />
                                 <span>{t('Folder baru')}</span>
                               </button>
                             </div>
 
                             {projectFolders.length === 0 ? (
-                              <p className="text-xs text-[var(--muted-foreground)] italic py-2">
+                              <p className="text-sm text-[var(--muted-foreground)] italic py-3">
                                 {t('Belum ada folder di project ini.')}
                               </p>
                             ) : (
-                              <div className="space-y-2">
+                              <div className="space-y-2.5">
                                 {projectFolders.map(folder => {
                                   const count = allRecordings.filter(r => r.folderId === folder.id).length;
                                   return (
                                     <div
                                       key={folder.id}
-                                      className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-[#F8FAFC] border border-[var(--border)]"
+                                      className="flex items-center justify-between gap-2 p-3 rounded-xl bg-[#F8FAFC] border border-[var(--border)]"
                                     >
-                                      <div className="flex items-center gap-2 min-w-0">
-                                        <Folder className="size-3.5 text-[#526171] shrink-0" aria-hidden="true" />
-                                        <span className="text-xs font-semibold text-[#152B41] truncate">
+                                      <div className="flex items-center gap-2.5 min-w-0">
+                                        <Folder className="size-4 text-[#526171] shrink-0" aria-hidden="true" />
+                                        <span className="text-sm font-semibold text-[#152B41] truncate">
                                           {folder.name}
                                         </span>
-                                        <span className="text-[11px] text-[#526171] shrink-0">
+                                        <span className="text-xs text-[#526171] shrink-0">
                                           ({count} {t('rekaman')})
                                         </span>
                                       </div>
 
-                                      <div className="flex items-center gap-1 shrink-0">
+                                      <div className="flex items-center gap-1.5 shrink-0">
                                         <button
                                           type="button"
                                           onClick={() => onRenameFolderClick(folder)}
                                           aria-label={`${t('Ganti nama folder')} ${folder.name}`}
-                                          className="min-h-[36px] min-w-[36px] inline-flex items-center justify-center rounded-lg text-[#526171] hover:text-[#152B41] hover:bg-white"
+                                          className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center rounded-xl text-[#526171] hover:text-[#152B41] hover:bg-white"
                                         >
-                                          <Pencil className="size-3.5" aria-hidden="true" />
+                                          <Pencil className="size-4" aria-hidden="true" />
                                         </button>
                                         <button
                                           type="button"
                                           onClick={() => onDeleteFolderClick(folder.id)}
                                           aria-label={`${t('Hapus folder')} ${folder.name}`}
-                                          className="min-h-[36px] min-w-[36px] inline-flex items-center justify-center rounded-lg text-rose-600 hover:text-rose-700 hover:bg-white"
+                                          className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center rounded-xl text-rose-600 hover:text-rose-700 hover:bg-white"
                                         >
-                                          <Trash2 className="size-3.5" aria-hidden="true" />
+                                          <Trash2 className="size-4" aria-hidden="true" />
                                         </button>
                                       </div>
                                     </div>
@@ -1165,28 +1236,36 @@ export function WorkspaceDashboard({
                 {/* Section B: Workspace Tags */}
                 <section aria-label={t('Tag workspace')} className="space-y-4 pt-2">
                   <h2
-                    className="text-xl font-normal tracking-tight text-[#152B41]"
+                    className="text-xl sm:text-2xl font-normal tracking-tight text-[#152B41]"
                     style={{ fontFamily: 'var(--lp-serif)' }}
                   >
                     {t('Tag workspace')}
                   </h2>
 
                   {allWorkspaceTags.length === 0 ? (
-                    <div className="bg-white border border-[var(--border)] rounded-2xl p-6 text-center text-xs text-[#526171]">
-                      {t('Belum ada tag yang dibuat.')}
+                    <div className="w-full bg-white border border-[var(--border)] rounded-2xl p-8 sm:p-10 text-center shadow-2xs flex flex-col items-center">
+                      <div className="w-14 h-14 rounded-2xl bg-[#E8F1F8] text-[#172F49] flex items-center justify-center mb-4 shrink-0 shadow-2xs">
+                        <Tag className="size-7" aria-hidden="true" />
+                      </div>
+                      <h3 className="font-bold text-base sm:text-lg text-[#152B41]">
+                        {t('Belum ada tag di workspace')}
+                      </h3>
+                      <p className="text-sm sm:text-base text-[#526171] mt-2 max-w-md leading-relaxed">
+                        {t('Tag ditambahkan langsung saat mengelola rekaman untuk memudahkan pencarian lintas topik.')}
+                      </p>
                     </div>
                   ) : (
-                    <div className="bg-white border border-[var(--border)] rounded-2xl p-5 shadow-2xs flex flex-wrap items-center gap-2.5">
+                    <div className="bg-white border border-[var(--border)] rounded-2xl p-6 shadow-2xs flex flex-wrap items-center gap-3">
                       {allWorkspaceTags.map(tag => {
                         const count = allRecordings.filter(r => (r.tags ?? []).includes(tag)).length;
                         return (
                           <div
                             key={tag}
-                            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#EFF4F9] text-[#172F49] border border-[#D5E3F0] text-xs font-semibold"
+                            className="inline-flex items-center gap-2.5 px-3.5 py-2 rounded-xl bg-[#EFF4F9] text-[#172F49] border border-[#D5E3F0] text-sm font-semibold"
                           >
-                            <Tag className="size-3" aria-hidden="true" />
+                            <Tag className="size-3.5" aria-hidden="true" />
                             <span>#{tag}</span>
-                            <span className="text-[10px] text-[#526171] font-normal">({count})</span>
+                            <span className="text-xs text-[#526171] font-normal">({count})</span>
                             {onRenameTagClick && (
                               <button
                                 type="button"
@@ -1197,9 +1276,9 @@ export function WorkspaceDashboard({
                                   }
                                 }}
                                 aria-label={`${t('Ganti nama tag')} #${tag}`}
-                                className="text-[#526171] hover:text-[#172F49] ml-0.5"
+                                className="text-[#526171] hover:text-[#172F49] ml-1 p-1"
                               >
-                                <Pencil className="size-3" aria-hidden="true" />
+                                <Pencil className="size-3.5" aria-hidden="true" />
                               </button>
                             )}
                             {onDeleteTagClick && (
@@ -1207,9 +1286,9 @@ export function WorkspaceDashboard({
                                 type="button"
                                 onClick={() => onDeleteTagClick(tag)}
                                 aria-label={`${t('Hapus tag')} #${tag}`}
-                                className="text-rose-500 hover:text-rose-700 ml-0.5"
+                                className="text-rose-500 hover:text-rose-700 ml-0.5 p-1"
                               >
-                                <Trash2 className="size-3" aria-hidden="true" />
+                                <Trash2 className="size-3.5" aria-hidden="true" />
                               </button>
                             )}
                           </div>
@@ -1228,17 +1307,17 @@ export function WorkspaceDashboard({
               <div className="workspace-storage-view space-y-6">
                 <header className="pb-4 border-b border-[var(--border)]">
                   <h1
-                    className="text-2xl sm:text-3xl font-normal tracking-tight text-[#152B41]"
+                    className="text-2xl sm:text-3xl lg:text-[36px] font-normal tracking-tight text-[#152B41] leading-tight"
                     style={{ fontFamily: 'var(--lp-serif)' }}
                   >
                     {t('Penyimpanan')}
                   </h1>
-                  <p className="text-xs sm:text-sm text-[#526171] mt-1">
+                  <p className="text-sm sm:text-base text-[#526171] mt-1.5 leading-relaxed">
                     {t('Kelola penyimpanan peramban lokal dan buat cadangan data workspace Anda.')}
                   </p>
                 </header>
 
-                <div className="bg-white border border-[var(--border)] rounded-2xl p-6 shadow-2xs">
+                <div className="bg-white border border-[var(--border)] rounded-2xl p-6 sm:p-8 shadow-2xs">
                   <StorageSection
                     onExportWorkspace={() => onExportClick?.('workspace')}
                     onImportBackup={() => onImportClick?.()}

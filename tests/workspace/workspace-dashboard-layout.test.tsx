@@ -229,6 +229,14 @@ test('Task 1: WorkspaceSidebar merender 6 navigasi lengkap, reversed brand locku
   assert.ok(sidebar.textContent?.includes('Penyimpanan lokal'), 'Sidebar harus menampilkan status Penyimpanan lokal');
   assert.ok(sidebar.textContent?.includes('Backup siap'), 'Sidebar harus menampilkan status Backup siap');
 
+  // Verify Export and Import buttons have been removed from sidebar
+  const sidebarButtons = Array.from(sidebar.querySelectorAll('button'));
+  assert.equal(
+    sidebarButtons.some(b => b.textContent?.trim() === 'Export' || b.textContent?.trim() === 'Import'),
+    false,
+    'Sidebar tidak boleh memiliki tombol Export dan Import (tombol ini berada di view Penyimpanan)'
+  );
+
   // Mobile drawer close button & interaction
   const closeDrawerBtn = win.document.querySelector('[data-testid="workspace-drawer-close"]') as HTMLButtonElement | null;
   assert.ok(closeDrawerBtn, 'Tombol tutup drawer mobile harus ada saat mobileOpen=true');
@@ -462,6 +470,11 @@ test('Task 3: Dedicated Views (Projects, Rekaman, Folder & tag, Penyimpanan) mer
   const storageTitle = win.document.querySelector('h1');
   assert.equal(storageTitle?.textContent?.trim(), 'Penyimpanan');
   assert.ok(win.document.body.textContent?.includes('Data dan penyimpanan'), 'Harus merender StorageSection');
+  assert.ok(
+    win.document.body.textContent?.includes('Perlindungan') ||
+      win.document.body.textContent?.includes('Tidak didukung'),
+    'StorageSection harus menampilkan status badge perlindungan penyimpanan'
+  );
 });
 
 test('Task 4: Empty workspace onboarding (4 tindakan), sinkronisasi window.location.hash, dan lokalisasi EN', async () => {
@@ -498,6 +511,10 @@ test('Task 4: Empty workspace onboarding (4 tindakan), sinkronisasi window.locat
   // 1. Empty state in Workspace overview
   assert.ok(win.document.body.textContent?.includes('Mulai workspace pertama Anda'), 'Judul onboarding empty state harus tampil');
   assert.ok(!win.document.body.textContent?.includes('Review roadmap produk'), 'Tidak boleh ada data palsu saat kosong');
+  assert.ok(
+    win.document.body.textContent?.includes('Rekaman dan naskah tetap tersimpan di browser perangkat ini, bukan di akun Catetin atau cloud.'),
+    'Deskripsi kejujuran local-first harus tampil di empty state Workspace'
+  );
 
   const emptyCard = win.document.querySelector('.dashboard-empty-state') as HTMLElement | null;
   assert.ok(emptyCard, 'Empty state onboarding harus ada');
@@ -537,6 +554,48 @@ test('Task 4: Empty workspace onboarding (4 tindakan), sinkronisasi window.locat
   });
   await flushAsync();
   assert.equal(win.document.querySelector('h1')?.textContent?.trim(), 'Rekaman', 'Hashchange ke #studio/recordings harus mengubah view ke Rekaman');
+  assert.ok(
+    win.document.body.textContent?.includes('Rekam langsung atau buka audio yang sudah ada untuk mulai membuat naskah.'),
+    'Deskripsi empty state Rekaman harus sesuai instruksi'
+  );
+
+  // Verifikasi hierarki aksi empty-state Rekaman: Rekam pertemuan (primary navy), Buka rekaman (secondary), Coba contoh (tertiary)
+  const recEmptyCard = Array.from(win.document.querySelectorAll('.workspace-recordings-view div')).find(el =>
+    el.textContent?.includes('Belum ada rekaman di workspace.')
+  );
+  assert.ok(recEmptyCard, 'Kartu empty state Rekaman harus ada');
+  const recEmptyBtns = Array.from(recEmptyCard.querySelectorAll('button'));
+  const recBtnIndex = recEmptyBtns.findIndex(b => b.textContent?.includes('Rekam pertemuan'));
+  const openBtnIndex = recEmptyBtns.findIndex(b => b.textContent?.includes('Buka rekaman'));
+  const demoBtnIndex = recEmptyBtns.findIndex(b => b.textContent?.includes('Coba contoh'));
+  assert.ok(recBtnIndex !== -1 && openBtnIndex !== -1 && demoBtnIndex !== -1, 'Semua 3 tombol empty state Rekaman harus ada');
+  assert.ok(recBtnIndex < openBtnIndex, 'Rekam pertemuan harus mendahului Buka rekaman sebagai primary action');
+  assert.ok(recEmptyBtns[recBtnIndex].className.includes('bg-[#172F49]'), 'Rekam pertemuan harus memakai background primary navy');
+
+  // Setting hash to #studio/folders-tags should show empty states for folders and tags cleanly
+  await act(async () => {
+    win.location.hash = '#studio/folders-tags';
+    win.dispatchEvent(new win.Event('hashchange'));
+  });
+  await flushAsync();
+  assert.equal(win.document.querySelector('h1')?.textContent?.trim(), 'Folder & tag');
+  assert.ok(
+    win.document.body.textContent?.includes('Belum ada project untuk membuat folder'),
+    'Folder empty state harus menjelaskan bahwa folder membutuhkan project'
+  );
+  assert.ok(
+    win.document.body.textContent?.includes('Belum ada tag di workspace'),
+    'Tag empty state harus menjelaskan tag ditambahkan dari rekaman'
+  );
+  const createProjFromFolderBtn = Array.from(win.document.querySelectorAll('button')).find(b =>
+    b.textContent?.includes('Buat project dahulu')
+  );
+  assert.ok(createProjFromFolderBtn, 'Tombol Buat project dahulu harus ada saat belum ada project');
+  createProjCalled = false;
+  await act(async () => {
+    createProjFromFolderBtn.click();
+  });
+  assert.equal(createProjCalled, true, 'Klik Buat project dahulu harus memanggil onCreateProjectClick');
 
   // 3. Localization EN
   await act(async () => {
@@ -570,4 +629,34 @@ test('Task 4: Empty workspace onboarding (4 tindakan), sinkronisasi window.locat
   assert.ok(win.document.body.textContent?.includes('Record meeting'), 'Tombol EN Record meeting harus tampil');
   assert.ok(win.document.body.textContent?.includes('Continue work'), 'Card EN Continue work harus tampil');
   assert.ok(win.document.body.textContent?.includes('Recent in workspace'), 'Section EN Recent in workspace harus tampil');
+
+  // Verify EN empty workspace copy
+  await act(async () => {
+    root.render(
+      <WorkspaceDashboard
+        projects={[]}
+        folders={[]}
+        allRecordings={[]}
+        recentRecordings={[]}
+        stats={{ projectCount: 0, recordingCount: 0, totalDurationSec: 0, lastUpdatedAt: null }}
+        allWorkspaceTags={[]}
+        onOpenProject={() => {}}
+        onOpenRecording={() => {}}
+        onCreateProjectClick={() => {}}
+        onOpenRecordingClick={() => {}}
+        onTryDemo={() => {}}
+        onCreateFolderClick={() => {}}
+        onRenameFolderClick={() => {}}
+        onDeleteFolderClick={() => {}}
+        onManageTagsClick={() => {}}
+        onMoveFolderClick={() => {}}
+        onStartRecordingClick={() => {}}
+      />
+    );
+  });
+  await flushAsync();
+  assert.ok(
+    win.document.body.textContent?.includes("Recordings and transcripts stay in this device's browser, not in your Catetin account or the cloud."),
+    'Deskripsi EN Workspace empty state harus sesuai terjemahan yang ditentukan'
+  );
 });

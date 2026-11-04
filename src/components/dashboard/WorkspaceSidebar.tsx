@@ -18,6 +18,7 @@ import { t } from '@/lib/i18n';
 import type { StorageEstimateInfo, StoragePersistenceStatus } from '@/features/workspace/storage-adapter';
 
 export type WorkspaceSectionId = 'workspace' | 'projects' | 'recordings' | 'folders-tags' | 'storage';
+export type WorkspaceSidebarSection = WorkspaceSectionId;
 
 export interface WorkspaceSidebarProps {
   activeSection?: WorkspaceSectionId;
@@ -155,7 +156,7 @@ export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
   const renderSidebarContent = (isDrawer = false) => {
     const isCompact = !isDrawer && collapsed;
     return (
-      <div className="workspace-sidebar-inner flex flex-col justify-between h-full bg-[#172F49] text-[#F5F2EA] select-none">
+      <div className="workspace-sidebar-inner flex flex-col justify-between h-full max-h-[100dvh] overflow-y-auto bg-[#172F49] text-[#F5F2EA] select-none scrollbar-thin">
         <div>
           {/* Brand Header */}
           <div className="workspace-sidebar-brand flex items-center justify-between px-4 pt-5 pb-4">
@@ -164,17 +165,17 @@ export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
                 src="/brand/catetin-lockup-reversed.svg"
                 alt=""
                 aria-hidden="true"
-                width={108}
-                height={34}
-                className={`h-[30px] w-auto select-none ${isCompact ? 'hidden' : 'block'}`}
+                width={120}
+                height={38}
+                className={`h-[34px] w-auto select-none ${isCompact ? 'hidden' : 'block'}`}
                 draggable={false}
               />
               <img
                 src="/brand/catetin-mark-reversed.svg"
                 alt=""
                 aria-hidden="true"
-                width={28}
-                height={28}
+                width={30}
+                height={30}
                 className={`h-7 w-7 select-none ${isCompact ? 'block' : 'hidden'}`}
                 draggable={false}
               />
@@ -224,15 +225,15 @@ export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
                   onClick={() => handleSelect(item.id)}
                   title={isCompact ? item.label : undefined}
                   className={`w-full min-h-[44px] flex items-center ${
-                    isCompact ? 'justify-center px-2' : 'justify-start px-3.5 gap-3'
-                  } rounded-xl text-[13px] font-medium transition-colors focus-visible:outline-2 focus-visible:outline-[#CFE2F1] ${
+                    isCompact ? 'justify-center px-2' : 'justify-start px-3.5 gap-3.5'
+                  } rounded-xl text-[14px] font-medium transition-colors focus-visible:outline-2 focus-visible:outline-[#CFE2F1] ${
                     isActive
                       ? 'bg-[#D7E6F5] text-[#172F49] font-semibold shadow-xs'
                       : 'text-[#E3ECF5] hover:bg-[#213D5B] hover:text-white'
                   }`}
                 >
                   <Icon
-                    className={`size-4 shrink-0 ${isActive ? 'text-[#172F49]' : 'text-[#CFE2F1]'}`}
+                    className={`size-[18px] shrink-0 ${isActive ? 'text-[#172F49]' : 'text-[#CFE2F1]'}`}
                     aria-hidden="true"
                   />
                   {!isCompact && <span className="truncate">{item.label}</span>}
@@ -243,21 +244,21 @@ export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
         </div>
 
         {/* Bottom Utility: Account, Local Storage Status, Backup */}
-        <div className="px-2.5 pb-4 pt-4 space-y-2 border-t border-[#264566]">
+        <div className="px-2.5 pb-4 pt-3 space-y-2 border-t border-[#264566]">
           <button
             type="button"
             data-nav-id="account"
             onClick={handleAccountClick}
             title={isCompact ? t('Account') : undefined}
             className={`w-full min-h-[44px] flex items-center ${
-              isCompact ? 'justify-center px-2' : 'justify-start px-3.5 gap-3'
-            } rounded-xl text-[13px] font-medium text-[#E3ECF5] hover:bg-[#213D5B] hover:text-white transition-colors focus-visible:outline-2 focus-visible:outline-[#CFE2F1]`}
+              isCompact ? 'justify-center px-2' : 'justify-start px-3.5 gap-3.5'
+            } rounded-xl text-[14px] font-medium text-[#E3ECF5] hover:bg-[#213D5B] hover:text-white transition-colors focus-visible:outline-2 focus-visible:outline-[#CFE2F1]`}
           >
-            <UserRound className="size-4 shrink-0 text-[#CFE2F1]" aria-hidden="true" />
+            <UserRound className="size-[18px] shrink-0 text-[#CFE2F1]" aria-hidden="true" />
             {!isCompact && <span className="truncate">{t('Account')}</span>}
           </button>
 
-          {/* Local Storage Utility Card */}
+          {/* Local Storage Utility Card (Click opens Storage view) */}
           <button
             type="button"
             data-testid="sidebar-storage-status"
@@ -268,16 +269,16 @@ export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
             title={t('Penyimpanan lokal')}
           >
             {isCompact ? (
-              <HardDrive className="size-4 text-[#CFE2F1]" aria-hidden="true" />
+              <HardDrive className="size-[18px] text-[#CFE2F1]" aria-hidden="true" />
             ) : (
               <div className="space-y-2">
                 <div className="flex items-start gap-2.5">
-                  <HardDrive className="size-4 text-[#CFE2F1] shrink-0 mt-0.5" aria-hidden="true" />
+                  <HardDrive className="size-[18px] text-[#CFE2F1] shrink-0 mt-0.5" aria-hidden="true" />
                   <div className="min-w-0 flex-1">
-                    <span className="block text-xs font-semibold text-[#F5F2EA] truncate">
+                    <span className="block text-[13px] font-semibold text-[#F5F2EA] truncate">
                       {t('Penyimpanan lokal')}
                     </span>
-                    <span className="block text-[11px] text-[#B7C9DC] truncate mt-0.5">
+                    <span className="block text-[12px] text-[#B7C9DC] truncate mt-0.5">
                       {usageSubtext}
                     </span>
                   </div>
@@ -294,11 +295,15 @@ export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
             )}
           </button>
 
-          {/* Backup Status & Quick Export/Import */}
-          <div
-            className={`rounded-xl p-3 bg-[#12263C] border border-[#274666] ${
-              isCompact ? 'flex items-center justify-center' : 'space-y-2.5'
+          {/* Backup Status Card (Click opens Storage view) */}
+          <button
+            type="button"
+            data-testid="sidebar-backup-status"
+            onClick={handleStorageClick}
+            className={`w-full text-left rounded-xl p-3 bg-[#12263C] hover:bg-[#1D3652] border border-[#274666] transition-colors min-h-[44px] focus-visible:outline-2 focus-visible:outline-[#CFE2F1] ${
+              isCompact ? 'flex items-center justify-center' : 'block'
             }`}
+            title={t('Backup siap')}
           >
             <div className="flex items-center gap-2.5">
               <span className="w-5 h-5 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 inline-flex items-center justify-center shrink-0">
@@ -306,41 +311,16 @@ export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
               </span>
               {!isCompact && (
                 <div className="min-w-0 flex-1">
-                  <span className="block text-xs font-semibold text-[#F5F2EA] truncate">
+                  <span className="block text-[13px] font-semibold text-[#F5F2EA] truncate">
                     {t('Backup siap')}
                   </span>
-                  <span className="block text-[11px] text-[#B7C9DC] truncate">
+                  <span className="block text-[12px] text-[#B7C9DC] truncate">
                     {t('Tersimpan lokal')}
                   </span>
                 </div>
               )}
             </div>
-
-            {!isCompact && (onExportWorkspace || onImportBackup) && (
-              <div className="grid grid-cols-2 gap-1.5 pt-1">
-                {onExportWorkspace && (
-                  <button
-                    type="button"
-                    onClick={onExportWorkspace}
-                    className="min-h-[44px] px-2 py-1.5 rounded-lg bg-[#1C3652] hover:bg-[#254567] text-[#E3ECF5] text-[11px] font-medium inline-flex items-center justify-center gap-1.5 transition-colors focus-visible:outline-2 focus-visible:outline-[#CFE2F1]"
-                  >
-                    <Download className="size-3.5 shrink-0 text-[#CFE2F1]" aria-hidden="true" />
-                    <span className="truncate">{t('Export')}</span>
-                  </button>
-                )}
-                {onImportBackup && (
-                  <button
-                    type="button"
-                    onClick={onImportBackup}
-                    className="min-h-[44px] px-2 py-1.5 rounded-lg bg-[#1C3652] hover:bg-[#254567] text-[#E3ECF5] text-[11px] font-medium inline-flex items-center justify-center gap-1.5 transition-colors focus-visible:outline-2 focus-visible:outline-[#CFE2F1]"
-                  >
-                    <UploadCloud className="size-3.5 shrink-0 text-[#CFE2F1]" aria-hidden="true" />
-                    <span className="truncate">{t('Import')}</span>
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
+          </button>
         </div>
       </div>
     );
@@ -348,13 +328,13 @@ export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
 
   return (
     <>
-      {/* Desktop / Tablet Persistent Rail: 200px desktop, 72px collapsed */}
+      {/* Desktop / Tablet Persistent Rail: 216px desktop, 72px collapsed */}
       <aside
         data-testid="workspace-sidebar"
         data-sidebar-collapsed={collapsed ? 'true' : 'false'}
         aria-label={t('Sidebar workspace')}
         className={`workspace-sidebar-rail hidden md:block shrink-0 bg-[#172F49] border-r border-[#12263C] transition-[width] duration-200 ${
-          collapsed ? 'w-[72px]' : 'w-[200px]'
+          collapsed ? 'w-[72px]' : 'w-[216px]'
         }`}
       >
         {renderSidebarContent(false)}
@@ -373,7 +353,7 @@ export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
             onClick={onMobileClose}
             aria-hidden="true"
           />
-          <div ref={drawerRef} className="relative z-10 w-[240px] max-w-[82vw] h-full bg-[#172F49] shadow-xl">
+          <div ref={drawerRef} className="relative z-10 w-[260px] max-w-[85vw] h-full bg-[#172F49] shadow-xl">
             {renderSidebarContent(true)}
           </div>
         </div>

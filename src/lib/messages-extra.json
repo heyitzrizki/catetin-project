@@ -501,5 +501,69 @@
   "Belum ada rekaman di workspace.": {
     "id": "Belum ada rekaman di workspace.",
     "en": "No recordings in the workspace yet."
+  },
+  "Perlindungan belum aktif": {
+    "id": "Perlindungan belum aktif",
+    "en": "Protection not active"
+  },
+  "Perlindungan aktif": {
+    "id": "Perlindungan aktif",
+    "en": "Protection active"
+  },
+  "Perlindungan penyimpanan": {
+    "id": "Perlindungan penyimpanan",
+    "en": "Storage protection"
+  },
+  "Kapasitas browser": {
+    "id": "Kapasitas browser",
+    "en": "Browser storage"
+  },
+  "Belum ada project untuk membuat folder": {
+    "id": "Belum ada project untuk membuat folder",
+    "en": "No projects yet to create folders in"
+  },
+  "Folder dibuat di dalam project. Buat project pertama Anda untuk mulai mengelompokkan rekaman.": {
+    "id": "Folder dibuat di dalam project. Buat project pertama Anda untuk mulai mengelompokkan rekaman.",
+    "en": "Folders are created inside projects. Create your first project to start grouping recordings."
+  },
+  "Buat project dahulu": {
+    "id": "Buat project dahulu",
+    "en": "Create project first"
+  },
+  "Belum ada tag di workspace": {
+    "id": "Belum ada tag di workspace",
+    "en": "No tags in workspace yet"
+  },
+  "Tag ditambahkan langsung saat mengelola rekaman untuk memudahkan pencarian lintas topik.": {
+    "id": "Tag ditambahkan langsung saat mengelola rekaman untuk memudahkan pencarian lintas topik.",
+    "en": "Tags are added directly when managing recordings to facilitate cross-topic search."
+  },
+  "Belum ada rekaman": {
+    "id": "Belum ada rekaman",
+    "en": "No recordings yet"
+  },
+  "Mulai dengan merekam percakapan langsung atau membuka berkas audio yang sudah ada di perangkat ini.": {
+    "id": "Mulai dengan merekam percakapan langsung atau membuka berkas audio yang sudah ada di perangkat ini.",
+    "en": "Start by recording a live conversation or opening an existing audio file on this device."
+  },
+  "Kelola rekaman dan folder dalam ruang kerja terstruktur di perangkat ini.": {
+    "id": "Kelola rekaman dan folder dalam ruang kerja terstruktur di perangkat ini.",
+    "en": "Manage recordings and folders in structured local workspaces on this device."
+  },
+  "Catatan penting: Penyimpanan peramban mandiri. Rekaman dapat terhapus jika riwayat situs dibersihkan secara manual. Gunakan tombol Export untuk membuat cadangan rutin.": {
+    "id": "Catatan penting: Penyimpanan peramban mandiri. Rekaman dapat terhapus jika riwayat situs dibersihkan secara manual. Gunakan tombol Export untuk membuat cadangan rutin.",
+    "en": "Important note: Browser storage is self-contained. Recordings can be deleted if site history is cleared manually. Use the Export button for regular backups."
+  },
+  "Buat project pertama": {
+    "id": "Buat project pertama",
+    "en": "Create first project"
+  },
+  "Rekam langsung atau buka audio yang sudah ada untuk mulai membuat naskah.": {
+    "id": "Rekam langsung atau buka audio yang sudah ada untuk mulai membuat naskah.",
+    "en": "Record live or open existing audio to start creating transcripts."
+  },
+  "Rekaman dan naskah tetap tersimpan di browser perangkat ini, bukan di akun Catetin atau cloud.": {
+    "id": "Rekaman dan naskah tetap tersimpan di browser perangkat ini, bukan di akun Catetin atau cloud.",
+    "en": "Recordings and transcripts stay in this device's browser, not in your Catetin account or the cloud."
   }
 }
