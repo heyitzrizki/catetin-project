@@ -15,6 +15,7 @@ import {
   X,
 } from 'lucide-react';
 import { t } from '@/lib/i18n';
+import { PRODUCT_IDENTITY } from '@/config/product-identity';
 import type { StorageEstimateInfo, StoragePersistenceStatus } from '@/features/workspace/storage-adapter';
 
 export type WorkspaceSectionId = 'workspace' | 'projects' | 'recordings' | 'folders-tags' | 'storage';
@@ -162,7 +163,7 @@ export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
           <div className="workspace-sidebar-brand flex items-center justify-between px-4 pt-5 pb-4">
             <div className="flex items-center min-w-0">
               <img
-                src="/brand/catetin-lockup-reversed.svg"
+                src={PRODUCT_IDENTITY.logos.reversedLockup}
                 alt=""
                 aria-hidden="true"
                 width={120}
@@ -171,7 +172,7 @@ export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
                 draggable={false}
               />
               <img
-                src="/brand/catetin-mark-reversed.svg"
+                src={PRODUCT_IDENTITY.logos.reversedMark}
                 alt=""
                 aria-hidden="true"
                 width={30}
@@ -179,7 +180,7 @@ export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
                 className={`h-7 w-7 select-none ${isCompact ? 'block' : 'hidden'}`}
                 draggable={false}
               />
-              <span className="sr-only">Catetin</span>
+              <span className="sr-only">{PRODUCT_IDENTITY.productName}</span>
             </div>
 
             {isDrawer && onMobileClose ? (

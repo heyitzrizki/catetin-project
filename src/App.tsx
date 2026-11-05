@@ -26,6 +26,7 @@ import { RecordingSetupDialog } from '@/components/recording/RecordingSetupDialo
 import { ActiveRecordingDialog } from '@/components/recording/ActiveRecordingDialog';
 import { DiscardRecordingDialog } from '@/components/recording/DiscardRecordingDialog';
 import { CatetinBrand } from '@/components/brand/CatetinBrand';
+import { formatDocumentTitle, PRODUCT_IDENTITY } from '@/config/product-identity';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
@@ -249,11 +250,13 @@ export default function App() {
 
   useEffect(() => {
     document.title = page === 'account'
-      ? `${t('Pusat Akun')} · Catetin`
+      ? formatDocumentTitle(t('Pusat Akun'))
       : page === 'pricing'
-      ? `${t('Pilihan Paket & Harga')} · Catetin`
+      ? formatDocumentTitle(t('Pilihan Paket & Harga'))
       : page === 'studio'
-      ? (studioView === 'dashboard' ? `Dashboard · Catetin Studio` : `${t(active.title)} · Catetin Studio`)
+      ? (studioView === 'dashboard'
+          ? formatDocumentTitle('Dashboard', { isStudio: true })
+          : formatDocumentTitle(t(active.title), { isStudio: true }))
       : t('Page title');
     window.scrollTo({ top: 0, behavior: 'instant' });
     requestAnimationFrame(() => document.getElementById('main-content')?.focus({ preventScroll: true }));
@@ -261,11 +264,13 @@ export default function App() {
 
   useEffect(() => {
     document.title = page === 'account'
-      ? `${t('Pusat Akun')} · Catetin`
+      ? formatDocumentTitle(t('Pusat Akun'))
       : page === 'pricing'
-      ? `${t('Pilihan Paket & Harga')} · Catetin`
+      ? formatDocumentTitle(t('Pilihan Paket & Harga'))
       : page === 'studio'
-      ? (studioView === 'dashboard' ? `Dashboard · Catetin Studio` : `${t(active.title)} · Catetin Studio`)
+      ? (studioView === 'dashboard'
+          ? formatDocumentTitle('Dashboard', { isStudio: true })
+          : formatDocumentTitle(t(active.title), { isStudio: true }))
       : t('Page title');
   }, [language, page, studioView, active?.title]);
 

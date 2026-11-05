@@ -1,4 +1,5 @@
 import React from 'react';
+import { PRODUCT_IDENTITY } from '@/config/product-identity';
 
 export interface CatetinBrandProps {
   /**
@@ -27,11 +28,11 @@ export const CatetinBrand: React.FC<CatetinBrandProps> = ({
   height,
 }) => {
   const lockupSrc = reversed
-    ? '/brand/catetin-lockup-reversed.svg'
-    : '/brand/catetin-lockup.svg';
+    ? PRODUCT_IDENTITY.logos.reversedLockup
+    : PRODUCT_IDENTITY.logos.standardLockup;
   const markSrc = reversed
-    ? '/brand/catetin-mark-reversed.svg'
-    : '/brand/catetin-mark.svg';
+    ? PRODUCT_IDENTITY.logos.reversedMark
+    : PRODUCT_IDENTITY.logos.standardMark;
 
   // Desktop default height: 34px (~32-36px range); ratio: 727/230 ≈ 3.16
   const defaultHeight = 34;
@@ -53,7 +54,7 @@ export const CatetinBrand: React.FC<CatetinBrandProps> = ({
           style={height ? { height: `${markSize}px`, width: `${markSize}px` } : undefined}
           draggable={false}
         />
-        {!hasAccessibleParent && <span className="sr-only">Catetin</span>}
+        {!hasAccessibleParent && <span className="sr-only">{PRODUCT_IDENTITY.productName}</span>}
       </span>
     );
   }
@@ -82,7 +83,10 @@ export const CatetinBrand: React.FC<CatetinBrandProps> = ({
         style={height ? { height: `${markSize}px`, width: `${markSize}px` } : undefined}
         draggable={false}
       />
-      {!hasAccessibleParent && <span className="sr-only">Catetin</span>}
+      {!hasAccessibleParent && <span className="sr-only">{PRODUCT_IDENTITY.productName}</span>}
     </span>
   );
 };
+
+export const BrandLockup = CatetinBrand;
+export type BrandLockupProps = CatetinBrandProps;
