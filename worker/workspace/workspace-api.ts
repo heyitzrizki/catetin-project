@@ -204,7 +204,12 @@ export async function handleWorkspaceRequest(request: Request, env: Env): Promis
   const jsonResp = (data: unknown, status = 200, extraHeaders?: HeadersInit) =>
     workspaceJsonResponse(data, status, extraHeaders, origin, appOrigin);
 
-  // 1. Verifikasi Autentikasi Pengguna (menggunakan Better Auth session)
+  // 1. Verifikasi Autentikasi Pengguna (menggunakan Better Auth session).
+  // Handler sengaja memverifikasi autentikasi sebelum dispatch metode HTTP sebagai
+  // kebijakan anti-enumeration:
+  // - Request tanpa sesi selalu menerima 401 Unauthorized, tanpa membocorkan eksistensi
+  //   atau kapabilitas metode endpoint.
+  // - Request terautentikasi dengan metode HTTP yang salah menerima 405 Method Not Allowed.
   let auth;
   let sessionResult;
   try {
@@ -238,26 +243,51 @@ export async function handleWorkspaceRequest(request: Request, env: Env): Promis
 
   const userId = sessionResult.user.id;
 
-  // 2. Batas Keamanan HTTP Method: Hanya method GET yang didukung pada R2C-A
-  if (request.method !== 'GET') {
-    return jsonResp(
-      {
-        error: {
-          code: 'METHOD_NOT_ALLOWED',
-          message: 'Metode HTTP tidak didukung pada endpoint ini',
-        },
-      },
-      405,
-      { 'Allow': 'GET' }
-    );
-  }
-
-  // 3. Dispatch Rute URL
+  // 2. Dispatch dan Batas Keamanan HTTP Method
   const normalizedPath = url.pathname.replace(/\/+$/, '');
   const segments = normalizedPath.split('/').filter(Boolean);
 
+  const isBootstrap =
+    segments.length === 3 &&
+    segments[0] === 'api' &&
+    segments[1] === 'workspaces' &&
+    segments[2] === 'bootstrap';
+
+  if (isBootstrap) {
+    if (request.method !== 'POST') {
+      return jsonResp(
+        {
+          error: {
+            code: 'METHOD_NOT_ALLOWED',
+            message: 'Metode HTTP tidak didukung pada endpoint bootstrap',
+          },
+        },
+        405,
+        { 'Allow': 'POST' }
+      );
+    }
+  } else {
+    if (request.method !== 'GET') {
+      return jsonResp(
+        {
+          error: {
+            code: 'METHOD_NOT_ALLOWED',
+            message: 'Metode HTTP tidak didukung pada endpoint ini',
+          },
+        },
+        405,
+        { 'Allow': 'GET' }
+      );
+    }
+  }
+
   try {
     const db = env.DB as unknown as D1DatabaseLike;
+
+    // Rute 0: POST /api/workspaces/bootstrap
+    if (isBootstrap) {
+      return await handleBootstrapWorkspace(request, db, userId, env, jsonResp);
+    }
 
     // Rute 1: GET /api/workspaces
     if (segments.length === 2 && segments[0] === 'api' && segments[1] === 'workspaces') {
@@ -292,6 +322,415 @@ export async function handleWorkspaceRequest(request: Request, env: Env): Promis
     const { status, body } = formatDomainError(err);
     return jsonResp(body, status);
   }
+}
+
+const MAX_BOOTSTRAP_PAYLOAD_BYTES = 512;
+const MAX_BOOTSTRAP_INSERT_ATTEMPTS = 3;
+const CONTENT_LENGTH_REGEX = /^(?:0|[1-9]\d*)$/;
+
+function isValidJsonContentType(contentTypeHeader: string | null): boolean {
+  if (!contentTypeHeader) return false;
+  // Tolak header gabungan atau multitipe dengan koma
+  if (contentTypeHeader.includes(',')) return false;
+  // Ambil media type utama sebelum parameter semicolon
+  const mediaType = contentTypeHeader.split(';')[0].trim().toLowerCase();
+  return mediaType === 'application/json';
+}
+
+function isUniqueConstraintError(err: unknown): boolean {
+  if (!err) return false;
+  const msg = err instanceof Error ? err.message : String(err);
+  const code = (err as Record<string, unknown>).code;
+  return (
+    code === 'SQLITE_CONSTRAINT_UNIQUE' ||
+    msg.includes('UNIQUE constraint failed') ||
+    msg.includes('SQLITE_CONSTRAINT_UNIQUE')
+  );
+}
+
+/**
+ * Membaca stream request body secara bertahap dengan batas maksimum ukuran byte.
+ * Begitu akumulasi melebihi batas, stream langsung dibatalkan untuk menghemat memori.
+ */
+async function readBoundedRequestBody(
+  request: Request,
+  maxBytes: number
+): Promise<
+  | { ok: true; text: string }
+  | { ok: false; error: 'PAYLOAD_TOO_LARGE' | 'INVALID_REQUEST_BODY'; status: number; message: string }
+> {
+  if (!request.body) {
+    return { ok: true, text: '' };
+  }
+
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let totalBytes = 0;
+
+  try {
+    while (true) {
+      let readResult: ReadableStreamReadResult<Uint8Array>;
+      try {
+        readResult = await reader.read();
+      } catch {
+        return {
+          ok: false,
+          error: 'INVALID_REQUEST_BODY',
+          status: 400,
+          message: 'Gagal membaca stream request body',
+        };
+      }
+
+      const { done, value } = readResult;
+      if (done) {
+        break;
+      }
+
+      if (value) {
+        totalBytes += value.byteLength;
+        if (totalBytes > maxBytes) {
+          try {
+            await reader.cancel('payload_too_large');
+          } catch {
+            // Abaikan kesalahan pembatalan stream
+          }
+          return {
+            ok: false,
+            error: 'PAYLOAD_TOO_LARGE',
+            status: 400,
+            message: 'Ukuran payload melebihi batas maksimum yang diizinkan',
+          };
+        }
+        chunks.push(value);
+      }
+    }
+  } finally {
+    try {
+      reader.releaseLock();
+    } catch {
+      // Abaikan pelepasan lock jika reader telah dibatalkan
+    }
+  }
+
+  const accumulated = new Uint8Array(totalBytes);
+  let offset = 0;
+  for (const chunk of chunks) {
+    accumulated.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+
+  try {
+    const decoder = new TextDecoder('utf-8', { fatal: true });
+    const text = decoder.decode(accumulated);
+    return { ok: true, text };
+  } catch {
+    return {
+      ok: false,
+      error: 'INVALID_REQUEST_BODY',
+      status: 400,
+      message: 'Request body bukan representasi teks UTF-8 yang valid',
+    };
+  }
+}
+
+/**
+ * Endpoint bootstrap personal cloud workspace idempoten.
+ * Memastikan setiap pengguna terautentikasi memiliki tepat satu personal workspace.
+ */
+async function handleBootstrapWorkspace(
+  request: Request,
+  db: D1DatabaseLike,
+  userId: string,
+  env: Env,
+  jsonResp: (data: unknown, status?: number, extraHeaders?: HeadersInit) => Response
+): Promise<Response> {
+  // 1. Validasi CSRF dan Origin terpercaya untuk operasi mutasi
+  const origin = request.headers.get('Origin');
+  const appOrigin = env.APP_ORIGIN ?? '';
+  const canonical = normalizeOrigin(appOrigin);
+
+  if (!origin || !isOriginAllowed(origin, canonical)) {
+    return jsonResp(
+      {
+        error: {
+          code: 'FORBIDDEN',
+          message: 'Origin tidak terpercaya',
+        },
+      },
+      403
+    );
+  }
+
+  // 2. Validasi ketat Content-Type (harus exact application/json sebelum parameter)
+  const contentType = request.headers.get('content-type');
+  if (!isValidJsonContentType(contentType)) {
+    return jsonResp(
+      {
+        error: {
+          code: 'INVALID_CONTENT_TYPE',
+          message: 'Content-Type harus application/json',
+        },
+      },
+      400
+    );
+  }
+
+  // 3. Validasi ketat Content-Length jika tersedia
+  const contentLengthHeader = request.headers.get('content-length');
+  if (contentLengthHeader !== null && contentLengthHeader !== undefined) {
+    const trimmed = contentLengthHeader.trim();
+    if (!CONTENT_LENGTH_REGEX.test(trimmed)) {
+      return jsonResp(
+        {
+          error: {
+            code: 'INVALID_REQUEST_BODY',
+            message: 'Header Content-Length tidak valid',
+          },
+        },
+        400
+      );
+    }
+    const num = Number(trimmed);
+    if (!Number.isSafeInteger(num) || num < 0) {
+      return jsonResp(
+        {
+          error: {
+            code: 'INVALID_REQUEST_BODY',
+            message: 'Header Content-Length melampaui batas integer yang aman',
+          },
+        },
+        400
+      );
+    }
+    if (num > MAX_BOOTSTRAP_PAYLOAD_BYTES) {
+      return jsonResp(
+        {
+          error: {
+            code: 'PAYLOAD_TOO_LARGE',
+            message: 'Ukuran payload melebihi batas maksimum yang diizinkan',
+          },
+        },
+        400
+      );
+    }
+  }
+
+  // 4. Pembacaan incremental ReadableStream dengan batasan ukuran
+  const readResult = await readBoundedRequestBody(request, MAX_BOOTSTRAP_PAYLOAD_BYTES);
+  if (!readResult.ok) {
+    return jsonResp(
+      {
+        error: {
+          code: readResult.error,
+          message: readResult.message,
+        },
+      },
+      readResult.status
+    );
+  }
+
+  // 5. Parsing JSON terstruktur
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(readResult.text);
+  } catch {
+    return jsonResp(
+      {
+        error: {
+          code: 'INVALID_REQUEST_BODY',
+          message: 'Format JSON pada request body tidak valid',
+        },
+      },
+      400
+    );
+  }
+
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    return jsonResp(
+      {
+        error: {
+          code: 'INVALID_REQUEST_BODY',
+          message: 'Request body harus berupa JSON object',
+        },
+      },
+      400
+    );
+  }
+
+  // 6. Validasi ketat field request: hanya izinkan field 'locale' opsional
+  const bodyObj = parsed as Record<string, unknown>;
+  const allowedKeys = ['locale'];
+  for (const key of Object.keys(bodyObj)) {
+    if (!allowedKeys.includes(key)) {
+      return jsonResp(
+        {
+          error: {
+            code: 'INVALID_REQUEST_BODY',
+            message: `Field '${key}' tidak diizinkan pada bootstrap ruang kerja`,
+          },
+        },
+        400
+      );
+    }
+  }
+
+  let locale: 'id' | 'en' = 'id';
+  if ('locale' in bodyObj && bodyObj.locale !== undefined) {
+    if (typeof bodyObj.locale !== 'string' || !['id', 'en'].includes(bodyObj.locale)) {
+      return jsonResp(
+        {
+          error: {
+            code: 'INVALID_REQUEST_BODY',
+            message: "Field locale harus bernilai 'id' atau 'en'",
+          },
+        },
+        400
+      );
+    }
+    locale = bodyObj.locale as 'id' | 'en';
+  }
+
+  // 7. Periksa apakah user telah memiliki personal workspace
+  const existing = await db
+    .prepare(
+      `SELECT id, type, name, slug, created_at, updated_at, deleted_at
+       FROM workspace
+       WHERE personal_owner_user_id = ?`
+    )
+    .bind(userId)
+    .first<{
+      id: string;
+      type: string;
+      name: string;
+      slug: string;
+      created_at: number;
+      updated_at: number;
+      deleted_at: number | null;
+    }>();
+
+  if (existing) {
+    if (existing.deleted_at !== null) {
+      throw new WorkspaceDomainError(
+        'WORKSPACE_DELETED',
+        409,
+        'Ruang kerja personal telah dihapus. Kebijakan pemulihan belum tersedia.'
+      );
+    }
+
+    return jsonResp({
+      workspace: {
+        id: existing.id,
+        type: 'personal',
+        name: existing.name,
+        slug: existing.slug,
+        role: 'owner',
+        createdAt: existing.created_at,
+        updatedAt: existing.updated_at,
+      },
+      created: false,
+    });
+  }
+
+  // 8. Buat workspace baru dengan bounded collision recovery (maksimum 3 percobaan)
+  const defaultName = locale === 'en' ? 'Personal Workspace' : 'Ruang Kerja Utama';
+
+  for (let attempt = 1; attempt <= MAX_BOOTSTRAP_INSERT_ATTEMPTS; attempt++) {
+    const workspaceId = crypto.randomUUID();
+    const slug = `personal-${crypto.randomUUID().replace(/-/g, '')}`;
+    const now = Date.now();
+
+    try {
+      await db
+        .prepare(
+          `INSERT INTO workspace (
+            id, type, name, slug, personal_owner_user_id,
+            latest_change_seq, min_valid_sync_seq,
+            created_at, updated_at, deleted_at
+          ) VALUES (?, 'personal', ?, ?, ?, 0, 0, ?, ?, NULL)`
+        )
+        .bind(workspaceId, defaultName, slug, userId, now, now)
+        .run();
+
+      return jsonResp({
+        workspace: {
+          id: workspaceId,
+          type: 'personal',
+          name: defaultName,
+          slug,
+          role: 'owner',
+          createdAt: now,
+          updatedAt: now,
+        },
+        created: true,
+      });
+    } catch (err: unknown) {
+      // Error non-UNIQUE langsung disanitasi tanpa dianggap collision
+      if (!isUniqueConstraintError(err)) {
+        throw new WorkspaceDomainError(
+          'INTERNAL_OPERATION_FAILED',
+          500,
+          'Terjadi kesalahan internal saat menyiapkan ruang kerja personal'
+        );
+      }
+
+      // Jika terjadi UNIQUE conflict, periksa apakah karena balapan pembuatan personal owner
+      const recovered = await db
+        .prepare(
+          `SELECT id, type, name, slug, created_at, updated_at, deleted_at
+           FROM workspace
+           WHERE personal_owner_user_id = ?`
+        )
+        .bind(userId)
+        .first<{
+          id: string;
+          type: string;
+          name: string;
+          slug: string;
+          created_at: number;
+          updated_at: number;
+          deleted_at: number | null;
+        }>();
+
+      if (recovered) {
+        if (recovered.deleted_at !== null) {
+          throw new WorkspaceDomainError(
+            'WORKSPACE_DELETED',
+            409,
+            'Ruang kerja personal telah dihapus. Kebijakan pemulihan belum tersedia.'
+          );
+        }
+
+        return jsonResp({
+          workspace: {
+            id: recovered.id,
+            type: 'personal',
+            name: recovered.name,
+            slug: recovered.slug,
+            role: 'owner',
+            createdAt: recovered.created_at,
+            updatedAt: recovered.updated_at,
+          },
+          created: false,
+        });
+      }
+
+      // Jika tidak ada row untuk user ini, collision terjadi pada workspace.id atau workspace.slug.
+      // Jika retry sudah habis, sanitasi menjadi 500.
+      if (attempt === MAX_BOOTSTRAP_INSERT_ATTEMPTS) {
+        throw new WorkspaceDomainError(
+          'INTERNAL_OPERATION_FAILED',
+          500,
+          'Terjadi kesalahan internal saat menyiapkan ruang kerja personal'
+        );
+      }
+    }
+  }
+
+  throw new WorkspaceDomainError(
+    'INTERNAL_OPERATION_FAILED',
+    500,
+    'Terjadi kesalahan internal saat menyiapkan ruang kerja personal'
+  );
 }
 
 /**

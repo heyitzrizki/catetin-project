@@ -15,7 +15,11 @@ export type WorkspaceErrorCode =
   | 'IDEMPOTENCY_CONFLICT'
   | 'VERSION_CONFLICT'
   | 'INTERNAL_OPERATION_FAILED'
-  | 'METHOD_NOT_ALLOWED';
+  | 'METHOD_NOT_ALLOWED'
+  | 'INVALID_REQUEST_BODY'
+  | 'INVALID_CONTENT_TYPE'
+  | 'PAYLOAD_TOO_LARGE'
+  | 'WORKSPACE_DELETED';
 
 export interface StructuredErrorResponse {
   error: {
