@@ -145,10 +145,10 @@ test('workspace ownership: personal vs team dan penolakan cascade deletion pada 
     const teamWs = db.prepare('SELECT * FROM workspace WHERE id = ?').get('ws_team_1') as any;
     assert.ok(teamWs, 'Team workspace tidak boleh terhapus ketika user dihapus');
 
-    // 7. Menghapus user yang memiliki personal workspace ditolak oleh ON DELETE RESTRICT
+    // 7. Menghapus user yang memiliki personal workspace atau last owner ditolak
     assert.throws(() => {
       db.prepare('DELETE FROM "user" WHERE "id" = ?').run('u_owner_1');
-    }, /FOREIGN KEY constraint failed/i);
+    }, /FOREIGN KEY constraint failed|LAST_OWNER_REQUIRED/i);
   } finally {
     db.close();
   }
@@ -507,30 +507,43 @@ test('idempotency scope: UNIQUE(workspace_id, user_id, client_mutation_id)', () 
     db.prepare("INSERT INTO workspace (id, type, name, slug, personal_owner_user_id, created_at, updated_at) VALUES ('ws_id_1', 'team', 'WS Id 1', 'ws-id-1', NULL, ?, ?)").run(now, now);
     db.prepare("INSERT INTO workspace (id, type, name, slug, personal_owner_user_id, created_at, updated_at) VALUES ('ws_id_2', 'team', 'WS Id 2', 'ws-id-2', NULL, ?, ?)").run(now, now);
 
+    db.prepare(`
+      INSERT INTO workspace_change_log (change_seq, mutation_id, workspace_id, entity_type, entity_id, operation, version, changed_at, client_mutation_id)
+      VALUES (1, 'mut_uuid_1', 'ws_id_1', 'project', 'p1', 'upsert', 1, ?, 'mut_xyz')
+    `).run(now);
+    db.prepare(`
+      INSERT INTO workspace_change_log (change_seq, mutation_id, workspace_id, entity_type, entity_id, operation, version, changed_at, client_mutation_id)
+      VALUES (2, 'mut_uuid_2', 'ws_id_1', 'project', 'p2', 'upsert', 1, ?, 'mut_xyz')
+    `).run(now);
+    db.prepare(`
+      INSERT INTO workspace_change_log (change_seq, mutation_id, workspace_id, entity_type, entity_id, operation, version, changed_at, client_mutation_id)
+      VALUES (3, 'mut_uuid_3', 'ws_id_2', 'project', 'p3', 'upsert', 1, ?, 'mut_xyz')
+    `).run(now);
+
     // 1. Simpan key mutasi u_idem_a pada ws_id_1
     db.prepare(`
-      INSERT INTO mutation_idempotency (id, workspace_id, user_id, client_mutation_id, payload_hash, response_payload, created_at, expires_at)
-      VALUES ('id_1', 'ws_id_1', 'u_idem_a', 'mut_xyz', 'hash1', '{"ok":true}', ?, ?)
+      INSERT INTO mutation_idempotency (id, workspace_id, user_id, client_mutation_id, payload_hash, mutation_id, response_data_json, created_at, expires_at)
+      VALUES ('id_1', 'ws_id_1', 'u_idem_a', 'mut_xyz', 'hash1', 'mut_uuid_1', '{"ok":true}', ?, ?)
     `).run(now, now + 600000);
 
     // 2. User sama + workspace sama + key sama ditolak
     assert.throws(() => {
       db.prepare(`
-        INSERT INTO mutation_idempotency (id, workspace_id, user_id, client_mutation_id, payload_hash, response_payload, created_at, expires_at)
-        VALUES ('id_2', 'ws_id_1', 'u_idem_a', 'mut_xyz', 'hash2', '{"ok":true}', ?, ?)
+        INSERT INTO mutation_idempotency (id, workspace_id, user_id, client_mutation_id, payload_hash, mutation_id, response_data_json, created_at, expires_at)
+        VALUES ('id_2', 'ws_id_1', 'u_idem_a', 'mut_xyz', 'hash2', 'mut_uuid_1', '{"ok":true}', ?, ?)
       `).run(now, now + 600000);
     }, /UNIQUE constraint failed/i);
 
     // 3. User berbeda + workspace sama + key sama diperbolehkan
     db.prepare(`
-      INSERT INTO mutation_idempotency (id, workspace_id, user_id, client_mutation_id, payload_hash, response_payload, created_at, expires_at)
-      VALUES ('id_3', 'ws_id_1', 'u_idem_b', 'mut_xyz', 'hash3', '{"ok":true}', ?, ?)
+      INSERT INTO mutation_idempotency (id, workspace_id, user_id, client_mutation_id, payload_hash, mutation_id, response_data_json, created_at, expires_at)
+      VALUES ('id_3', 'ws_id_1', 'u_idem_b', 'mut_xyz', 'hash3', 'mut_uuid_2', '{"ok":true}', ?, ?)
     `).run(now, now + 600000);
 
     // 4. Workspace berbeda + key sama diperbolehkan
     db.prepare(`
-      INSERT INTO mutation_idempotency (id, workspace_id, user_id, client_mutation_id, payload_hash, response_payload, created_at, expires_at)
-      VALUES ('id_4', 'ws_id_2', 'u_idem_a', 'mut_xyz', 'hash4', '{"ok":true}', ?, ?)
+      INSERT INTO mutation_idempotency (id, workspace_id, user_id, client_mutation_id, payload_hash, mutation_id, response_data_json, created_at, expires_at)
+      VALUES ('id_4', 'ws_id_2', 'u_idem_a', 'mut_xyz', 'hash4', 'mut_uuid_3', '{"ok":true}', ?, ?)
     `).run(now, now + 600000);
   } finally {
     db.close();
@@ -598,18 +611,20 @@ test('syncable child entities: tag, speaker, audio_asset, recording_tag memiliki
       'recording_tag',
     ];
 
+    let seq = 1;
     for (const et of validEntityTypes) {
       db.prepare(`
-        INSERT INTO workspace_change_log (workspace_id, entity_type, entity_id, operation, version, changed_at)
-        VALUES ('ws_sync', ?, 'ent_1', 'upsert', 1, ?)
-      `).run(et, now);
+        INSERT INTO workspace_change_log (mutation_id, workspace_id, entity_type, entity_id, operation, version, changed_at, client_mutation_id)
+        VALUES (?, 'ws_sync', ?, 'ent_1', 'upsert', 1, ?, ?)
+      `).run(`mut_valid_${seq}`, et, now, `client_mut_${seq}`);
+      seq++;
     }
 
     // Entity type tidak sah ditolak
     assert.throws(() => {
       db.prepare(`
-        INSERT INTO workspace_change_log (workspace_id, entity_type, entity_id, operation, version, changed_at)
-        VALUES ('ws_sync', 'unknown_type', 'ent_1', 'upsert', 1, ?)
+        INSERT INTO workspace_change_log (mutation_id, workspace_id, entity_type, entity_id, operation, version, changed_at, client_mutation_id)
+        VALUES ('mut_invalid', 'ws_sync', 'unknown_type', 'ent_1', 'upsert', 1, ?, 'client_mut_err')
       `).run(now);
     }, /CHECK constraint failed/i);
   } finally {

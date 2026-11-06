@@ -65,6 +65,7 @@ test('TagRow memiliki normalized_name sedangkan TagDTO tidak mengeksposnya ke pu
     name: 'Riset Desain',
     normalized_name: 'riset desain',
     version: 1,
+    last_mutation_id: null,
     created_at: 1730790000000,
     updated_at: 1730790000000,
     deleted_at: null,

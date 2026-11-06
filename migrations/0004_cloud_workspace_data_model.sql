@@ -35,6 +35,29 @@ CREATE TABLE IF NOT EXISTS workspace_membership (
 );
 CREATE INDEX IF NOT EXISTS idx_membership_user ON workspace_membership(user_id);
 
+-- Enforce at least one owner remains in team workspace
+CREATE TRIGGER IF NOT EXISTS trg_prevent_last_owner_removal
+BEFORE DELETE ON workspace_membership
+WHEN OLD.role = 'owner'
+BEGIN
+  SELECT RAISE(ABORT, 'LAST_OWNER_REQUIRED: cannot remove last owner of team workspace')
+  WHERE (
+    SELECT COUNT(*) FROM workspace_membership
+    WHERE workspace_id = OLD.workspace_id AND role = 'owner'
+  ) <= 1;
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_prevent_last_owner_demotion
+BEFORE UPDATE OF role ON workspace_membership
+WHEN OLD.role = 'owner' AND NEW.role != 'owner'
+BEGIN
+  SELECT RAISE(ABORT, 'LAST_OWNER_REQUIRED: cannot demote last owner of team workspace')
+  WHERE (
+    SELECT COUNT(*) FROM workspace_membership
+    WHERE workspace_id = OLD.workspace_id AND role = 'owner'
+  ) <= 1;
+END;
+
 -- 3. Project
 CREATE TABLE IF NOT EXISTS project (
     id TEXT PRIMARY KEY,
@@ -43,6 +66,7 @@ CREATE TABLE IF NOT EXISTS project (
     description TEXT,
     created_by_user_id TEXT NOT NULL,
     version INTEGER NOT NULL DEFAULT 1,
+    last_mutation_id TEXT,
     created_at INTEGER NOT NULL,
     updated_at INTEGER NOT NULL,
     deleted_at INTEGER,
@@ -60,6 +84,7 @@ CREATE TABLE IF NOT EXISTS folder (
     name TEXT NOT NULL,
     color TEXT,
     version INTEGER NOT NULL DEFAULT 1,
+    last_mutation_id TEXT,
     created_at INTEGER NOT NULL,
     updated_at INTEGER NOT NULL,
     deleted_at INTEGER,
@@ -76,6 +101,7 @@ CREATE TABLE IF NOT EXISTS tag (
     name TEXT NOT NULL,
     normalized_name TEXT NOT NULL,
     version INTEGER NOT NULL DEFAULT 1,
+    last_mutation_id TEXT,
     created_at INTEGER NOT NULL,
     updated_at INTEGER NOT NULL,
     deleted_at INTEGER,
@@ -95,6 +121,7 @@ CREATE TABLE IF NOT EXISTS recording (
     duration_sec REAL NOT NULL DEFAULT 0.0,
     created_by_user_id TEXT NOT NULL,
     version INTEGER NOT NULL DEFAULT 1,
+    last_mutation_id TEXT,
     created_at INTEGER NOT NULL,
     updated_at INTEGER NOT NULL,
     deleted_at INTEGER,
@@ -150,6 +177,7 @@ CREATE TABLE IF NOT EXISTS audio_asset (
     retention_tier TEXT NOT NULL DEFAULT '30_days' CHECK(retention_tier IN ('7_days', '30_days', 'until_deleted')),
     purge_at INTEGER,
     version INTEGER NOT NULL DEFAULT 1,
+    last_mutation_id TEXT,
     created_at INTEGER NOT NULL,
     updated_at INTEGER NOT NULL,
     deleted_at INTEGER,
@@ -170,6 +198,7 @@ CREATE TABLE IF NOT EXISTS recording_tag (
     recording_id TEXT NOT NULL,
     tag_id TEXT NOT NULL,
     version INTEGER NOT NULL DEFAULT 1,
+    last_mutation_id TEXT,
     created_at INTEGER NOT NULL,
     updated_at INTEGER NOT NULL,
     deleted_at INTEGER,
@@ -188,6 +217,7 @@ CREATE TABLE IF NOT EXISTS speaker (
     display_name TEXT NOT NULL,
     color TEXT,
     version INTEGER NOT NULL DEFAULT 1,
+    last_mutation_id TEXT,
     created_at INTEGER NOT NULL,
     updated_at INTEGER NOT NULL,
     deleted_at INTEGER,
@@ -208,6 +238,7 @@ CREATE TABLE IF NOT EXISTS transcript (
     raw_document_json TEXT NOT NULL,
     checksum TEXT NOT NULL,
     version INTEGER NOT NULL DEFAULT 1,
+    last_mutation_id TEXT,
     created_at INTEGER NOT NULL,
     updated_at INTEGER NOT NULL,
     deleted_at INTEGER,
@@ -240,15 +271,18 @@ CREATE INDEX IF NOT EXISTS idx_revision_transcript ON transcript_revision(transc
 -- 12. Workspace Change Log (Log urutan mutasi monotonik per workspace)
 CREATE TABLE IF NOT EXISTS workspace_change_log (
     change_seq INTEGER PRIMARY KEY AUTOINCREMENT,
+    mutation_id TEXT NOT NULL UNIQUE,
     workspace_id TEXT NOT NULL,
     entity_type TEXT NOT NULL CHECK(entity_type IN ('project', 'folder', 'recording', 'transcript', 'tag', 'audio_asset', 'speaker', 'recording_tag')),
     entity_id TEXT NOT NULL,
     operation TEXT NOT NULL CHECK(operation IN ('upsert', 'delete')),
     version INTEGER NOT NULL,
     changed_at INTEGER NOT NULL,
+    client_mutation_id TEXT NOT NULL,
     FOREIGN KEY (workspace_id) REFERENCES workspace(id) ON DELETE CASCADE
 );
 CREATE INDEX IF NOT EXISTS idx_change_log_lookup ON workspace_change_log(workspace_id, change_seq ASC);
+CREATE INDEX IF NOT EXISTS idx_change_log_mutation ON workspace_change_log(workspace_id, client_mutation_id);
 
 -- 13. Mutation Idempotency (Pencegah duplikasi mutasi, retensi 7 hari)
 CREATE TABLE IF NOT EXISTS mutation_idempotency (
@@ -257,11 +291,13 @@ CREATE TABLE IF NOT EXISTS mutation_idempotency (
     user_id TEXT NOT NULL,
     client_mutation_id TEXT NOT NULL,
     payload_hash TEXT NOT NULL,
-    response_payload TEXT NOT NULL,
+    mutation_id TEXT NOT NULL,
+    response_data_json TEXT,
     created_at INTEGER NOT NULL,
     expires_at INTEGER NOT NULL,
     FOREIGN KEY (workspace_id) REFERENCES workspace(id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES "user"("id") ON DELETE CASCADE,
+    FOREIGN KEY (mutation_id) REFERENCES workspace_change_log(mutation_id) ON DELETE CASCADE,
     UNIQUE (workspace_id, user_id, client_mutation_id)
 );
 CREATE INDEX IF NOT EXISTS idx_idempotency_expires ON mutation_idempotency(expires_at);

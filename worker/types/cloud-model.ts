@@ -104,6 +104,7 @@ export interface ProjectRow {
   description: string | null;
   created_by_user_id: ID;
   version: number;
+  last_mutation_id: string | null;
   created_at: UnixMs;
   updated_at: UnixMs;
   deleted_at: UnixMs | null;
@@ -116,6 +117,7 @@ export interface FolderRow {
   name: string;
   color: string | null;
   version: number;
+  last_mutation_id: string | null;
   created_at: UnixMs;
   updated_at: UnixMs;
   deleted_at: UnixMs | null;
@@ -127,6 +129,7 @@ export interface TagRow {
   name: string;
   normalized_name: string;
   version: number;
+  last_mutation_id: string | null;
   created_at: UnixMs;
   updated_at: UnixMs;
   deleted_at: UnixMs | null;
@@ -142,6 +145,7 @@ export interface RecordingRow {
   duration_sec: number;
   created_by_user_id: ID;
   version: number;
+  last_mutation_id: string | null;
   created_at: UnixMs;
   updated_at: UnixMs;
   deleted_at: UnixMs | null;
@@ -160,6 +164,7 @@ export interface AudioAssetRow {
   retention_tier: AudioRetentionTier;
   purge_at: UnixMs | null;
   version: number;
+  last_mutation_id: string | null;
   created_at: UnixMs;
   updated_at: UnixMs;
   deleted_at: UnixMs | null;
@@ -171,6 +176,7 @@ export interface RecordingTagRow {
   recording_id: ID;
   tag_id: ID;
   version: number;
+  last_mutation_id: string | null;
   created_at: UnixMs;
   updated_at: UnixMs;
   deleted_at: UnixMs | null;
@@ -184,6 +190,7 @@ export interface SpeakerRow {
   display_name: string;
   color: string | null;
   version: number;
+  last_mutation_id: string | null;
   created_at: UnixMs;
   updated_at: UnixMs;
   deleted_at: UnixMs | null;
@@ -199,6 +206,7 @@ export interface TranscriptRow {
   raw_document_json: string;
   checksum: string;
   version: number;
+  last_mutation_id: string | null;
   created_at: UnixMs;
   updated_at: UnixMs;
   deleted_at: UnixMs | null;
@@ -220,12 +228,14 @@ export interface TranscriptRevisionRow {
 
 export interface WorkspaceChangeLogRow {
   change_seq: number;
+  mutation_id: string;
   workspace_id: ID;
   entity_type: SyncEntityType;
   entity_id: ID;
   operation: SyncOperation;
   version: number;
   changed_at: UnixMs;
+  client_mutation_id: string;
 }
 
 export interface MutationIdempotencyRow {
@@ -234,7 +244,8 @@ export interface MutationIdempotencyRow {
   user_id: ID;
   client_mutation_id: string;
   payload_hash: string;
-  response_payload: string;
+  mutation_id: string;
+  response_data_json: string | null;
   created_at: UnixMs;
   expires_at: UnixMs;
 }
