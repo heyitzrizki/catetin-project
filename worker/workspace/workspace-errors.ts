@@ -14,7 +14,8 @@ export type WorkspaceErrorCode =
   | 'FULL_RESYNC_REQUIRED'
   | 'IDEMPOTENCY_CONFLICT'
   | 'VERSION_CONFLICT'
-  | 'INTERNAL_OPERATION_FAILED';
+  | 'INTERNAL_OPERATION_FAILED'
+  | 'METHOD_NOT_ALLOWED';
 
 export interface StructuredErrorResponse {
   error: {
@@ -73,7 +74,7 @@ export function formatDomainError(err: unknown): { status: number; body: Structu
     status: 500,
     body: {
       error: {
-        code: 'FORBIDDEN',
+        code: 'INTERNAL_OPERATION_FAILED',
         message: 'Terjadi kesalahan internal pada server ruang kerja',
       },
     },

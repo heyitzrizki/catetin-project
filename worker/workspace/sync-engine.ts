@@ -734,6 +734,7 @@ export type GetWorkspaceDeltaResult =
   | {
       changes: SyncChangeItem[];
       latestSeq: number;
+      minValidSeq: number;
       hasMore: boolean;
       nextSeq: number;
       code?: undefined;
@@ -829,6 +830,7 @@ export async function getWorkspaceDelta(
   return {
     changes,
     latestSeq,
+    minValidSeq: minValidSyncSeq,
     hasMore,
     nextSeq,
   };

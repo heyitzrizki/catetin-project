@@ -1,6 +1,7 @@
 import type { Env, ExecutionContext } from './env.ts';
 import { handleAuthRequest } from './auth.ts';
 import { handleAccountRequest } from './account.ts';
+import { handleWorkspaceRequest } from './workspace/workspace-api.ts';
 
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
@@ -22,6 +23,10 @@ export default {
 
     if (url.pathname === '/api/account' || url.pathname.startsWith('/api/account/')) {
       return handleAccountRequest(request, env);
+    }
+
+    if (url.pathname === '/api/workspaces' || url.pathname.startsWith('/api/workspaces/')) {
+      return handleWorkspaceRequest(request, env);
     }
 
     if (url.pathname.startsWith('/api/')) {

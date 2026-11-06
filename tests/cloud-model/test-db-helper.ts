@@ -53,7 +53,7 @@ export function createInterleavingD1Adapter(
         },
         async all<T = unknown>() {
           const results = db.prepare(sql).all(...(boundValues as any[])) as T[];
-          return { results };
+          return { results, meta: { changes: 0 } };
         },
         async first<T = unknown>(colName?: string) {
           if (hooks.beforeFirst) {
