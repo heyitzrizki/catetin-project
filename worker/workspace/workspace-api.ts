@@ -7,6 +7,7 @@ import {
   formatDomainError,
 } from './workspace-errors.ts';
 import { getWorkspaceDelta } from './sync-engine.ts';
+import { handleWorkspaceMutationRequest } from './workspace-mutation-api.ts';
 import type {
   WorkspaceDTO,
   WorkspaceType,
@@ -134,7 +135,7 @@ export function sanitizeDialogSegments(rawDocumentJson: string): DialogSegmentDT
  * Mengurai segmen ID ruang kerja dari URL dengan decoding percent-encoding yang aman.
  * Malformed encoding (misal % atau %ZZ) ditolak dengan 404 terstruktur, bukan 500.
  */
-function parseSafeWorkspaceId(rawSegment: string): string {
+export function parseSafeWorkspaceId(rawSegment: string): string {
   try {
     const decoded = decodeURIComponent(rawSegment).trim();
     if (!decoded) {
@@ -253,13 +254,21 @@ export async function handleWorkspaceRequest(request: Request, env: Env): Promis
     segments[1] === 'workspaces' &&
     segments[2] === 'bootstrap';
 
-  if (isBootstrap) {
+  const isMutations =
+    segments.length === 4 &&
+    segments[0] === 'api' &&
+    segments[1] === 'workspaces' &&
+    segments[3] === 'mutations';
+
+  if (isBootstrap || isMutations) {
     if (request.method !== 'POST') {
       return jsonResp(
         {
           error: {
             code: 'METHOD_NOT_ALLOWED',
-            message: 'Metode HTTP tidak didukung pada endpoint bootstrap',
+            message: isBootstrap
+              ? 'Metode HTTP tidak didukung pada endpoint bootstrap'
+              : 'Metode HTTP tidak didukung pada endpoint mutations',
           },
         },
         405,
@@ -287,6 +296,12 @@ export async function handleWorkspaceRequest(request: Request, env: Env): Promis
     // Rute 0: POST /api/workspaces/bootstrap
     if (isBootstrap) {
       return await handleBootstrapWorkspace(request, db, userId, env, jsonResp);
+    }
+
+    // Rute 0b: POST /api/workspaces/:workspaceId/mutations
+    if (isMutations) {
+      const workspaceId = parseSafeWorkspaceId(segments[2]);
+      return await handleWorkspaceMutationRequest(request, env, db, userId, workspaceId, jsonResp);
     }
 
     // Rute 1: GET /api/workspaces
@@ -326,9 +341,9 @@ export async function handleWorkspaceRequest(request: Request, env: Env): Promis
 
 const MAX_BOOTSTRAP_PAYLOAD_BYTES = 512;
 const MAX_BOOTSTRAP_INSERT_ATTEMPTS = 3;
-const CONTENT_LENGTH_REGEX = /^(?:0|[1-9]\d*)$/;
+export const CONTENT_LENGTH_REGEX = /^(?:0|[1-9]\d*)$/;
 
-function isValidJsonContentType(contentTypeHeader: string | null): boolean {
+export function isValidJsonContentType(contentTypeHeader: string | null): boolean {
   if (!contentTypeHeader) return false;
   // Tolak header gabungan atau multitipe dengan koma
   if (contentTypeHeader.includes(',')) return false;
@@ -352,7 +367,7 @@ function isUniqueConstraintError(err: unknown): boolean {
  * Membaca stream request body secara bertahap dengan batas maksimum ukuran byte.
  * Begitu akumulasi melebihi batas, stream langsung dibatalkan untuk menghemat memori.
  */
-async function readBoundedRequestBody(
+export async function readBoundedRequestBody(
   request: Request,
   maxBytes: number
 ): Promise<
@@ -397,7 +412,7 @@ async function readBoundedRequestBody(
           return {
             ok: false,
             error: 'PAYLOAD_TOO_LARGE',
-            status: 400,
+            status: 413,
             message: 'Ukuran payload melebihi batas maksimum yang diizinkan',
           };
         }
@@ -510,7 +525,7 @@ async function handleBootstrapWorkspace(
             message: 'Ukuran payload melebihi batas maksimum yang diizinkan',
           },
         },
-        400
+        413
       );
     }
   }

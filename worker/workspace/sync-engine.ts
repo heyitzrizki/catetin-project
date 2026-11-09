@@ -176,8 +176,328 @@ const ENTITY_RULES: Record<SyncEntityType, EntitySchemaRule> = {
   },
 };
 
+interface CommitRelationalGuard {
+  sqlClauses: string[];
+  bindValues: unknown[];
+}
+
 /**
- * Menambahkan perubahan ke log mutasi workspace secara atomik dalam satu batch transaksi.
+ * Menyusun klausa SQL WHERE atomik untuk memverifikasi keaktifan (deleted_at IS NULL)
+ * dan konsistensi entitas induk/referensi tepat pada saat commit batch dieksekusi.
+ */
+function buildCommitTimeRelationalGuard(
+  workspaceId: string,
+  entityType: SyncEntityType,
+  action: TypedDomainMutationAction,
+  finalAttrs: Record<string, unknown>
+): CommitRelationalGuard {
+  const sqlClauses: string[] = [];
+  const bindValues: unknown[] = [];
+
+  if (action === 'delete') {
+    return { sqlClauses, bindValues };
+  }
+
+  switch (entityType) {
+    case 'folder': {
+      if (action === 'insert') {
+        sqlClauses.push(
+          'EXISTS (SELECT 1 FROM project p WHERE p.workspace_id = ? AND p.id = ? AND p.deleted_at IS NULL)'
+        );
+        bindValues.push(workspaceId, finalAttrs.project_id);
+      } else if (action === 'update') {
+        sqlClauses.push(
+          'EXISTS (SELECT 1 FROM project p WHERE p.workspace_id = folder.workspace_id AND p.id = folder.project_id AND p.deleted_at IS NULL)'
+        );
+      }
+      break;
+    }
+
+    case 'recording': {
+      if (action === 'insert') {
+        const projectId = finalAttrs.project_id ?? null;
+        const folderId = finalAttrs.folder_id ?? null;
+
+        if (projectId !== null) {
+          sqlClauses.push(
+            'EXISTS (SELECT 1 FROM project p WHERE p.workspace_id = ? AND p.id = ? AND p.deleted_at IS NULL)'
+          );
+          bindValues.push(workspaceId, projectId);
+        }
+
+        if (folderId !== null) {
+          sqlClauses.push(
+            'EXISTS (SELECT 1 FROM folder f JOIN project p ON p.workspace_id = f.workspace_id AND p.id = f.project_id WHERE f.workspace_id = ? AND f.id = ? AND f.project_id = ? AND f.deleted_at IS NULL AND p.deleted_at IS NULL)'
+          );
+          bindValues.push(workspaceId, folderId, projectId);
+        }
+      } else if (action === 'update') {
+        sqlClauses.push(
+          '(recording.project_id IS NULL OR EXISTS (SELECT 1 FROM project p WHERE p.workspace_id = recording.workspace_id AND p.id = recording.project_id AND p.deleted_at IS NULL))'
+        );
+
+        if ('folder_id' in finalAttrs) {
+          const newFolderId = finalAttrs.folder_id ?? null;
+          if (newFolderId !== null) {
+            sqlClauses.push(
+              'EXISTS (SELECT 1 FROM folder f JOIN project p ON p.workspace_id = f.workspace_id AND p.id = f.project_id WHERE f.workspace_id = recording.workspace_id AND f.id = ? AND recording.project_id IS NOT NULL AND f.project_id = recording.project_id AND f.deleted_at IS NULL AND p.deleted_at IS NULL)'
+            );
+            bindValues.push(newFolderId);
+          }
+        } else {
+          sqlClauses.push(
+            '(recording.folder_id IS NULL OR EXISTS (SELECT 1 FROM folder f WHERE f.workspace_id = recording.workspace_id AND f.id = recording.folder_id AND f.project_id = recording.project_id AND f.deleted_at IS NULL))'
+          );
+        }
+      }
+      break;
+    }
+
+    case 'speaker': {
+      if (action === 'insert') {
+        sqlClauses.push(
+          'EXISTS (SELECT 1 FROM recording r WHERE r.workspace_id = ? AND r.id = ? AND r.deleted_at IS NULL)'
+        );
+        bindValues.push(workspaceId, finalAttrs.recording_id);
+      } else if (action === 'update') {
+        sqlClauses.push(
+          'EXISTS (SELECT 1 FROM recording r WHERE r.workspace_id = speaker.workspace_id AND r.id = speaker.recording_id AND r.deleted_at IS NULL)'
+        );
+      }
+      break;
+    }
+
+    case 'recording_tag': {
+      if (action === 'insert') {
+        sqlClauses.push(
+          'EXISTS (SELECT 1 FROM recording r WHERE r.workspace_id = ? AND r.id = ? AND r.deleted_at IS NULL)',
+          'EXISTS (SELECT 1 FROM tag t WHERE t.workspace_id = ? AND t.id = ? AND t.deleted_at IS NULL)'
+        );
+        bindValues.push(workspaceId, finalAttrs.recording_id, workspaceId, finalAttrs.tag_id);
+      } else if (action === 'update') {
+        sqlClauses.push(
+          'EXISTS (SELECT 1 FROM recording r WHERE r.workspace_id = recording_tag.workspace_id AND r.id = recording_tag.recording_id AND r.deleted_at IS NULL)',
+          'EXISTS (SELECT 1 FROM tag t WHERE t.workspace_id = recording_tag.workspace_id AND t.id = recording_tag.tag_id AND t.deleted_at IS NULL)'
+        );
+      }
+      break;
+    }
+
+    case 'transcript': {
+      if (action === 'insert') {
+        sqlClauses.push(
+          'EXISTS (SELECT 1 FROM recording r WHERE r.workspace_id = ? AND r.id = ? AND r.deleted_at IS NULL)'
+        );
+        bindValues.push(workspaceId, finalAttrs.recording_id);
+      } else if (action === 'update') {
+        sqlClauses.push(
+          'EXISTS (SELECT 1 FROM recording r WHERE r.workspace_id = transcript.workspace_id AND r.id = transcript.recording_id AND r.deleted_at IS NULL)'
+        );
+      }
+      break;
+    }
+
+    case 'audio_asset': {
+      if (action === 'insert') {
+        sqlClauses.push(
+          'EXISTS (SELECT 1 FROM recording r WHERE r.workspace_id = ? AND r.id = ? AND r.deleted_at IS NULL)'
+        );
+        bindValues.push(workspaceId, finalAttrs.recording_id);
+      } else if (action === 'update') {
+        sqlClauses.push(
+          'EXISTS (SELECT 1 FROM recording r WHERE r.workspace_id = audio_asset.workspace_id AND r.id = audio_asset.recording_id AND r.deleted_at IS NULL)'
+        );
+      }
+      break;
+    }
+
+    default:
+      break;
+  }
+
+  return { sqlClauses, bindValues };
+}
+
+/**
+ * Memeriksa status keaktifan entitas induk/referensi saat commit batch gagal
+ * guna menghasilkan galat domain yang akurat (404 WORKSPACE_NOT_FOUND atau 400 INVALID_MUTATION_PLAN).
+ */
+async function assertCommitTimeParentIntegrity(
+  db: D1DatabaseLike,
+  workspaceId: string,
+  entityType: SyncEntityType,
+  action: TypedDomainMutationAction,
+  entityId: string,
+  finalAttrs: Record<string, unknown>
+): Promise<void> {
+  if (action === 'delete') return;
+
+  switch (entityType) {
+    case 'folder': {
+      let projectId = finalAttrs.project_id as string | undefined;
+      if (action === 'update') {
+        const fld = await db
+          .prepare('SELECT project_id FROM folder WHERE workspace_id = ? AND id = ?')
+          .bind(workspaceId, entityId)
+          .first<{ project_id: string }>();
+        projectId = fld?.project_id;
+      }
+      if (projectId) {
+        const proj = await db
+          .prepare('SELECT 1 FROM project WHERE workspace_id = ? AND id = ? AND deleted_at IS NULL')
+          .bind(workspaceId, projectId)
+          .first<{ 1: number }>();
+        if (!proj) {
+          throw new WorkspaceDomainError(
+            'WORKSPACE_NOT_FOUND',
+            404,
+            'Project referensi tidak ditemukan dalam ruang kerja ini'
+          );
+        }
+      }
+      break;
+    }
+
+    case 'recording': {
+      let projectId = (finalAttrs.project_id ?? null) as string | null;
+      let folderId = (finalAttrs.folder_id ?? null) as string | null;
+
+      if (action === 'update') {
+        const rec = await db
+          .prepare('SELECT project_id, folder_id FROM recording WHERE workspace_id = ? AND id = ?')
+          .bind(workspaceId, entityId)
+          .first<{ project_id: string | null; folder_id: string | null }>();
+        if (rec) {
+          projectId = rec.project_id;
+          folderId = 'folder_id' in finalAttrs ? ((finalAttrs.folder_id ?? null) as string | null) : rec.folder_id;
+        }
+      }
+
+      if (projectId !== null) {
+        const proj = await db
+          .prepare('SELECT 1 FROM project WHERE workspace_id = ? AND id = ? AND deleted_at IS NULL')
+          .bind(workspaceId, projectId)
+          .first<{ 1: number }>();
+        if (!proj) {
+          throw new WorkspaceDomainError(
+            'WORKSPACE_NOT_FOUND',
+            404,
+            'Project referensi tidak ditemukan dalam ruang kerja ini'
+          );
+        }
+      }
+
+      if (folderId !== null) {
+        const folder = await db
+          .prepare('SELECT id, project_id FROM folder WHERE workspace_id = ? AND id = ? AND deleted_at IS NULL')
+          .bind(workspaceId, folderId)
+          .first<{ id: string; project_id: string }>();
+        if (!folder) {
+          throw new WorkspaceDomainError(
+            'WORKSPACE_NOT_FOUND',
+            404,
+            'Folder referensi tidak ditemukan dalam ruang kerja ini'
+          );
+        }
+
+        const folderProj = await db
+          .prepare('SELECT 1 FROM project WHERE workspace_id = ? AND id = ? AND deleted_at IS NULL')
+          .bind(workspaceId, folder.project_id)
+          .first<{ 1: number }>();
+        if (!folderProj) {
+          throw new WorkspaceDomainError(
+            'WORKSPACE_NOT_FOUND',
+            404,
+            'Project referensi tidak ditemukan dalam ruang kerja ini'
+          );
+        }
+
+        if (!projectId || folder.project_id !== projectId) {
+          throw new WorkspaceDomainError(
+            'INVALID_MUTATION_PLAN',
+            400,
+            'Folder tidak termasuk dalam project yang ditentukan'
+          );
+        }
+      }
+      break;
+    }
+
+    case 'speaker':
+    case 'transcript':
+    case 'audio_asset': {
+      let recordingId = finalAttrs.recording_id as string | undefined;
+      if (action === 'update') {
+        const tableName = SYNCABLE_TABLE_MAP[entityType];
+        const row = await db
+          .prepare(`SELECT recording_id FROM ${tableName} WHERE workspace_id = ? AND id = ?`)
+          .bind(workspaceId, entityId)
+          .first<{ recording_id: string }>();
+        recordingId = row?.recording_id;
+      }
+      if (recordingId) {
+        const rec = await db
+          .prepare('SELECT 1 FROM recording WHERE workspace_id = ? AND id = ? AND deleted_at IS NULL')
+          .bind(workspaceId, recordingId)
+          .first<{ 1: number }>();
+        if (!rec) {
+          throw new WorkspaceDomainError(
+            'WORKSPACE_NOT_FOUND',
+            404,
+            'Recording referensi tidak ditemukan dalam ruang kerja ini'
+          );
+        }
+      }
+      break;
+    }
+
+    case 'recording_tag': {
+      let recordingId = finalAttrs.recording_id as string | undefined;
+      let tagId = finalAttrs.tag_id as string | undefined;
+      if (action === 'update') {
+        const row = await db
+          .prepare('SELECT recording_id, tag_id FROM recording_tag WHERE workspace_id = ? AND id = ?')
+          .bind(workspaceId, entityId)
+          .first<{ recording_id: string; tag_id: string }>();
+        recordingId = row?.recording_id;
+        tagId = row?.tag_id;
+      }
+      if (recordingId) {
+        const rec = await db
+          .prepare('SELECT 1 FROM recording WHERE workspace_id = ? AND id = ? AND deleted_at IS NULL')
+          .bind(workspaceId, recordingId)
+          .first<{ 1: number }>();
+        if (!rec) {
+          throw new WorkspaceDomainError(
+            'WORKSPACE_NOT_FOUND',
+            404,
+            'Recording referensi tidak ditemukan dalam ruang kerja ini'
+          );
+        }
+      }
+      if (tagId) {
+        const tag = await db
+          .prepare('SELECT 1 FROM tag WHERE workspace_id = ? AND id = ? AND deleted_at IS NULL')
+          .bind(workspaceId, tagId)
+          .first<{ 1: number }>();
+        if (!tag) {
+          throw new WorkspaceDomainError(
+            'WORKSPACE_NOT_FOUND',
+            404,
+            'Tag referensi tidak ditemukan dalam ruang kerja ini'
+          );
+        }
+      }
+      break;
+    }
+
+    default:
+      break;
+  }
+}
+
+/**
+ * Mencatat mutasi entitas dan entri change log baru secara atomik.
  * Seluruh penegakan (idempotensi, CAS, tombstone, otorisasi commit-time, dan latest_change_seq)
  * dieksekusi secara transaksional tanpa langkah perbaikan pasca-commit.
  */
@@ -417,7 +737,7 @@ export async function appendWorkspaceChange(
   // 9. Susun batch SQL transaksional
   const statements: D1PreparedStatementLike[] = [];
 
-  // Statement 0: Mutasi Domain
+  // Statement 0: Mutasi Domain dengan guard relasional commit-time
   if (action === 'insert') {
     const colNames = [
       'id',
@@ -441,9 +761,29 @@ export async function appendWorkspaceChange(
       ...Object.values(finalAttrs),
     ];
 
-    statements.push(
-      db.prepare(`INSERT INTO ${tableName} (${colNames.join(', ')}) VALUES (${placeholders})`).bind(...colVals)
+    const relGuard = buildCommitTimeRelationalGuard(
+      params.workspaceId,
+      params.entityType,
+      action,
+      finalAttrs
     );
+
+    if (relGuard.sqlClauses.length > 0) {
+      const whereGuard = `WHERE ${relGuard.sqlClauses.join(' AND ')}`;
+      statements.push(
+        db
+          .prepare(
+            `INSERT INTO ${tableName} (${colNames.join(', ')}) SELECT ${placeholders} ${whereGuard}`
+          )
+          .bind(...colVals, ...relGuard.bindValues)
+      );
+    } else {
+      statements.push(
+        db
+          .prepare(`INSERT INTO ${tableName} (${colNames.join(', ')}) VALUES (${placeholders})`)
+          .bind(...colVals)
+      );
+    }
   } else if (action === 'update') {
     const setClauses: string[] = ['version = version + 1', 'last_mutation_id = ?', 'updated_at = ?'];
     const setVals: unknown[] = [mutationId, now];
@@ -451,11 +791,33 @@ export async function appendWorkspaceChange(
       setClauses.push(`${k} = ?`);
       setVals.push(v);
     }
-    const whereClause = `WHERE workspace_id = ? AND id = ? AND deleted_at IS NULL AND version = ?`;
-    const whereVals: unknown[] = [params.workspaceId, params.entityId, params.expectedVersion];
+
+    const relGuard = buildCommitTimeRelationalGuard(
+      params.workspaceId,
+      params.entityType,
+      action,
+      finalAttrs
+    );
+
+    const whereConditions = [
+      'workspace_id = ?',
+      'id = ?',
+      'deleted_at IS NULL',
+      'version = ?',
+      ...relGuard.sqlClauses,
+    ];
+    const whereClause = `WHERE ${whereConditions.join(' AND ')}`;
+    const whereVals: unknown[] = [
+      params.workspaceId,
+      params.entityId,
+      params.expectedVersion,
+      ...relGuard.bindValues,
+    ];
 
     statements.push(
-      db.prepare(`UPDATE ${tableName} SET ${setClauses.join(', ')} ${whereClause}`).bind(...setVals, ...whereVals)
+      db
+        .prepare(`UPDATE ${tableName} SET ${setClauses.join(', ')} ${whereClause}`)
+        .bind(...setVals, ...whereVals)
     );
   } else if (action === 'delete') {
     const whereClause = `WHERE workspace_id = ? AND id = ? AND deleted_at IS NULL AND version = ?`;
@@ -696,7 +1058,19 @@ export async function appendWorkspaceChange(
         if (params.expectedVersion !== undefined && row.version !== params.expectedVersion) {
           throw new WorkspaceDomainError('VERSION_CONFLICT', 409, 'Versi data tidak cocok');
         }
-      } else if (params.expectedVersion !== undefined && params.expectedVersion !== 0) {
+      }
+
+      // 3. Periksa apakah entitas induk/referensi dihapus atau berubah tepat sebelum commit
+      await assertCommitTimeParentIntegrity(
+        db,
+        params.workspaceId,
+        params.entityType,
+        action,
+        params.entityId,
+        finalAttrs
+      );
+
+      if (!row && params.expectedVersion !== undefined && params.expectedVersion !== 0) {
         throw new WorkspaceDomainError(
           'VERSION_CONFLICT',
           409,

@@ -244,7 +244,7 @@ test('7. payload terlalu besar -> ditolak sebelum operasi database', async () =>
     {} as any
   );
 
-  assert.equal(res.status, 400);
+  assert.equal(res.status, 413);
   assert.equal(dbTouched, false);
   const body = await res.json();
   assert.equal(body.error.code, 'PAYLOAD_TOO_LARGE');
@@ -932,11 +932,12 @@ test('24. validasi Content-Length: tolak malformed, negatif, desimal, suffix, da
       {} as any
     );
 
-    assert.equal(res.status, 400);
     const body = await res.json();
     if (cl === '1000') {
+      assert.equal(res.status, 413);
       assert.equal(body.error.code, 'PAYLOAD_TOO_LARGE');
     } else {
+      assert.equal(res.status, 400);
       assert.equal(body.error.code, 'INVALID_REQUEST_BODY');
     }
   }
@@ -984,7 +985,7 @@ test('25. streaming payload limit: tolak stream >512 byte tanpa Content-Length a
     {} as any
   );
 
-  assert.equal(res1.status, 400);
+  assert.equal(res1.status, 413);
   const body1 = await res1.json();
   assert.equal(body1.error.code, 'PAYLOAD_TOO_LARGE');
   assert.equal(streamCancelled, true);
@@ -1020,11 +1021,38 @@ test('25. streaming payload limit: tolak stream >512 byte tanpa Content-Length a
     {} as any
   );
 
-  assert.equal(res2.status, 400);
+  assert.equal(res2.status, 413);
   const body2 = await res2.json();
   assert.equal(body2.error.code, 'PAYLOAD_TOO_LARGE');
   assert.equal(liarStreamCancelled, true);
   assert.equal(workspaceTableQueried, false);
+
+  // 25.3 Stream dengan byte sequence bukan UTF-8 valid -> 400 INVALID_REQUEST_BODY
+  const invalidUtf8Stream = new ReadableStream({
+    start(controller) {
+      controller.enqueue(new Uint8Array([0xff, 0xfe, 0xfd]));
+      controller.close();
+    },
+  });
+
+  const res3 = await worker.fetch(
+    new Request('http://localhost:3000/api/workspaces/bootstrap', {
+      method: 'POST',
+      headers: {
+        'Cookie': alice.cookie,
+        'Origin': 'http://localhost:3000',
+        'Content-Type': 'application/json',
+      },
+      body: invalidUtf8Stream,
+      duplex: 'half',
+    } as any),
+    env,
+    {} as any
+  );
+
+  assert.equal(res3.status, 400);
+  const body3 = await res3.json();
+  assert.equal(body3.error.code, 'INVALID_REQUEST_BODY');
 });
 
 test('26. bounded collision recovery: collision slug pada attempt pertama berhasil pada attempt berikutnya', async () => {
