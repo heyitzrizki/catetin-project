@@ -1,0 +1,17 @@
+{
+  "rules": [
+    {
+      "id": "abort-incomplete-spike",
+      "enabled": true,
+      "conditions": {
+        "prefix": "v1/spike/"
+      },
+      "abortMultipartUploadsTransition": {
+        "condition": {
+          "maxAge": 604800,
+          "type": "Age"
+        }
+      }
+    }
+  ]
+}

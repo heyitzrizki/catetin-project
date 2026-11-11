@@ -1,0 +1,20 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "catetin-r2-multipart-spike",
+  "compatibility_date": "2026-10-19",
+  "main": "worker.ts",
+  "observability": {
+    "enabled": false
+  },
+  "vars": {
+    "R2_ACCOUNT_ID": "56304fb6c6e984eec2317ec554802a2d",
+    "R2_SPIKE_BUCKET_NAME": "workspace-audio-spike",
+    "SPIKE_ALLOWED_ORIGIN": "http://localhost:3000"
+  },
+  "r2_buckets": [
+    {
+      "binding": "AUDIO_SPIKE_BUCKET",
+      "bucket_name": "workspace-audio-spike"
+    }
+  ]
+}

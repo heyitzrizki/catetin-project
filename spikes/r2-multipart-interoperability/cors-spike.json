@@ -1,0 +1,32 @@
+{
+  "rules": [
+    {
+      "allowed": {
+        "origins": [
+          "http://localhost:3000",
+          "http://127.0.0.1:3000",
+          "http://localhost:8789",
+          "http://127.0.0.1:8789"
+        ],
+        "methods": [
+          "PUT",
+          "GET",
+          "HEAD"
+        ],
+        "headers": [
+          "Content-Type",
+          "If-Match",
+          "If-None-Match",
+          "Range"
+        ]
+      },
+      "exposeHeaders": [
+        "ETag",
+        "Content-Length",
+        "Content-Range",
+        "Accept-Ranges"
+      ],
+      "maxAgeSeconds": 3600
+    }
+  ]
+}

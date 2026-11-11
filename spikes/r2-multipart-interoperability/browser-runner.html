@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>R3B-A: R2 Multipart & Browser CORS Spike Harness</title>
+    <style>
+      body {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        max-width: 840px;
+        margin: 2rem auto;
+        padding: 0 1rem;
+        background: #0f172a;
+        color: #f8fafc;
+      }
+      h1 {
+        font-size: 1.25rem;
+        margin-bottom: 0.5rem;
+      }
+      .card {
+        background: #1e293b;
+        border: 1px solid #334155;
+        border-radius: 6px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+      }
+      label {
+        display: block;
+        margin-bottom: 0.25rem;
+        font-size: 0.875rem;
+        color: #cbd5e1;
+      }
+      input {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 0.5rem;
+        margin-bottom: 0.75rem;
+        background: #0f172a;
+        border: 1px solid #475569;
+        border-radius: 4px;
+        color: #f8fafc;
+        font-family: inherit;
+      }
+      button {
+        min-height: 44px;
+        padding: 0.5rem 1.25rem;
+        background: #2563eb;
+        color: #ffffff;
+        border: none;
+        border-radius: 4px;
+        font-family: inherit;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      pre {
+        background: #020617;
+        border: 1px solid #334155;
+        border-radius: 4px;
+        padding: 1rem;
+        overflow-x: auto;
+        font-size: 0.8125rem;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>R3B-A: Cloudflare R2 Multipart & Browser CORS Spike</h1>
+    <p>
+      Isolated browser runner that executes direct-to-R2 presigned PUT uploads
+      (8 MiB + 8 MiB + 2 MiB = 18 MiB), verifies CORS ETag exposure, verifies
+      18,874,368-byte HEAD size, and cleans up in finally.
+    </p>
+
+    <div class="card">
+      <label for="worker-base-url">Spike Worker Base URL</label>
+      <input
+        id="worker-base-url"
+        type="url"
+        value="http://127.0.0.1:8789"
+        autocomplete="off"
+      />
+
+      <label for="spike-control-token">SPIKE_CONTROL_TOKEN (In-Memory Only)</label>
+      <input
+        id="spike-control-token"
+        type="password"
+        placeholder="Paste high-entropy SPIKE_CONTROL_TOKEN"
+        autocomplete="off"
+      />
+
+      <button id="run-spike-btn" type="button">
+        Run 18 MiB Browser Multipart Spike
+      </button>
+    </div>
+
+    <div class="card">
+      <div id="spike-status">STATUS: IDLE</div>
+      <pre id="spike-report-output">Waiting for execution...</pre>
+    </div>
+
+    <script type="module" src="./browser-runner.ts"></script>
+  </body>
+</html>
